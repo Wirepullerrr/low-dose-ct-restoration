@@ -1,0 +1,44 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# --- Environments ---
+.venv/
+venv/
+.env
+.env.*
+
+# --- Medical imaging data (NEVER commit) ---
+data/raw/
+data/processed/
+*.dcm
+*.DCM
+*.nii
+*.nii.gz
+*.mha
+*.mhd
+*.npy
+*.npz
+
+# --- Model artifacts (NEVER commit) ---
+outputs/checkpoints/
+*.pt
+*.pth
+*.ckpt
+*.onnx
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Tracked on purpose (small, text, reproducibility-relevant):
+#   uv.lock, data/splits/*.csv, outputs/metrics/, outputs/runs/,
+#   outputs/figures/, outputs/final/

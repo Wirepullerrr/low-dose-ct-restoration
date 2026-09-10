@@ -1,0 +1,56 @@
+[project]
+name = "ct-restoration"
+version = "0.1.0"
+description = "Benchmark of classical and lightweight deep-learning restoration methods on synthetically degraded, low-dose-like CT images."
+readme = "README.md"
+requires-python = ">=3.11,<3.12"
+authors = [{ name = "Zun Cao" }]
+dependencies = [
+    "numpy>=2.0",
+    "torch>=2.14.0",
+    "torchvision>=0.29.0",
+    "pydicom>=3.0",
+    "opencv-python-headless>=4.10",
+    "scikit-image>=0.24",
+    "pandas>=2.2",
+    "pyyaml>=6.0",
+    "matplotlib>=3.9",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.6",
+    "ipykernel>=6.29",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ct_restoration"]
+
+# PyTorch CUDA 13.0 builds are not on PyPI. `explicit = true` means ONLY the
+# packages mapped in [tool.uv.sources] are resolved from this index; everything
+# else still comes from PyPI. This keeps the CUDA build from being silently
+# replaced by the CPU-only PyPI wheel.
+[[tool.uv.index]]
+name = "pytorch-cu130"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu130" }
+torchvision = { index = "pytorch-cu130" }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
