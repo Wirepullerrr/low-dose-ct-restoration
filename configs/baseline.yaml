@@ -1,0 +1,29 @@
+# Preprocessing settings for the low-dose-like CT restoration benchmark.
+#
+# Only parameters that are actually consumed by implemented code belong here.
+# Degradation, CLAHE and training settings are added in later milestones.
+#
+# Window choice
+# -------------
+# window_center 40 HU / window_width 400 HU selects the HU range [-160, 240],
+# a commonly used abdominal soft-tissue window. It emphasizes the abdominal
+# soft tissues relevant to the planned CHAOS experiment, which is
+# contrast-enhanced upper-abdominal CT in the portal venous phase. Dense
+# structures such as bone and strongly opacified vessels lie above the upper
+# bound and are clipped. The same window (-160 to 240 HU, level 40, half-width
+# 200) is used for soft-tissue CT preprocessing in the deep-learning
+# literature; see https://pmc.ncbi.nlm.nih.gov/articles/PMC6863984/
+#
+# This is an experiment preprocessing choice, not a universally optimal window.
+# A narrower liver window (width ~150 HU, level 50-100 HU) raises contrast
+# inside liver parenchyma but clips more of the surrounding abdomen, and it
+# also makes noise more prominent; see
+# https://pmc.ncbi.nlm.nih.gov/articles/PMC11341740/
+# Changing these two numbers changes what the models see and what the metrics
+# measure, so any change requires re-running the whole benchmark.
+
+preprocessing:
+  window_center: 40 # HU
+  window_width: 400 # HU
+  image_size: [256, 256] # (height, width), NumPy order
+  interpolation: area # pixel-area averaging, the anti-aliased choice for 512 -> 256
