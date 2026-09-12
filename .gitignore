@@ -26,6 +26,9 @@ data/processed/
 *.npy
 *.npz
 
+# --- Local-only audit figures (dataset-derived images) ---
+outputs/audit/figures/
+
 # --- Model artifacts (NEVER commit) ---
 outputs/checkpoints/
 *.pt
