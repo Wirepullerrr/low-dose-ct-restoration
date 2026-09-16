@@ -1,8 +1,10 @@
 # Audit outputs
 
 These files are technical summaries derived from the CHAOS CT dataset,
-produced by [`scripts/audit_chaos.py`](../../scripts/audit_chaos.py). Re-running
-that script over a fresh download regenerates all of them.
+produced by [`scripts/audit_chaos.py`](../../scripts/audit_chaos.py), except
+`degradation_train_summary.json`, which comes from
+[`scripts/audit_degradation.py`](../../scripts/audit_degradation.py). Re-running
+those scripts over a fresh download regenerates all of them.
 
 | File | Contents |
 | --- | --- |
@@ -11,6 +13,7 @@ that script over a fresh download regenerates all of them.
 | `chaos_metadata_summary.json` | dataset-level distributions, counts and per-subject geometry findings |
 | `chaos_outlier_pixels.csv` | one row per (subject, pixel coordinate) exceeding the audit's 4000 HU ceiling |
 | `chaos_split_summary.json` | counts, balance and checksum for the frozen patient split; carries no timestamp, so regenerating an unchanged split rewrites it byte for byte |
+| `degradation_train_summary.json` | technical diagnostics of the frozen degradation, computed on TRAINING slices only; no timestamp, so regenerating an unchanged definition rewrites it byte for byte |
 | `figures/` | rendered inspection panels, git-ignored |
 
 ## What is and is not in them
@@ -24,6 +27,10 @@ CHAOS folder name, which is the dataset's own anonymized case label. No DICOM
 patient attribute is read for identity. Series and study instance UIDs appear
 only as short deterministic hashes, which keeps them usable for grouping and
 counting without reproducing the identifiers themselves.
+
+`degradation_train_summary.json` reports only training-split diagnostics.
+Validation, test and stress image content was not inspected while the
+degradation was being established, and the file records that explicitly.
 
 The per-slice table is kept deliberately, despite its size, because it is the
 evidence behind every measured claim in the repository README. Keeping it means

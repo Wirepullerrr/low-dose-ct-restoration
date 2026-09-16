@@ -12,6 +12,11 @@ dependencies = [
     "pydicom>=3.0",
     "opencv-python-headless>=4.10",
     "scikit-image>=0.24",
+    # Imported directly by the degradation's spatial correlation filter. It was
+    # already present as a scikit-image transitive dependency; declaring it
+    # makes the direct import honest and pins it as part of the frozen
+    # degradation definition.
+    "scipy>=1.14",
     "pandas>=2.2",
     "pyyaml>=6.0",
     "matplotlib>=3.9",

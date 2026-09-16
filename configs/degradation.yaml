@@ -1,0 +1,71 @@
+# Canonical synthetic low-dose-like degradation for this benchmark.
+#
+# FROZEN. Every restoration method - the degraded baseline, CLAHE, the residual
+# CNN and the U-Net - must receive inputs generated from exactly this config,
+# the same sample keys and the same clean references. Changing anything here
+# defines a different benchmark, and results measured against the old
+# definition are not comparable to results measured against the new one.
+#
+# What this is
+# ------------
+# A controlled IMAGE-DOMAIN corruption applied to the already preprocessed
+# CT representation (HU -> 40/400 HU window -> [0,1] -> 256x256). It is a
+# reproducible restoration benchmark, not a dose simulator.
+#
+# What this is NOT
+# ----------------
+# CHAOS ships reconstructed DICOM images, not calibrated raw projection data
+# and no scanner dose or noise calibration. So this config does NOT correspond
+# to any mAs, any percentage dose reduction, any photon count, any
+# scanner-equivalent low-dose reconstruction, or any clinically validated
+# low-dose protocol. Nothing here is a physical dose simulation.
+#
+# Units
+# -----
+# All sigma values are in NORMALIZED image units, on the [0,1] scale produced
+# by the fixed 40/400 HU window. correlation_sigma_px is in pixels of the
+# 256x256 resized image.
+#
+# Magnitude interpretation, and its limitation
+# --------------------------------------------
+# The window width is 400 HU, so within the LINEAR portion of the window one
+# normalized unit spans 400 HU and sigma values of 0.015 to 0.050 correspond to
+# roughly 6 to 20 HU. Treat that only as a rough sense of perturbation
+# magnitude in normalized space. It is NOT measured scanner noise and NOT
+# calibrated physical HU noise. The mapping also breaks down wherever the
+# window already clipped a pixel to 0 or 1, since those pixels no longer stand
+# for a single HU value.
+
+degradation:
+  # Version string. It is hashed into every per-slice seed, so a new algorithm
+  # version yields entirely different noise realizations by construction, and
+  # code that only implements v1 refuses to run a config naming anything else.
+  algorithm: correlated_heteroscedastic_gaussian_v1
+
+  # Base entropy. Combined with the algorithm version and the per-slice sample
+  # key through SHA-256 to derive one independent seed per slice.
+  global_seed: 2026
+
+  # Intensity-dependent noise scale:
+  #   sigma(x) = sigma_floor + sigma_signal * sqrt(x)
+  # sigma_floor   noise present even in the darkest regions (normalized units)
+  # sigma_signal  how much noise grows with intensity (normalized units)
+  #
+  # This is a HEURISTIC for making the corruption spatially non-uniform, which
+  # reconstructed low-dose CT noise also is. It is not derived from
+  # projection-domain photon counts, line-integral attenuation, scanner
+  # calibration or any physical noise model, and a voxel's intensity is not a
+  # detected photon count. The sqrt shape is a modelling convention.
+  sigma_floor: 0.015
+  sigma_signal: 0.035
+
+  # Spatial correlation of the noise field, in pixels, applied as a Gaussian
+  # filter with reflect boundary handling before the field is renormalized to
+  # zero mean and unit standard deviation. 0.0 disables correlation and yields
+  # pixel-independent noise.
+  correlation_sigma_px: 0.6
+
+  # Output bounds. The degraded image is clipped here so it stays a valid
+  # normalized image.
+  clip_min: 0.0
+  clip_max: 1.0

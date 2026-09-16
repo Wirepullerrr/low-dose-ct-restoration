@@ -106,6 +106,7 @@ dependencies = [
     { name = "pydicom" },
     { name = "pyyaml" },
     { name = "scikit-image" },
+    { name = "scipy" },
     { name = "torch" },
     { name = "torchvision" },
 ]
@@ -126,6 +127,7 @@ requires-dist = [
     { name = "pydicom", specifier = ">=3.0" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "scikit-image", specifier = ">=0.24" },
+    { name = "scipy", specifier = ">=1.14" },
     { name = "torch", specifier = ">=2.14.0", index = "https://download.pytorch.org/whl/cu130" },
     { name = "torchvision", specifier = ">=0.29.0", index = "https://download.pytorch.org/whl/cu130" },
 ]

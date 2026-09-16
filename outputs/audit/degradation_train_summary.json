@@ -1,0 +1,124 @@
+{
+  "milestone": "4 - synthetic low-dose-like degradation",
+  "algorithm": "correlated_heteroscedastic_gaussian_v1",
+  "config_path": "configs/degradation.yaml",
+  "config": {
+    "algorithm": "correlated_heteroscedastic_gaussian_v1",
+    "global_seed": 2026,
+    "sigma_floor": 0.015,
+    "sigma_signal": 0.035,
+    "correlation_sigma_px": 0.6,
+    "clip_min": 0.0,
+    "clip_max": 1.0
+  },
+  "preprocessing": {
+    "window_center": 40,
+    "window_width": 400,
+    "image_size": [
+      256,
+      256
+    ],
+    "interpolation": "area"
+  },
+  "equation": "degraded = clip(x + (sigma_floor + sigma_signal*sqrt(x)) * eps, 0, 1)",
+  "sigma_model": "heuristic, not physical: sigma(x) = sigma_floor + sigma_signal*sqrt(x) uses local normalized intensity only, to make the corruption spatially non-uniform",
+  "noise_field": "zero-mean unit-variance Gaussian field, spatially correlated with a Gaussian filter of sigma 0.6 px under reflect boundary handling, renormalized to zero mean and unit standard deviation after filtering",
+  "audited_split": "train",
+  "train_subjects": 25,
+  "train_slices": 4160,
+  "train_subject_ids": [
+    "2",
+    "3",
+    "5",
+    "7",
+    "8",
+    "9",
+    "10",
+    "12",
+    "15",
+    "16",
+    "18",
+    "20",
+    "21",
+    "22",
+    "26",
+    "27",
+    "28",
+    "30",
+    "31",
+    "33",
+    "35",
+    "36",
+    "37",
+    "38",
+    "40"
+  ],
+  "training_set_diagnostics": {
+    "output_shapes": [
+      [
+        256,
+        256
+      ]
+    ],
+    "output_dtypes": [
+      "float32"
+    ],
+    "degraded_global_min": 0.0,
+    "degraded_global_max": 1.0,
+    "perturbation_mean": 0.00295499,
+    "perturbation_std": 0.02643267,
+    "perturbation_mean_absolute": 0.01666768,
+    "per_slice_perturbation_std_quantiles": {
+      "q00": 0.01928059,
+      "q01": 0.0208162,
+      "q05": 0.02282539,
+      "q25": 0.02500357,
+      "q50": 0.02632571,
+      "q75": 0.02775796,
+      "q95": 0.02987191,
+      "q99": 0.0316434,
+      "q100": 0.03224873
+    },
+    "per_slice_mean_absolute_perturbation_quantiles": {
+      "q00": 0.01102475,
+      "q01": 0.01189351,
+      "q05": 0.01336643,
+      "q25": 0.01556739,
+      "q50": 0.01669407,
+      "q75": 0.01788871,
+      "q95": 0.01971033,
+      "q99": 0.02083867,
+      "q100": 0.02130918
+    },
+    "fraction_degraded_at_clip_min": 0.27076779,
+    "fraction_degraded_at_clip_max": 0.00779851,
+    "fraction_clean_at_clip_min": 0.54004693,
+    "fraction_clean_at_clip_max": 0.01092324,
+    "sigma_map_min": 0.015,
+    "sigma_map_median": 0.0153867,
+    "sigma_map_max": 0.05,
+    "sigma_map_median_source": "sigma of the pooled clean-intensity median, from a 4096-bin histogram; sigma is monotonic in intensity",
+    "total_pixels": 272629760,
+    "finite_value_failures": 0,
+    "range_failures": 0,
+    "finite_value_failure_keys": [],
+    "range_failure_keys": []
+  },
+  "inspection_policy": {
+    "training_images_inspected": true,
+    "validation_images_inspected": false,
+    "test_images_inspected": false,
+    "stress_images_inspected": false,
+    "note": "All empirical statistics in training_set_diagnostics are TRAINING-SET diagnostics. Validation, test and stress image content was not read while establishing this degradation. The v1 parameters were fixed in advance and were not tuned against any image."
+  },
+  "determinism_policy": "The degraded image is a pure function of the clean reference, this config and the sample key, which is the POSIX-style relative_dicom_path from the frozen slice manifest. Per-slice seeds come from SHA-256 over (algorithm, global_seed, canonical key) and drive a private PCG64 generator, so results do not depend on call order, batching, DataLoader workers, global NumPy random state, time, hostname, absolute path or process id. Path separators are canonicalized, so Windows and POSIX spellings of one slice agree.",
+  "scope_statement": "Controlled image-domain synthetic low-dose-like corruption of an already windowed and normalized CT representation. Not a physical dose simulation: no mAs, no dose reduction percentage, no photon count, no scanner-equivalent low-dose reconstruction and no clinical validation is claimed or implied.",
+  "known_limitations": [
+    "The fixed 40/400 HU window leaves large regions at exactly 0 or 1, and this degradation adds noise there too. That does not reproduce the physics of air, out-of-field padding or saturated dense structures.",
+    "Clipping at the output bounds makes the realized perturbation asymmetric wherever the clean image is already saturated, so the realized noise std in those regions is below the configured sigma.",
+    "The HU interpretation of a normalized sigma holds only inside the linear portion of the window and breaks down for pixels the window already clipped.",
+    "Only increased intensity-dependent correlated noise is modelled. Real low-dose reconstructions also differ in resolution, streak artefacts and reconstruction behaviour, none of which is represented here.",
+    "sigma(x) uses local normalized intensity as a simple heuristic for making the corruption spatially non-uniform, as reconstructed low-dose CT noise also is. It is not derived from projection-domain photon counts, line-integral attenuation, scanner calibration or any physical noise model; a voxel intensity is not a detected photon count, and real image-domain noise at a point depends on every ray path crossing it and on the reconstruction algorithm. No claim is made that a brighter pixel physically receives the configured amount of noise."
+  ],
+  "no_precomputed_dataset": "No degraded image is written to disk by this audit. Degradation is regenerated on demand from the clean reference and the sample key."
+}

@@ -1,7 +1,9 @@
 # Preprocessing settings for the low-dose-like CT restoration benchmark.
 #
 # Only parameters that are actually consumed by implemented code belong here.
-# Degradation, CLAHE and training settings are added in later milestones.
+# The frozen synthetic low-dose-like degradation lives in its own file,
+# configs/degradation.yaml, because it is a separate frozen definition with its
+# own freeze policy. CLAHE and training settings are added in later milestones.
 #
 # Window choice
 # -------------

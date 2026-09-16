@@ -173,7 +173,9 @@ Three limitations follow directly from this design.
   inside the anatomy. How the degradation and each method behave there is not
   yet known, because no degradation has been implemented. The evaluation
   milestone must therefore decide explicitly whether to report full-frame
-  metrics, body-region metrics, or both, and record the reasoning.
+  metrics, body-region metrics, or both, and record the reasoning. The
+  degradation now implemented adds a second reason to settle this; see
+  [the clipped-background caveat](#the-clipped-background-caveat).
 
 ## Real-data audit
 
@@ -371,6 +373,197 @@ geometric position and index computed from `ImagePositionPatient` projected onto
 the slice normal, so nothing downstream has to treat filenames as anatomical
 order.
 
+## Synthetic low-dose-like degradation
+
+The corruption that creates every model input is defined and frozen in
+[configs/degradation.yaml](configs/degradation.yaml) and implemented in
+[src/ct_restoration/data/degradation.py](src/ct_restoration/data/degradation.py).
+It was fixed **before any restoration method existed**, so no method could
+influence what it has to undo.
+
+### Why "low-dose-like" and not "simulated low-dose CT"
+
+CHAOS distributes reconstructed CT images. It does not distribute raw
+projection data, and it carries no scanner dose or noise calibration. A genuine
+dose simulation works on the projections: it reduces the photon count, passes
+the result through the scanner's own reconstruction, and needs calibration data
+this dataset does not contain. Nothing here does that.
+
+So this project makes **no claim** about a particular mAs, a percentage dose
+reduction, a photon count, a scanner-equivalent low-dose reconstruction, or
+clinical validity. What it does claim is narrower and defensible: a controlled,
+reproducible, image-domain corruption whose dominant characteristic is
+qualitatively the kind of difference that separates a lower-dose reconstruction
+from a higher-dose one, namely increased, spatially varying, spatially
+correlated noise. That is enough to benchmark restoration methods against each
+other. It is not enough to say anything about real low-dose acquisition.
+
+### Where it applies
+
+After the fixed preprocessing above, never before it.
+
+```
+stored DICOM pixels -> HU -> 40/400 HU window -> [0,1] -> 256x256
+      -> DEGRADATION          <- here
+      -> {degraded baseline | CLAHE | CNN | U-Net}
+```
+
+The restoration target is therefore the windowed, normalized 2-D
+representation, not the full original CT dynamic range.
+
+### The algorithm
+
+For a clean image `x` in [0, 1]:
+
+```
+sigma(x) = 0.015 + 0.035 * sqrt(x)
+epsilon  = zero-mean, unit-variance Gaussian field,
+           spatially correlated with a Gaussian filter of sigma 0.6 px
+           (reflect boundary), renormalized to zero mean and unit std
+degraded = clip(x + sigma(x) * epsilon, 0, 1)
+```
+
+**Heteroscedastic.** The noise standard deviation varies across the image
+instead of being one constant for the frame. The motivation is that noise in a
+reconstructed low-dose CT image is not generally spatially uniform either.
+
+The motivation stops there, and the wording matters. `sigma(x)` is **a simple
+heuristic** for making the corruption non-uniform, built from the one quantity
+available at this point in the pipeline: the local normalized intensity. The
+`sqrt` shape is a modelling convention, picked so that noise grows with
+intensity but sub-linearly.
+
+It is **not** derived from projection-domain photon counts, from line-integral
+attenuation, from scanner calibration, or from any physical noise model. A
+voxel's intensity is not the number of photons detected anywhere, and real
+image-domain noise at a point depends on every ray path crossing it and on the
+reconstruction algorithm, none of which is modelled here. Nothing in this
+project claims that a brighter pixel physically receives the amount of noise
+configured for it. The claim is only that the corruption is non-uniform in a
+fixed, declared and reproducible way.
+
+`sigma_floor = 0.015` keeps noise present in the darkest regions, where a pure
+`sqrt` term would vanish and leave the background implausibly clean.
+
+**Spatially correlated.** Real reconstruction noise is not independent from
+pixel to pixel; filtered back-projection and iterative reconstruction both
+impose a texture with a characteristic grain. A 0.6 px Gaussian correlation
+gives the noise a mild grain instead of a pure per-pixel speckle, which a
+convolutional model would find unrealistically easy to average away. The field
+is renormalized to unit variance after filtering, because smoothing reduces
+variance; without that step, changing the correlation width would silently
+change the noise amplitude too.
+
+**Noise only.** No blur, contrast compression, sharpening, streak artefact,
+synthetic motion, gamma or histogram operation is applied. Bundling several
+phenomena into one corruption would make any later result much harder to
+attribute: a method that scored better could be undoing any one of them, or
+trading one against another, and the benchmark could not tell which.
+
+Magnitude, with its caveat: the window is 400 HU wide, so inside the linear
+part of the window a normalized sigma of 0.015 to 0.050 corresponds to roughly
+6 to 20 HU. That is a rough sense of perturbation size in normalized space, not
+measured scanner noise and not calibrated physical HU noise. The mapping also
+breaks down wherever the window already clipped a pixel to 0 or 1, since such a
+pixel no longer stands for a single HU value.
+
+### Deterministic per-slice seeding
+
+Every slice gets its own independent, stable seed:
+
+```
+seed = SHA-256(algorithm_version, global_seed, canonical_sample_key)
+```
+
+taken as a 64-bit integer and used to construct a `PCG64` generator private to
+that call. The canonical key is the POSIX-style `relative_dicom_path` from the
+frozen slice manifest, with backslashes normalized, so a Windows and a POSIX
+spelling of one slice derive the same seed.
+
+Python's built-in `hash()` is deliberately **not** used: it is randomized per
+process for strings, so the same slice would receive different noise in
+different runs and nothing would be reproducible. The global NumPy random state
+is never read or written either, so the noise on a slice cannot depend on how
+many random numbers the rest of the program happened to draw first.
+
+The result is that the degraded image is a pure function of the clean
+reference, this config and the sample key. It does not depend on call order,
+batching, DataLoader worker order, time, hostname, absolute path or process id.
+Tests assert each of these.
+
+### Same corruption for every method
+
+The degraded baseline, CLAHE, the residual CNN and the U-Net all receive inputs
+generated from the same config, the same sample keys and the same clean
+references. No method gets its own realization of the noise, so any difference
+between them comes from the method.
+
+Degradation is generated on demand and never precomputed to disk. There is no
+degraded image dataset to fall out of sync with the definition.
+
+### Freeze
+
+`configs/degradation.yaml` is **frozen** before any model benchmarking. Changing
+it defines a different benchmark: results measured against the old definition
+are not comparable to results measured against the new one, and would have to
+be relabelled or recomputed rather than quietly carried over. The algorithm
+version string is hashed into every seed, so a v2 would produce entirely
+different realizations by construction, and code implementing v1 refuses to run
+a config that names anything else.
+
+### Training-only audit
+
+`scripts/audit_degradation.py` applies the degradation to all 4160 training
+slices and writes
+[outputs/audit/degradation_train_summary.json](outputs/audit/degradation_train_summary.json).
+It reports no PSNR, SSIM or restoration error; those belong to the evaluation
+milestone.
+
+**No validation, test or stress image was inspected.** The v1 parameters were
+fixed in advance and were not tuned by looking at pictures. Holding out those
+images is the whole point of the frozen split, and there was nothing to gain
+from spending them here.
+
+Measured on the training split, 25 subjects and 4160 slices, all 256x256
+`float32` and all within [0, 1], with zero non-finite and zero out-of-range
+results:
+
+| Training-set diagnostic | Value |
+| --- | --- |
+| perturbation mean | +0.00295 |
+| perturbation std | 0.02643 |
+| per-slice perturbation std, min / median / max | 0.0193 / 0.0263 / 0.0322 |
+| per-slice mean absolute perturbation, min / median / max | 0.0110 / 0.0167 / 0.0213 |
+| clean pixels at 0 / at 1 | 54.0 % / 1.1 % |
+| degraded pixels at 0 / at 1 | 27.1 % / 0.8 % |
+| sigma map min / median / max | 0.0150 / 0.0154 / 0.0500 |
+
+Two of those numbers deserve a word, because they look odd until the clipped
+window is taken into account.
+
+The **perturbation mean is not zero** but +0.003, although the noise field is
+zero-mean by construction. More than half the clean pixels sit at exactly 0
+after windowing, and clipping the output to [0, 1] removes the negative half of
+the noise there while keeping the positive half. The bias is an artefact of
+adding noise to an already saturated background, and it is also why the
+fraction of pixels sitting at 0 falls from 54 % to 27 %.
+
+The **pooled sigma median, 0.0154, is near the floor** because the median pixel
+of a CT slice is background, not tissue. Inside the body the sigma map runs far
+higher, up to 0.0500 at full intensity.
+
+### The clipped-background caveat
+
+The fixed CT window leaves large regions at exactly 0 or 1, and this
+degradation adds noise to them along with everything else. That does **not**
+reproduce the physics of air, out-of-field padding or saturated dense
+structures; it is a consequence of operating on a windowed representation.
+
+Together with the background dominance already noted for the clean images, this
+is a second reason the evaluation milestone may need both full-frame and
+body-region metrics, and must state which it is reporting. No metric mask is
+defined here, and no subject is special-cased.
+
 ## Setup
 
 Requires [uv](https://docs.astral.sh/uv/) and Python 3.11.
@@ -387,8 +580,10 @@ PyTorch is resolved from the CUDA 13.0 wheel index declared in
 
 ```
 src/ct_restoration/   library code (importable package)
-  data/               DICOM reading, HU conversion, preprocessing, CHAOS layout
-scripts/              runnable commands (dataset audit, split generation)
+  data/               DICOM reading, HU conversion, preprocessing, CHAOS layout,
+                      patient split, low-dose-like degradation
+scripts/              runnable commands (dataset audit, split generation,
+                      degradation audit)
 tests/                pytest suite, fully synthetic, no downloads
 configs/              YAML experiment settings
 data/README.md        dataset provenance
