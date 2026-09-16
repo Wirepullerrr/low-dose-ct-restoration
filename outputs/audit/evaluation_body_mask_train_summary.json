@@ -1,0 +1,106 @@
+{
+  "milestone": "5 - evaluation framework and degraded baseline",
+  "audited_split": "train",
+  "evaluation_config_path": "configs/evaluation.yaml",
+  "evaluation_config": {
+    "data_range": 1.0,
+    "ssim": {
+      "win_size": 11,
+      "gaussian_weights": true,
+      "sigma": 1.5,
+      "use_sample_covariance": false,
+      "data_range": 1.0
+    },
+    "body_mask": {
+      "threshold_hu": -500.0,
+      "connectivity": 8,
+      "keep_largest_component": true,
+      "fill_holes": true,
+      "resize_interpolation": "nearest"
+    },
+    "aggregation": {
+      "slice_to_patient": "arithmetic_mean",
+      "patient_to_split": "arithmetic_mean",
+      "primary_unit": "patient"
+    }
+  },
+  "body_mask_rule": "clean HU > threshold_hu, 8-connected components, keep the largest, fill enclosed holes, resize to the evaluation size with nearest-neighbour interpolation, cast to bool. Derived from the clean reference only; never from a degraded or restored image, and never supplied to a restoration method.",
+  "ssim_interior_rule": "body mask eroded by an all-true win_size square, so that the complete SSIM neighbourhood of every retained centre lies inside the body. Outside-the-array is treated as background, which also removes the border rim scikit-image excludes from its own mean.",
+  "train_subjects": 25,
+  "train_slices": 4160,
+  "train_subject_ids": [
+    "2",
+    "3",
+    "5",
+    "7",
+    "8",
+    "9",
+    "10",
+    "12",
+    "15",
+    "16",
+    "18",
+    "20",
+    "21",
+    "22",
+    "26",
+    "27",
+    "28",
+    "30",
+    "31",
+    "33",
+    "35",
+    "36",
+    "37",
+    "38",
+    "40"
+  ],
+  "training_set_diagnostics": {
+    "masks_generated": 4160,
+    "mask_generation_failures": 0,
+    "empty_masks": 0,
+    "empty_ssim_interior_masks": 0,
+    "mask_output_shapes": [
+      [
+        256,
+        256
+      ]
+    ],
+    "mask_dtypes": [
+      "bool"
+    ],
+    "body_pixel_fraction_quantiles": {
+      "q00": 0.30567932,
+      "q01": 0.34112717,
+      "q05": 0.39356842,
+      "q25": 0.45412445,
+      "q50": 0.49629211,
+      "q75": 0.55010986,
+      "q95": 0.63586731,
+      "q99": 0.68568665,
+      "q100": 0.70478821
+    },
+    "ssim_interior_fraction_quantiles": {
+      "q00": 0.25721741,
+      "q01": 0.29023178,
+      "q05": 0.33654175,
+      "q25": 0.39481735,
+      "q50": 0.43465424,
+      "q75": 0.4858284,
+      "q95": 0.56460648,
+      "q99": 0.6119487,
+      "q100": 0.63392639
+    },
+    "failure_examples": [],
+    "empty_mask_examples": [],
+    "empty_ssim_interior_examples": []
+  },
+  "inspection_policy": {
+    "training_images_inspected": true,
+    "validation_images_inspected": false,
+    "test_images_inspected": false,
+    "stress_images_inspected": false,
+    "note": "All statistics here are TRAINING-SET diagnostics of the mask rule. No image quality metric is computed in this audit. The -500 HU threshold was fixed in advance and was not selected by comparing metric outcomes."
+  },
+  "scope_statement": "The body mask is a crude deterministic silhouette separating the patient from air and table. It is an evaluation region, not clinical segmentation, and no anatomical claim is made about it."
+}

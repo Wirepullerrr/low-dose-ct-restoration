@@ -1,0 +1,235 @@
+{
+  "milestone": "5 - evaluation framework and degraded baseline",
+  "method": "degraded_baseline",
+  "method_description": "No restoration. The degraded image is returned unchanged, so these numbers are the image-quality cost of the frozen synthetic degradation and the floor every later method is compared against.",
+  "split": "validation",
+  "patients": 6,
+  "slices": 885,
+  "subject_ids": [
+    "4",
+    "14",
+    "17",
+    "23",
+    "24",
+    "34"
+  ],
+  "evaluation_config": {
+    "data_range": 1.0,
+    "ssim": {
+      "win_size": 11,
+      "gaussian_weights": true,
+      "sigma": 1.5,
+      "use_sample_covariance": false,
+      "data_range": 1.0
+    },
+    "body_mask": {
+      "threshold_hu": -500.0,
+      "connectivity": 8,
+      "keep_largest_component": true,
+      "fill_holes": true,
+      "resize_interpolation": "nearest"
+    },
+    "aggregation": {
+      "slice_to_patient": "arithmetic_mean",
+      "patient_to_split": "arithmetic_mean",
+      "primary_unit": "patient"
+    }
+  },
+  "degradation_config": {
+    "algorithm": "correlated_heteroscedastic_gaussian_v1",
+    "global_seed": 2026,
+    "sigma_floor": 0.015,
+    "sigma_signal": 0.035,
+    "correlation_sigma_px": 0.6,
+    "clip_min": 0.0,
+    "clip_max": 1.0
+  },
+  "preprocessing": {
+    "window_center": 40,
+    "window_width": 400,
+    "image_size": [
+      256,
+      256
+    ],
+    "interpolation": "area"
+  },
+  "primary_result": {
+    "unit": "patient",
+    "description": "PRIMARY benchmark figure. Per-slice metrics are averaged within each patient, then patients are averaged with equal weight. The 'mean' entry of each metric is the headline estimate.",
+    "patients": 6,
+    "full_mae": {
+      "mean": 0.0163589219,
+      "std": 0.0011517792,
+      "median": 0.0162267272,
+      "min": 0.0147115772,
+      "max": 0.018218482
+    },
+    "full_mse": {
+      "mean": 0.0007213042,
+      "std": 7.70205e-05,
+      "median": 0.0007214443,
+      "min": 0.0006142369,
+      "max": 0.0008476183
+    },
+    "full_psnr": {
+      "mean": 31.4812591881,
+      "std": 0.4635918233,
+      "median": 31.4588217767,
+      "min": 30.7432323351,
+      "max": 32.1611610261
+    },
+    "full_ssim": {
+      "mean": 0.7813455436,
+      "std": 0.007361468,
+      "median": 0.7818629368,
+      "min": 0.7685230947,
+      "max": 0.7904280924
+    },
+    "body_mae": {
+      "mean": 0.028186536,
+      "std": 0.0013380596,
+      "median": 0.0276116253,
+      "min": 0.026961351,
+      "max": 0.030486812
+    },
+    "body_mse": {
+      "mean": 0.001415267,
+      "std": 0.0001079757,
+      "median": 0.0013596697,
+      "min": 0.0013305903,
+      "max": 0.0015838946
+    },
+    "body_psnr": {
+      "mean": 28.5620301222,
+      "std": 0.3401114301,
+      "median": 28.7485576109,
+      "min": 28.0115929256,
+      "max": 28.8229450077
+    },
+    "body_ssim": {
+      "mean": 0.810430043,
+      "std": 0.0176441558,
+      "median": 0.8065411688,
+      "min": 0.7956652917,
+      "max": 0.8424471763
+    }
+  },
+  "secondary_slice_weighted_summary": {
+    "unit": "slice",
+    "description": "SECONDARY slice-weighted descriptive summary, NOT the benchmark result. It pools every slice equally, which treats correlated slices from one patient as independent observations. Reported only to show how much unequal slice counts would move the number.",
+    "slices": 885,
+    "full_mae": {
+      "mean": 0.0162938734
+    },
+    "full_mse": {
+      "mean": 0.0007137307
+    },
+    "full_psnr": {
+      "mean": 31.5176111589
+    },
+    "full_ssim": {
+      "mean": 0.7814704461
+    },
+    "body_mae": {
+      "mean": 0.0278580093
+    },
+    "body_mse": {
+      "mean": 0.0013877821
+    },
+    "body_psnr": {
+      "mean": 28.6452169396
+    },
+    "body_ssim": {
+      "mean": 0.8091745771
+    }
+  },
+  "acquisition_group_breakdown": {
+    "description": "Descriptive only, patient-weighted within each group. With three patients per group this can reveal a glaring imbalance and nothing more. No significance test, no claim about acquisition settings in general, and no conclusion drawn from a small difference.",
+    "groups": {
+      "A": {
+        "patients": 3,
+        "full_mae": {
+          "mean": 0.0163630056
+        },
+        "full_mse": {
+          "mean": 0.0007119773
+        },
+        "full_psnr": {
+          "mean": 31.5202209534
+        },
+        "full_ssim": {
+          "mean": 0.7810950549
+        },
+        "body_mae": {
+          "mean": 0.0273948672
+        },
+        "body_mse": {
+          "mean": 0.0013482666
+        },
+        "body_psnr": {
+          "mean": 28.7733534099
+        },
+        "body_ssim": {
+          "mean": 0.8038034144
+        }
+      },
+      "B": {
+        "patients": 3,
+        "full_mae": {
+          "mean": 0.0163548381
+        },
+        "full_mse": {
+          "mean": 0.000730631
+        },
+        "full_psnr": {
+          "mean": 31.4422974229
+        },
+        "full_ssim": {
+          "mean": 0.7815960324
+        },
+        "body_mae": {
+          "mean": 0.0289782048
+        },
+        "body_mse": {
+          "mean": 0.0014822675
+        },
+        "body_psnr": {
+          "mean": 28.3507068346
+        },
+        "body_ssim": {
+          "mean": 0.8170566715
+        }
+      }
+    }
+  },
+  "body_mask_coverage": {
+    "body_pixel_fraction": {
+      "min": 0.3614807129,
+      "median": 0.4595947266,
+      "max": 0.5824279785
+    },
+    "ssim_interior_fraction": {
+      "min": 0.3077392578,
+      "median": 0.4007568359,
+      "max": 0.5172119141
+    }
+  },
+  "inspection_policy": {
+    "train_images_read": false,
+    "validation_images_read": true,
+    "test_images_read": false,
+    "stress_images_read": false,
+    "note": "This command cannot evaluate test or stress: require_development_split refuses them. Those splits stay sealed until the final benchmark, which will be a separate explicitly final command run after every method decision is frozen."
+  },
+  "interpretation": {
+    "mae": "lower is better, in normalized image units",
+    "mse": "lower is better, in squared normalized image units",
+    "psnr": "higher is better, in decibels; a logarithmic restatement of MSE",
+    "ssim": "higher is better, 1.0 for identical images",
+    "caution": "These values describe this synthetic benchmark only. No PSNR or SSIM value here is 'good' or 'clinically acceptable', and a PSNR difference is a difference in decibels, never a percentage."
+  },
+  "outputs": {
+    "slices_csv": "outputs/metrics/degraded_baseline_validation_slices.csv",
+    "patients_csv": "outputs/metrics/degraded_baseline_validation_patients.csv"
+  }
+}

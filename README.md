@@ -173,9 +173,9 @@ Three limitations follow directly from this design.
   inside the anatomy. How the degradation and each method behave there is not
   yet known, because no degradation has been implemented. The evaluation
   milestone must therefore decide explicitly whether to report full-frame
-  metrics, body-region metrics, or both, and record the reasoning. The
-  degradation now implemented adds a second reason to settle this; see
-  [the clipped-background caveat](#the-clipped-background-caveat).
+  metrics, body-region metrics, or both, and record the reasoning. **This is
+  now settled: both are reported for every method**, see
+  [Two regions, both reported](#two-regions-both-reported).
 
 ## Real-data audit
 
@@ -564,6 +564,307 @@ is a second reason the evaluation milestone may need both full-frame and
 body-region metrics, and must state which it is reporting. No metric mask is
 defined here, and no subject is special-cased.
 
+## Evaluation framework and the degraded baseline
+
+The measuring apparatus is defined and frozen in
+[configs/evaluation.yaml](configs/evaluation.yaml), implemented in
+[src/ct_restoration/metrics.py](src/ct_restoration/metrics.py) and
+[src/ct_restoration/evaluation.py](src/ct_restoration/evaluation.py), and fixed
+**before any method exists**. CLAHE, the CNN and the U-Net will all call the
+same functions on the same slices with the same masks, so a later comparison
+reflects the methods rather than the measurement.
+
+### The degraded baseline is "no restoration"
+
+| | |
+| --- | --- |
+| reference | the preprocessed clean CT slice |
+| input | the frozen synthetic low-dose-like degraded image |
+| "restored" output | the degraded image, unchanged |
+
+No enhancement and no model is involved. The numbers below are therefore the
+image-quality cost of the degradation itself, and they are the floor that every
+later method has to beat on exactly this benchmark.
+
+### Four metrics
+
+| Metric | Definition | Direction |
+| --- | --- | --- |
+| MAE | `mean(abs(prediction - reference))` | lower is better |
+| MSE | `mean((prediction - reference)^2)` | lower is better |
+| PSNR | `10 * log10(data_range^2 / MSE)`, in dB | higher is better |
+| SSIM | `skimage.metrics.structural_similarity` | higher is better, max 1 |
+
+`data_range = 1.0`, fixed rather than inferred per image. The images being
+compared are the normalized [0, 1] representation produced by the fixed 40/400
+HU window, so 1.0 is the actual dynamic range. Inferring it per slice would
+make PSNR mean something different on every slice and destroy comparability,
+which is the one thing a benchmark cannot lose.
+
+SSIM settings are pinned explicitly rather than left to library defaults, so a
+scikit-image upgrade cannot silently redefine the benchmark:
+
+```
+win_size              11
+gaussian_weights      true
+sigma                 1.5
+use_sample_covariance false
+data_range            1.0
+channel_axis          None
+```
+
+`sigma = 1.5` with scikit-image's gaussian weighting produces exactly an 11-tap
+window, so `win_size = 11` agrees with it rather than competing with it.
+
+### Two regions, both reported
+
+The audit found that about 54 % of clean training pixels are exactly 0 after
+the fixed CT window. A full-frame metric therefore assigns that region
+substantial weight, and the background can materially affect the score.
+
+Not because the background is trivially correct. The frozen degradation uses
+`sigma_floor = 0.015`, so clipped background pixels are perturbed too, and the
+fraction of pixels sitting at exactly 0 falls from 54 % to 27 % after
+degradation. The background is not a region every method gets right for free.
+
+What it does instead is affect the two metric families in **opposite
+directions**:
+
+* under the intensity-dependent degradation, background corruption is smaller
+  than much of the body's, so including it makes full-frame **MAE, MSE and
+  PSNR** look easier;
+* **SSIM** reacts the other way. Adding noise to a low-variance flat region
+  changes its local luminance, contrast and variance statistics sharply, so
+  SSIM over background is *lower* than over textured tissue.
+
+The measured baseline shows both effects at once: body PSNR is lower than full
+PSNR, while body SSIM is *higher* than full SSIM.
+
+Neither region alone tells the whole story, which is exactly why both are
+retained and reported for every method.
+
+### The evaluation body mask
+
+Applied to the clean HU slice **before** windowing:
+
+1. threshold `HU > -500`;
+2. label 2-D connected components with 8-connectivity;
+3. keep the largest component;
+4. fill enclosed holes;
+5. resize to 256x256 with **nearest-neighbour** interpolation;
+6. cast to `bool`.
+
+Step 3 is what removes the scanner table: the threshold does pick the table up,
+but it is a separate component from the patient and therefore discarded. Step 4
+keeps low-HU structures *inside* the body — bowel gas, lung base — in the
+evaluation region instead of punching holes in it. Step 5 is the one place this
+project uses nearest-neighbour: any interpolating method would produce
+fractional values along the boundary of a binary mask, which is not a mask.
+
+`-500 HU` sits between air, around -1000 HU, and soft tissue, around 0 to 60
+HU. It is far from both, so the silhouette does not hinge on a finely tuned
+cut. It was fixed in advance and **never** selected by comparing metrics;
+choosing a threshold because it produced a nicer PSNR would be tuning the
+evaluation against the scores it is supposed to judge.
+
+Three properties matter more than the mask's anatomical accuracy:
+
+* it comes from the **clean reference**, never from a degraded or restored
+  image, so a method cannot influence the region it is judged on;
+* it is **never given to a restoration method**, so it is not a hidden input;
+* it is **identical for every method** on a given slice.
+
+This is a crude deterministic silhouette separating patient from air and table.
+It is **not clinical segmentation** and no anatomical claim is made about it.
+
+### Body SSIM is a masked map mean, not a new SSIM
+
+MAE, MSE and PSNR can be computed directly over masked pixels, because each is
+an average of independent per-pixel terms.
+
+SSIM cannot. It is defined on a local neighbourhood, so flattening the masked
+pixels into a vector would destroy the very structure it measures. Instead:
+
+1. compute **one** SSIM map with the frozen settings;
+2. erode the body mask by an all-true 11x11 element, keeping only centres whose
+   complete SSIM neighbourhood lies inside the body;
+3. average that same map over the eroded mask.
+
+`body_ssim` is therefore **the mean of the standard local SSIM map over
+interior body pixels**, not a separate definition of SSIM, and must not be
+described as one. Erosion treats outside-the-array as background, so it also
+drops the 5-pixel image rim that scikit-image excludes from its own mean.
+
+An empty eroded mask fails loudly rather than averaging nothing.
+
+### The patient is the experimental unit
+
+The 885 validation slices are **not** 885 independent observations. Neighbouring
+slices are 1 to 2 mm apart, from one acquisition, one reconstruction and one
+anatomy, and validation patients hold between 94 and 240 slices.
+
+So the aggregation is two-stage:
+
+1. average a patient's per-slice metrics into one number per patient;
+2. average the patients with **equal weight**.
+
+A slice-weighted figure is also computed, labelled **secondary descriptive
+summary**, purely to show how much unequal slice counts would move the result.
+It is never the headline number.
+
+### Training-only body-mask audit
+
+`scripts/audit_body_mask.py` ran the rule over all 4160 training slices before
+any validation number was computed, and
+[outputs/audit/evaluation_body_mask_train_summary.json](outputs/audit/evaluation_body_mask_train_summary.json)
+records the result.
+
+| Training-set mask diagnostic | Value |
+| --- | --- |
+| masks generated | 4160 / 4160 |
+| generation failures | 0 |
+| empty masks | 0 |
+| empty SSIM-interior masks | 0 |
+| output shape / dtype | 256x256 / `bool` |
+| body pixel fraction, min / median / max | 0.306 / 0.496 / 0.705 |
+| SSIM-interior fraction, min / median / max | 0.257 / 0.435 / 0.634 |
+
+With zero failures the policy was frozen, and only then was validation touched.
+
+### Validation degraded baseline
+
+**PRIMARY result** — 6 patients, 885 slices, every patient weighted equally:
+
+| Region | MAE | MSE | PSNR (dB) | SSIM |
+| --- | --- | --- | --- | --- |
+| full frame | 0.016359 | 0.00072130 | 31.4813 | 0.781346 |
+| body region | 0.028187 | 0.00141527 | 28.5620 | 0.810430 |
+
+Spread across the six patients, as standard deviation and range:
+
+| Metric | std | min | max |
+| --- | --- | --- | --- |
+| full PSNR | 0.4636 | 30.7432 | 32.1612 |
+| body PSNR | 0.3401 | 28.0116 | 28.8229 |
+| full SSIM | 0.007361 | 0.768523 | 0.790428 |
+| body SSIM | 0.017644 | 0.795665 | 0.842447 |
+
+This spread describes **how much the six patients differ from one another at
+baseline**. It is not a yardstick for judging a later method's improvement,
+and it must not be used as one: baseline cross-patient variation and the
+variation of a method's improvement are different quantities, and neither
+bounds the other. A method could lift every patient by a consistent 0.3 dB
+while baseline levels differ by 1.4 dB, or swing wildly between patients whose
+baselines are nearly identical.
+
+The right descriptive object for judging a method is the **paired per-patient
+delta**, `delta_i = method_metric_i - baseline_metric_i`, computed on the same
+patient and the same slices, with the sign read according to the metric's
+direction: positive is an improvement for PSNR and SSIM, negative is an
+improvement for MAE and MSE. A later milestone will look at the distribution
+of those six paired deltas — how many patients improved, by how much, and
+whether any got worse. No such comparison exists yet, and none is implied by
+the table above.
+
+**SECONDARY slice-weighted descriptive summary**, not the benchmark result:
+
+| Region | MAE | MSE | PSNR (dB) | SSIM |
+| --- | --- | --- | --- | --- |
+| full frame | 0.016294 | 0.00071373 | 31.5176 | 0.781470 |
+| body region | 0.027858 | 0.00138778 | 28.6452 | 0.809175 |
+
+The two differ by under 0.09 dB here, which says the validation patients happen
+to be similar enough that unequal slice counts do not move this particular
+number much. That is a fact about this split, not a reason to stop reporting
+the patient-weighted figure: the guarantee has to hold for methods whose errors
+may vary far more between patients than the degradation's do.
+
+Descriptive acquisition-group breakdown, three patients each, useful only for
+spotting a glaring imbalance:
+
+| Group | full PSNR | body PSNR | full SSIM | body SSIM |
+| --- | --- | --- | --- | --- |
+| A | 31.5202 | 28.7734 | 0.781095 | 0.803803 |
+| B | 31.4423 | 28.3507 | 0.781596 | 0.817057 |
+
+No significance test is run, no claim is made about acquisition settings in
+general, and nothing is concluded from these small differences. With n = 3 per
+group there is nothing to conclude.
+
+### Reading these numbers
+
+MAE and MSE are lower-is-better; PSNR and SSIM are higher-is-better. Together
+they say how much damage the frozen degradation does, and nothing else. Later
+methods are judged by the paired per-patient improvement over *these exact
+figures*, measured by the same code on the same slices and the same masks.
+
+One caution about aggregate PSNR. For a single slice in a single region, PSNR
+is a strictly decreasing transform of MSE, so the two always rank the same
+way. That equivalence does not survive averaging: the logarithm is nonlinear,
+so a mean of per-slice PSNRs is not a monotone function of the mean of the
+per-slice MSEs, and two methods can be ordered one way by mean MSE and the
+other way by mean PSNR. Read the aggregate PSNR as its own figure rather than
+as a restatement of the aggregate MSE.
+
+The two regions do **not** move together, and it is worth being precise about
+which way each one goes:
+
+| Metric | Full frame | Body region | Body is |
+| --- | --- | --- | --- |
+| MAE | 0.016359 | 0.028187 | worse (higher) |
+| MSE | 0.00072130 | 0.00141527 | worse (higher) |
+| PSNR | 31.4813 | 28.5620 | worse (lower) |
+| SSIM | 0.781346 | 0.810430 | **better (higher)** |
+
+The three pixel-error metrics agree that the body carries larger absolute
+corruption, which follows from an intensity-dependent noise scale: more of the
+perturbation lands on tissue than on clipped background. SSIM goes the other
+way, because a flat low-variance region is where added noise disturbs local
+contrast and structure statistics most.
+
+So the honest summary is that **the choice of region affects different metric
+families differently**, not that the body is objectively harder or easier
+overall. These are two different questions — "how large is the pixel error
+here" and "how much local structure survives here" — and they have different
+answers in the two regions. That is the reason both regions are reported
+rather than one being chosen as the real one.
+
+Two things this section deliberately does not say. No PSNR or SSIM value here
+is "good", "acceptable" or "clinically adequate": these are relative figures on
+a synthetic benchmark. And PSNR is measured in **decibels**, a logarithmic
+unit, so a difference between two PSNRs is a difference in dB and never a
+percentage improvement.
+
+### What has and has not been looked at
+
+Training image content was read, to audit the mask rule. Validation image
+content was evaluated numerically to produce the baseline above; no validation
+image was inspected visually, and no validation number influenced the
+evaluation policy, which was frozen first.
+
+The hold-out claim has to be stated carefully, because the accurate version is
+narrower than "never read". **Before the patient split was frozen**, all 40
+subjects were included in dataset-level technical QC and cohort
+characterization — the Milestone 2 audit read every one of the 6407 slices.
+That was dataset audit, not model selection: it established HU calibration,
+geometry, padding and outlier facts, and it happened before any partition, any
+degradation or any metric existed.
+
+**Since the experimental split was frozen**, test and stress image content has
+not been used for degradation design, evaluation-policy development, model
+selection, or benchmark scoring. The development commands written after the
+freeze refuse those splits outright rather than merely discouraging them, and
+tests assert the refusal:
+
+* `audit_body_mask.py` reads train only — it has no `--split` option at all;
+* `evaluate_degraded_baseline.py` accepts train and validation, and produced
+  the canonical baseline above from validation;
+* neither command can read test or stress.
+
+Those splits stay sealed for all post-split experimental development. The final
+benchmark will be a separate, explicitly final command, run after every method
+decision is frozen.
+
 ## Setup
 
 Requires [uv](https://docs.astral.sh/uv/) and Python 3.11.
@@ -582,15 +883,18 @@ PyTorch is resolved from the CUDA 13.0 wheel index declared in
 src/ct_restoration/   library code (importable package)
   data/               DICOM reading, HU conversion, preprocessing, CHAOS layout,
                       patient split, low-dose-like degradation
+  metrics.py          MAE / MSE / PSNR / SSIM, shared by every method
+  evaluation.py       body mask, patient aggregation, hold-out gate
 scripts/              runnable commands (dataset audit, split generation,
-                      degradation audit)
+                      degradation audit, body-mask audit, baseline evaluation)
 tests/                pytest suite, fully synthetic, no downloads
 configs/              YAML experiment settings
 data/README.md        dataset provenance
 data/splits/          the frozen patient split and slice manifest (tracked)
 data/raw/, processed/ image data (git-ignored)
 outputs/audit/        measured dataset facts (figures there are git-ignored)
-outputs/              metrics, runs, final results
+outputs/metrics/      tracked per-slice, per-patient and split-level scores
+outputs/              runs, final results
 ```
 
 Dataset provenance, licensing and the exact archive used are recorded in

@@ -1,0 +1,72 @@
+# Canonical image-quality evaluation policy for this benchmark.
+#
+# FROZEN. Every method compared in this project - the degraded baseline, CLAHE,
+# the residual CNN and the U-Net - is scored with exactly these settings, the
+# same two evaluation regions and the same aggregation. Changing anything here
+# changes what "better" means, so results measured under an old policy are not
+# comparable to results measured under a new one.
+#
+# This file was frozen BEFORE any validation number was computed, and it must
+# not be adjusted afterwards to make a score look better.
+#
+# Metrics
+# -------
+# MAE  = mean(abs(prediction - reference))          lower is better
+# MSE  = mean((prediction - reference)^2)           lower is better
+# PSNR = 10 * log10(data_range^2 / MSE), in dB      higher is better
+# SSIM = skimage structural_similarity              higher is better, max 1
+#
+# data_range is 1.0 because the images being compared are the normalized [0,1]
+# representation produced by the fixed 40/400 HU window, not raw HU. PSNR is
+# only interpretable against a stated dynamic range, so it is pinned here
+# rather than inferred per image, which would make slices incomparable.
+#
+# Two regions, both reported
+# --------------------------
+# About 54% of clean training pixels are exactly 0 after the fixed CT window.
+# A full-frame metric therefore gives a large share of its weight to flat
+# background. Full-frame numbers are kept, because they describe the whole
+# output honestly, but a body-region number is reported alongside every one of
+# them so that a method cannot look good purely by handling background well.
+
+evaluation:
+  # Dynamic range of the normalized images being compared. Not a free
+  # parameter: it follows from preprocessing normalizing to [0, 1].
+  data_range: 1.0
+
+  # SSIM settings, pinned explicitly rather than left to library defaults so a
+  # library upgrade cannot silently redefine the benchmark. sigma 1.5 with
+  # skimage's gaussian_weights truncation gives exactly an 11-tap window, so
+  # win_size 11 is consistent with it rather than an independent choice.
+  # use_sample_covariance false selects the unbiased-normalization-free form
+  # used by the original SSIM paper.
+  ssim:
+    win_size: 11
+    gaussian_weights: true
+    sigma: 1.5
+    use_sample_covariance: false
+
+  # Evaluation-only body silhouette. Derived from the CLEAN HU slice before
+  # windowing, never from a degraded or restored image, so that every method is
+  # scored on identical pixels. This is a crude deterministic silhouette, NOT
+  # clinical segmentation, and it is not used by any restoration method.
+  #
+  # threshold_hu -500 sits between air (about -1000 HU) and soft tissue (about
+  # 0 to 60 HU), far from both, so the silhouette does not depend on a finely
+  # tuned cut. It was fixed in advance and never selected by comparing metrics.
+  body_mask:
+    threshold_hu: -500.0
+    connectivity: 8
+    keep_largest_component: true
+    fill_holes: true
+    resize_interpolation: nearest
+
+  # The patient is the independent experimental unit, never the slice. Slices
+  # from one patient are highly correlated, so per-slice numbers are averaged
+  # within a patient first, and patients are then averaged with equal weight.
+  # A slice-weighted number is also reported, but only as a secondary
+  # descriptive diagnostic.
+  aggregation:
+    slice_to_patient: arithmetic_mean
+    patient_to_split: arithmetic_mean
+    primary_unit: patient
