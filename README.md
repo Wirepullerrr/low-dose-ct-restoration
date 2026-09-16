@@ -4,10 +4,16 @@ An engineering benchmark comparing classical and lightweight deep-learning
 restoration methods on **synthetically degraded, low-dose-like CT images**
 built from public abdominal CT data.
 
-> **Status: in progress (Milestone 3 of 15 - frozen patient-level split).**
-> No restoration experiment has been run yet. This README contains no
-> restoration results, and will only report numbers that are reproducible from
-> files committed in `outputs/`.
+> **Status: in progress (Milestone 5 of 15 - evaluation framework frozen, and
+> the no-restoration baseline measured on validation).**
+>
+> No restoration *method* has been implemented yet: there is no CLAHE, CNN or
+> U-Net result anywhere in this document. The only measured result is the
+> degraded baseline, which is the no-restoration reference, and it is measured
+> on the **validation** split only. No test or stress number exists.
+>
+> Every number reported here is reproducible from files committed under
+> `outputs/`.
 
 ## Research question
 
@@ -19,14 +25,19 @@ quality, and what does each method cost in inference latency?
 
 | Method | Type | Status |
 | --- | --- | --- |
-| Degraded input (no restoration) | mandatory reference baseline | not implemented |
+| Degraded input (no restoration) | mandatory reference baseline | implemented; [measured on validation](#validation-degraded-baseline) |
 | CLAHE | classical local contrast enhancement | not implemented |
 | Small residual CNN | deep learning | not implemented |
 | Lightweight U-Net | deep learning | not implemented |
 
-All four will be evaluated on identical test patients, identical clean targets,
-and identical degraded inputs, using MAE, MSE, PSNR, SSIM, and inference
-latency.
+All four will be evaluated on identical patients, identical clean targets and
+identical degraded inputs, through the same frozen metric code, using MAE, MSE,
+PSNR, SSIM, and inference latency.
+
+The final comparison will be made on the held-out **test** split, once every
+method decision is frozen. Nothing has been evaluated on test or stress yet;
+the baseline above is a validation figure, used to develop and sanity-check the
+measurement, not a final result.
 
 ## Planned pipeline
 
@@ -162,20 +173,21 @@ Three limitations follow directly from this design.
   presentation that a particular DICOM viewer may apply, and it deliberately
   ignores the `WindowCenter` / `WindowWidth` display presets stored in the
   files, which vary between series and are not an experiment definition.
-* **Background is large, and the metric policy is still open.** No CHAOS CT
-  slice declares `PixelPaddingValue` or `PixelPaddingRangeLimit`, so there is
-  no formally declared padding to mask. Even so, about 45 percent of an average
+* **Background is large, and it shapes the metrics.** No CHAOS CT slice
+  declares `PixelPaddingValue` or `PixelPaddingRangeLimit`, so there is no
+  formally declared padding to mask. Even so, about 45 percent of an average
   frame is air below -900 HU, and one subject carries an additional uniform
   -2048 HU region outside the reconstruction circle, consistent with
   out-of-field or reconstruction-background padding. All of it clips to 0.0
-  after windowing. Large, simple background regions can dominate full-frame
-  image-quality metrics and may make them less sensitive to restoration quality
-  inside the anatomy. How the degradation and each method behave there is not
-  yet known, because no degradation has been implemented. The evaluation
-  milestone must therefore decide explicitly whether to report full-frame
-  metrics, body-region metrics, or both, and record the reasoning. **This is
-  now settled: both are reported for every method**, see
-  [Two regions, both reported](#two-regions-both-reported).
+  after windowing, leaving roughly half the frame flat.
+
+  The metric-region question this raised is **now settled: both full-frame and
+  body-region metrics are reported for every method**, see
+  [Two regions, both reported](#two-regions-both-reported). What the later
+  milestones measured is that the background is not a neutral filler — it
+  pulls the two metric families in opposite directions, easing MAE/MSE/PSNR
+  while depressing SSIM. How each *restoration method* behaves there is still
+  unknown, since no restoration method exists yet.
 
 ## Real-data audit
 
