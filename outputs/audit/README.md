@@ -10,6 +10,7 @@ that script over a fresh download regenerates all of them.
 | `chaos_series_summary.csv` | one row per subject, aggregated from the per-slice table |
 | `chaos_metadata_summary.json` | dataset-level distributions, counts and per-subject geometry findings |
 | `chaos_outlier_pixels.csv` | one row per (subject, pixel coordinate) exceeding the audit's 4000 HU ceiling |
+| `chaos_split_summary.json` | counts, balance and checksum for the frozen patient split; carries no timestamp, so regenerating an unchanged split rewrites it byte for byte |
 | `figures/` | rendered inspection panels, git-ignored |
 
 ## What is and is not in them

@@ -49,8 +49,6 @@ leaderboard, which this project does not do.
 
 ## Archives
 
-Both archives on the record contain CT **and** MR data mixed together.
-
 Both archives on the record mix CT and MR together, and **both are used**, for
 their CT content only.
 
@@ -73,12 +71,13 @@ available for a patient-level split. The two trees are read as one pool of
 reference CT studies. Each subject keeps a record of the archive it came from,
 as provenance only.
 
-**This project's own train/validation/test split is a separate decision, is not
-yet made, and does not reuse the challenge's split.** The expanded 40-subject
-cohort supports a substantially stronger patient-level split than 20 subjects
-would; the exact assignment will be designed in the next milestone, because the
-observed acquisition parameter groups hold 16, 21, 2 and 1 subjects and the two
-rare groups cannot be represented in every split.
+**This project's own train/validation/test split is a separate decision and
+does not reuse the challenge's split.** It is now made and frozen in
+`splits/chaos_patient_split.csv`. The archive of origin is recorded there as
+provenance, but it is not read by the assignment algorithm; both archives
+turning up on both sides of every partition is an observed property of the
+result, not a criterion it was optimised for. See the Experimental partitioning
+section of the repository README for the design and the freeze policy.
 
 The CT subject folder names are disjoint between the archives, together
 covering 1 to 40 with no repeats, and the two `definitions.txt` files in the
