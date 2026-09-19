@@ -3,10 +3,12 @@
 These files are technical summaries derived from the CHAOS CT dataset,
 produced by [`scripts/audit_chaos.py`](../../scripts/audit_chaos.py), except
 `degradation_train_summary.json`, from
-[`scripts/audit_degradation.py`](../../scripts/audit_degradation.py), and
+[`scripts/audit_degradation.py`](../../scripts/audit_degradation.py),
 `evaluation_body_mask_train_summary.json`, from
-[`scripts/audit_body_mask.py`](../../scripts/audit_body_mask.py). Re-running
-those scripts over a fresh download regenerates all of them.
+[`scripts/audit_body_mask.py`](../../scripts/audit_body_mask.py), and
+`dataset_dataloader_summary.json`, from
+[`scripts/audit_dataset.py`](../../scripts/audit_dataset.py). Re-running those
+scripts over a fresh download regenerates all of them.
 
 | File | Contents |
 | --- | --- |
@@ -17,6 +19,7 @@ those scripts over a fresh download regenerates all of them.
 | `chaos_split_summary.json` | counts, balance and checksum for the frozen patient split; carries no timestamp, so regenerating an unchanged split rewrites it byte for byte |
 | `degradation_train_summary.json` | technical diagnostics of the frozen degradation, computed on TRAINING slices only; no timestamp, so regenerating an unchanged definition rewrites it byte for byte |
 | `evaluation_body_mask_train_summary.json` | diagnostics of the frozen evaluation body mask, computed on TRAINING slices only; no timestamp, so regenerating an unchanged definition rewrites it byte for byte |
+| `dataset_dataloader_summary.json` | contract checks, sampling counts and sequence hashes for the Dataset / DataLoader layer, on TRAIN and VALIDATION only; no timestamp, so regenerating an unchanged definition rewrites it byte for byte |
 | `figures/` | rendered inspection panels, git-ignored |
 
 ## What is and is not in them
@@ -36,6 +39,36 @@ counting without reproducing the identifiers themselves.
 diagnostics.
 Validation, test and stress image content was not inspected while the
 degradation was being established, and the file records that explicitly.
+
+## `dataset_dataloader_summary.json` in particular
+
+It is the evidence behind the Dataset / DataLoader claims in the repository
+README, and it carries:
+
+* **no image pixels** - only counts, flags and SHA-256 digests of *sample-key
+  sequences*, never of image content;
+* **no test or stress anything** - no metric, no count, no sample key. The
+  audit reads train and validation, and the helper it builds datasets with
+  refuses the sealed splits. The file records `test_images_read: 0` and
+  `stress_images_read: 0`;
+* **dataset contract checks** - per split, every slice opened once and checked
+  for tensor shape, dtype, finiteness and [0, 1] range. A smaller set of
+  deterministic probes per split (8 at present, recorded as `probes`) also
+  covers repeated-access equality, independence from the global NumPy and
+  PyTorch RNGs, and byte-equality against the frozen preprocessing and
+  degradation functions called independently. The probe counts are in the
+  file: read the scan counts and the probe counts as the different scopes
+  they are;
+* **patient-sampling counts** - realized draws per patient for three epochs of
+  the patient-balanced sampler at the audit seed, with the rotation of the
+  extra-quota patients over eight epochs;
+* **deterministic sequence hashes** - of the canonical per-split order, of
+  each sampled epoch, and of what each DataLoader actually yielded, so
+  reproducibility and batch-size invariance are checkable rather than
+  asserted.
+
+It contains no timestamp and no absolute filesystem path, so two runs over an
+unchanged definition produce byte-identical files.
 
 The per-slice table is kept deliberately, despite its size, because it is the
 evidence behind every measured claim in the repository README. Keeping it means

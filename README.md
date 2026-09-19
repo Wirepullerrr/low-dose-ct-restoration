@@ -4,13 +4,15 @@ An engineering benchmark comparing classical and lightweight deep-learning
 restoration methods on **synthetically degraded, low-dose-like CT images**
 built from public abdominal CT data.
 
-> **Status: in progress (Milestone 6 of 15 - CLAHE implemented, tuned on
-> validation and frozen).**
+> **Status: in progress (Milestone 7 of 15 - the supervised Dataset,
+> DataLoader and patient-balanced training sampler are built and audited).**
 >
 > Two methods are measured so far: the no-restoration degraded baseline and
 > CLAHE. **CLAHE scored worse than doing nothing on every metric and every
-> patient**, which is reported as it stands. No neural network exists yet:
-> there is no CNN or U-Net result anywhere in this document.
+> patient**, which is reported as it stands. The data layer the learned
+> methods will train on now exists and is audited, but **no neural network
+> does**: no CNN, no U-Net, no training run, and no learned result anywhere in
+> this document.
 >
 > Every measured number here is a **validation** development result. No test
 > or stress number exists, and no test or stress image content has been read
@@ -31,8 +33,8 @@ quality, and what does each method cost in inference latency?
 | --- | --- | --- |
 | Degraded input (no restoration) | mandatory reference baseline | implemented; [measured on validation](#validation-degraded-baseline) |
 | CLAHE | classical local contrast enhancement | implemented, validation-tuned and frozen; [worse than no restoration](#validation-result-clahe-versus-no-restoration) |
-| Small residual CNN | deep learning | not implemented |
-| Lightweight U-Net | deep learning | not implemented |
+| Small residual CNN | deep learning | not implemented; [training data layer ready](#the-learned-method-data-pipeline) |
+| Lightweight U-Net | deep learning | not implemented; [training data layer ready](#the-learned-method-data-pipeline) |
 
 All four will be evaluated on identical patients, identical clean targets and
 identical degraded inputs, through the same frozen metric code, using MAE, MSE,
@@ -778,10 +780,10 @@ The right descriptive object for judging a method is the **paired per-patient
 delta**, `delta_i = method_metric_i - baseline_metric_i`, computed on the same
 patient and the same slices, with the sign read according to the metric's
 direction: positive is an improvement for PSNR and SSIM, negative is an
-improvement for MAE and MSE. A later milestone will look at the distribution
-of those six paired deltas — how many patients improved, by how much, and
-whether any got worse. No such comparison exists yet, and none is implied by
-the table above.
+improvement for MAE and MSE. That is exactly how CLAHE is compared against
+this baseline in
+[the paired per-patient deltas](#the-paired-per-patient-deltas); nothing of
+the kind is implied by the spread in the table above.
 
 **SECONDARY slice-weighted descriptive summary**, not the benchmark result:
 
@@ -1130,6 +1132,247 @@ These are validation development results. They are not a final benchmark
 result, and the final comparison on the held-out test split happens only once
 every method decision is frozen.
 
+## The learned-method data pipeline
+
+Everything the CNN and the U-Net will train on is defined here and nowhere
+else: what one supervised sample is, how the pair is built, how patients are
+weighted during training, and how validation is traversed. No architecture, no
+optimizer, no loss, no learning rate. Implemented in
+[src/ct_restoration/data/dataset.py](src/ct_restoration/data/dataset.py),
+[src/ct_restoration/data/sampling.py](src/ct_restoration/data/sampling.py) and
+[src/ct_restoration/data/loaders.py](src/ct_restoration/data/loaders.py), with
+the policy recorded in
+[configs/data_loader.yaml](configs/data_loader.yaml).
+
+### One sample
+
+One row of the frozen slice manifest:
+
+| Field | Type | Role |
+| --- | --- | --- |
+| `degraded` | `float32` tensor `[1, 256, 256]`, in [0, 1] | **model input** |
+| `clean` | `float32` tensor `[1, 256, 256]`, in [0, 1] | **supervised target** |
+| `subject_id` | `str` | auditing and grouping |
+| `sample_key` | `str` | the stable portable slice identity; one input to the derivation of that slice's degradation seed |
+| `source_archive` | `str` | auditing |
+| `acquisition_group` | `str` | auditing |
+| `geometric_slice_index` | `int` | auditing |
+
+The metadata is for auditing and grouping. A model receives `degraded` and
+nothing else.
+
+What the sample does **not** contain is as much of the contract as what it
+does: no body mask, no SSIM interior mask, no clean HU array, no segmentation,
+no DICOM UID, no absolute filesystem path. The evaluation body mask is
+computed from the clean reference, so handing it to a model would feed the
+method a region derived from the very thing it is being asked to predict. The
+clean image reaches the model only as the target. A test asserts the exact
+field list, and the audit re-checks it on every one of the 5045 train and
+validation slices.
+
+### The pair is a pure function of the slice
+
+```
+DICOM -> HU -> frozen M1 preprocessing      -> clean
+clean + frozen M4 degradation + sample key  -> degraded
+```
+
+Both halves are rebuilt on demand by calling the existing preprocessing and
+degradation code. The formulas are not reimplemented, and no new noise
+realization is created. The per-slice seed is derived by SHA-256 over the
+algorithm version, the global seed and the sample key — the key is the slice's
+stable portable identity and one input to that derivation, not the numeric
+seed itself.
+
+This is the part that matters most for training. **Sampling order changes from
+epoch to epoch; the corruption does not.** A given slice carries the same
+frozen noise the tenth time it is drawn as the first. Nothing depends on the
+epoch, the batch, the worker, the access count, the sampler seed, or the
+global NumPy or PyTorch RNG.
+
+The reason is a scoping decision, not a claim that the alternative is
+invalid. This benchmark defines exactly **one** degraded counterpart per clean
+slice. Holding that pair fixed makes the training inputs reproducible and lets
+the CNN and the U-Net inherit an identical input-target mapping, so a
+difference between them is attributable to the model. Re-drawing the
+corruption every epoch is a perfectly legitimate way to train a denoiser — it
+is a standard stochastic augmentation — but it is a different experiment: it
+changes the training distribution and introduces a second stochastic policy to
+account for. That is worth studying on its own, and it is deliberately not an
+experimental factor in the first learned benchmark here.
+
+It also ties training to evaluation. The Dataset calls the same frozen
+preprocessing and degradation functions the evaluation path calls, for every
+item; the audit additionally rebuilds eight deterministic probes per split
+through those functions independently and compares bytes, with zero clean or
+degraded mismatches. The Dataset's canonical order, natural subject order then
+geometric slice index, is the same order the committed per-slice metric tables
+already use.
+
+No cache is written. No `.npy`, `.pt`, PNG, LMDB, HDF5 or WebDataset archive
+exists: a cache would be a second representation of the benchmark data, and
+every claim made about it would have to be re-proved. If DICOM decoding later
+turns out to be a material training bottleneck, it can be optimized then,
+against this contract.
+
+### Why training is patient-balanced
+
+The 25 training patients hold **78 to 294 slices each**. Visiting every slice
+once per epoch — ordinary `shuffle=True` — would give the longest scan almost
+four times the optimizer weight of the shortest, purely because of how long
+that patient's scan was. Scan length is an acquisition-protocol fact, not a
+statement about how much a patient should matter.
+
+Patient is already the experimental unit everywhere else here: the split is
+patient-level, and every reported metric averages slices within a patient
+before averaging patients. Slice-weighted training would be the one place the
+experiment quietly switched units.
+
+So the canonical training policy weights **patients** equally, via
+`PatientBalancedSampler` (`patient_balanced_v1`).
+
+Two things this does not mean. It does **not** make slices statistically
+independent — adjacent slices of one CT scan remain highly correlated, and
+nothing here changes that. It only stops scan length from directly determining
+a patient's total training weight. And it does **not** balance acquisition
+groups: training holds 10 group-A and 15 group-B patients, so equal
+per-patient weight leaves group B with 15/25 of the patient mass, which is the
+cohort's own composition. Forcing A and B to 50/50 would be a second
+intervention the frozen cohort definition does not justify. Source archive and
+slice position are likewise left alone.
+
+`torch.utils.data.WeightedRandomSampler` is deliberately not used. It balances
+patients only *in expectation*, so any single epoch can over- or under-draw a
+patient and an audit could only report what happened afterwards. The counts
+here are enforced exactly.
+
+### 4160 draws, 166 or 167 per patient
+
+One epoch is exactly the training set size, 4160 draws — not
+`25 × max_patient_slices`, and not a new invented number.
+
+```
+divmod(4160, 25) == (166, 10)
+10 patients x 167  +  15 patients x 166  ==  4160
+```
+
+Patient exposure therefore differs **by at most one sample** inside an epoch.
+
+The ten extra draws rotate. The canonical patient list is cycled by
+`(epoch × remainder) % n_patients` positions and the first `remainder`
+patients of that rotation take the extra, so the start walks 0, 10, 20, 5, 15
+and then repeats: over any five consecutive epochs every patient takes the
+extra draw exactly twice. Nothing depends on the order the manifest CSV
+happened to be written in — the patient list is derived from the subject ids.
+
+Within a patient, draws come from shuffled full passes: permute all of that
+patient's slices, consume the permutation, reshuffle for another pass if more
+are needed.
+
+* **A short scan repeats slices, but only after covering all of them.** The
+  shortest training patient has 78 slices against a quota of 166 or 167, so it
+  takes three shuffled passes; the audit confirms the first 78 draws are a
+  full permutation, with zero repeats before full coverage.
+* **A long scan does not use every slice in one epoch.** A 294-slice patient
+  contributes 166 or 167 of them, drawn without repetition within the epoch. A
+  new deterministic permutation is derived for each epoch, so the subsets
+  generally change and coverage broadens across epochs. The v1 sampler keeps
+  no cross-epoch cursor, so it does **not** guarantee that every slice has
+  appeared by any particular finite epoch.
+
+Measured at audit seed 2026 on the real training split:
+
+| Epoch | Draws | Patients | Per patient | Unique slices | Repeated draws | Slices not drawn |
+| --- | --- | --- | --- | --- | --- | --- |
+| 0 | 4160 | 25 | 166 x15, 167 x10 | 3167 | 993 | 993 |
+| 1 | 4160 | 25 | 166 x15, 167 x10 | 3172 | 988 | 988 |
+| 2 | 4160 | 25 | 166 x15, 167 x10 | 3172 | 988 | 988 |
+
+Finally the whole epoch sequence is shuffled with a local RNG, so batches
+intermix patients instead of arriving in contiguous per-patient blocks.
+
+Every draw comes from a private generator seeded by
+`SHA-256(algorithm_version, seed, epoch, stream)`. The global NumPy RNG is
+never read or written and the sampler uses no PyTorch randomness at all, so
+the sampler's randomness and the per-slice degradation's randomness are fully
+independent: changing which slice is drawn is allowed, changing what
+corruption that slice carries is not.
+
+`sampler.set_epoch(n)` selects the epoch. Same seed and epoch reproduce the
+sequence exactly; a different epoch or a different seed gives a different one;
+returning to epoch 0 reproduces epoch 0, because the sequence is derived from
+the epoch number rather than accumulated in sampler state. The seed is a
+constructor argument, not a frozen constant — a training run owns its seed, and
+the sampler must not silently pin the eventual network training seed.
+
+### Validation is never resampled
+
+Validation exists to produce a comparable number, so it visits **all 885
+slices exactly once**, in the frozen canonical manifest order, with
+`shuffle=False`, `drop_last=False` and no patient balancing. Balancing it
+would change which slices contribute and make the figure incomparable with the
+degraded-baseline and CLAHE numbers already measured.
+
+`drop_last=False` matters on the training side too: dropping a partial final
+batch would silently discard whichever patients landed at the end of the
+shuffled epoch, so the realized per-patient counts would stop matching the
+audited ones.
+
+Batch size is a caller argument, not a benchmark parameter — the CNN and U-Net
+batch sizes belong to those milestones. **Batching changes grouping, not
+sampling.** The audit flattens both loaders at batch sizes 1 and 17 (neither
+divides 885 or 4160, so a ragged final batch is exercised) and gets identical
+ordered sample-key sequences; validation matches the canonical manifest order
+and covers all 885 exactly once.
+
+Worker count does not change anything either: pairs are deterministic and the
+sampler runs in the main process. On this Windows environment a comparison at
+`num_workers=0` against `num_workers=2` gave identical sample keys and
+byte-identical tensors.
+
+### No augmentation, no model-specific normalization
+
+Neither exists yet, on purpose.
+
+No flips, rotations, crops, intensity jitter, extra noise, mixup or CutMix.
+The first learned benchmark should establish whether a model can learn the
+frozen restoration problem at all; augmentation would add another experimental
+factor to attribute the result to.
+
+No transform to [-1, 1] and no z-scoring either. The learned models receive
+the same frozen [0, 1] windowed representation every current method already
+uses. An architecture that needs a different internal normalization must
+declare it as part of that model.
+
+### What was and was not read
+
+The Dataset construction helper accepts **train** and **validation** and
+refuses **test** and **stress** with the same hold-out error the evaluation
+commands use; tests assert the refusal, including before any file is opened.
+PyTorch existing is not a reason to loosen the gate — the final benchmark will
+build its held-out datasets explicitly, in the milestone that runs it.
+
+`scripts/audit_dataset.py` has no `--split` option. It opened all 4160
+training and 885 validation slices and wrote
+[outputs/audit/dataset_dataloader_summary.json](outputs/audit/dataset_dataloader_summary.json).
+Two different checks, at two different scopes, and the distinction matters:
+
+* **Every one of the 5045 slices** was scanned for the tensor and sample
+  contract — 0 shape, dtype, finiteness and range failures on either split, 0
+  forbidden fields, 0 non-portable sample keys.
+* **Eight deterministic probes per split** were also rebuilt independently
+  through the frozen preprocessing and degradation functions and compared
+  byte for byte: 0 clean and 0 degraded mismatches, plus 0 mismatches on
+  repeated access and under a reseeded global NumPy and PyTorch RNG. The
+  probes are a spot check; what covers every item is that the Dataset calls
+  those same frozen functions for all of them.
+
+**No test or stress image content was read.** Regenerating the summary is
+byte-identical.
+
+No model exists yet. There is no CNN or U-Net result anywhere in this
+document.
+
 ## Setup
 
 Requires [uv](https://docs.astral.sh/uv/) and Python 3.11.
@@ -1147,11 +1390,15 @@ PyTorch is resolved from the CUDA 13.0 wheel index declared in
 ```
 src/ct_restoration/   library code (importable package)
   data/               DICOM reading, HU conversion, preprocessing, CHAOS layout,
-                      patient split, low-dose-like degradation
+                      patient split, low-dose-like degradation, supervised
+                      Dataset, patient-balanced sampler, DataLoaders
+  classical/          CLAHE and its predeclared parameter search
   metrics.py          MAE / MSE / PSNR / SSIM, shared by every method
-  evaluation.py       body mask, patient aggregation, hold-out gate
-scripts/              runnable commands (dataset audit, split generation,
-                      degradation audit, body-mask audit, baseline evaluation)
+  evaluation.py       body mask, patient aggregation, paired deltas, hold-out gate
+  benchmark.py        the shared run harness every method is scored through
+scripts/              runnable commands (cohort audit, split generation,
+                      degradation audit, body-mask audit, baseline and CLAHE
+                      evaluation, CLAHE tuning, Dataset/DataLoader audit)
 tests/                pytest suite, fully synthetic, no downloads
 configs/              YAML experiment settings
 data/README.md        dataset provenance

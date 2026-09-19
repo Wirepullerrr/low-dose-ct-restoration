@@ -1,0 +1,537 @@
+{
+  "dataset_contract": {
+    "pair_generation": "frozen_clean_plus_degradation_v1",
+    "sample_fields": [
+      "degraded",
+      "clean",
+      "subject_id",
+      "sample_key",
+      "source_archive",
+      "acquisition_group",
+      "geometric_slice_index"
+    ],
+    "forbidden_fields_checked": [
+      "body_mask",
+      "evaluation_mask",
+      "ssim_interior_mask",
+      "interior_mask",
+      "clean_hu",
+      "image_hu",
+      "segmentation",
+      "mask",
+      "split",
+      "dicom_path",
+      "absolute_path",
+      "series_instance_uid",
+      "study_instance_uid",
+      "sop_instance_uid"
+    ],
+    "model_input": "degraded",
+    "supervised_target": "clean",
+    "tensor_shape": [
+      1,
+      256,
+      256
+    ],
+    "tensor_dtype": "torch.float32",
+    "value_range": [
+      0.0,
+      1.0
+    ],
+    "model_normalization": "none",
+    "augmentation": "none",
+    "cache": "none",
+    "preprocessing": {
+      "window_center": 40,
+      "window_width": 400,
+      "image_size": [
+        256,
+        256
+      ],
+      "interpolation": "area"
+    },
+    "degradation_algorithm": "correlated_heteroscedastic_gaussian_v1",
+    "degradation_global_seed": 2026
+  },
+  "splits_read": [
+    "train",
+    "validation"
+  ],
+  "splits_sealed": [
+    "test",
+    "stress"
+  ],
+  "test_images_read": 0,
+  "stress_images_read": 0,
+  "train": {
+    "patients": 25,
+    "samples": 4160,
+    "scanned_samples": 4160,
+    "unique_sample_keys": 4160,
+    "tensor_shape": [
+      1,
+      256,
+      256
+    ],
+    "tensor_dtype": "torch.float32",
+    "shape_failures": 0,
+    "dtype_failures": 0,
+    "finite_failures": 0,
+    "range_failures": 0,
+    "observed_min": 0.0,
+    "observed_max": 1.0,
+    "sample_field_order_mismatches": 0,
+    "forbidden_fields_present": [],
+    "nonportable_sample_keys": 0,
+    "canonical_sequence_sha256": "9b1dc178932227a73c87072937940bb3f96031d5a8c20999e27397eddd45c817",
+    "scanned_sequence_sha256": "9b1dc178932227a73c87072937940bb3f96031d5a8c20999e27397eddd45c817",
+    "slices_per_patient": {
+      "2": 81,
+      "3": 78,
+      "5": 95,
+      "7": 108,
+      "8": 123,
+      "9": 97,
+      "10": 110,
+      "12": 104,
+      "15": 87,
+      "16": 91,
+      "18": 111,
+      "20": 105,
+      "21": 257,
+      "22": 101,
+      "26": 114,
+      "27": 242,
+      "28": 102,
+      "30": 266,
+      "31": 288,
+      "33": 285,
+      "35": 252,
+      "36": 243,
+      "37": 254,
+      "38": 294,
+      "40": 272
+    },
+    "repeated_access": {
+      "probes": 8,
+      "byte_mismatches": 0
+    },
+    "global_rng_independence": {
+      "probes": 8,
+      "byte_mismatches": 0
+    },
+    "direct_pipeline_equivalence": {
+      "probes": 8,
+      "clean_byte_mismatches": 0,
+      "degraded_byte_mismatches": 0,
+      "probe_sample_keys": [
+        "Train_Sets/CT/2/DICOM_anon/i0080,0000b.dcm",
+        "Train_Sets/CT/10/DICOM_anon/i0097,0000b.dcm",
+        "Test_Sets/CT/20/DICOM_anon/i0001,0000b.dcm",
+        "Train_Sets/CT/27/DICOM_anon/IMG-0010-00122.dcm",
+        "Test_Sets/CT/31/DICOM_anon/IMG-0003-00183.dcm",
+        "Test_Sets/CT/35/DICOM_anon/IMG-0007-00126.dcm",
+        "Test_Sets/CT/37/DICOM_anon/IMG-0009-00029.dcm",
+        "Test_Sets/CT/40/DICOM_anon/IMG-0012-00001.dcm"
+      ]
+    }
+  },
+  "validation": {
+    "patients": 6,
+    "samples": 885,
+    "scanned_samples": 885,
+    "unique_sample_keys": 885,
+    "tensor_shape": [
+      1,
+      256,
+      256
+    ],
+    "tensor_dtype": "torch.float32",
+    "shape_failures": 0,
+    "dtype_failures": 0,
+    "finite_failures": 0,
+    "range_failures": 0,
+    "observed_min": 0.0,
+    "observed_max": 1.0,
+    "sample_field_order_mismatches": 0,
+    "forbidden_fields_present": [],
+    "nonportable_sample_keys": 0,
+    "canonical_sequence_sha256": "f546a99ef2350bd2542eb2f3f006fda8a3373c2be41634d34f19b095ff2e1fe4",
+    "scanned_sequence_sha256": "f546a99ef2350bd2542eb2f3f006fda8a3373c2be41634d34f19b095ff2e1fe4",
+    "slices_per_patient": {
+      "4": 94,
+      "14": 95,
+      "17": 97,
+      "23": 240,
+      "24": 123,
+      "34": 236
+    },
+    "repeated_access": {
+      "probes": 8,
+      "byte_mismatches": 0
+    },
+    "global_rng_independence": {
+      "probes": 8,
+      "byte_mismatches": 0
+    },
+    "direct_pipeline_equivalence": {
+      "probes": 8,
+      "clean_byte_mismatches": 0,
+      "degraded_byte_mismatches": 0,
+      "probe_sample_keys": [
+        "Test_Sets/CT/4/DICOM_anon/i0093,0000b.dcm",
+        "Train_Sets/CT/14/DICOM_anon/i0062,0000b.dcm",
+        "Test_Sets/CT/17/DICOM_anon/i0032,0000b.dcm",
+        "Train_Sets/CT/23/DICOM_anon/IMG-0006-00147.dcm",
+        "Train_Sets/CT/23/DICOM_anon/IMG-0006-00021.dcm",
+        "Train_Sets/CT/24/DICOM_anon/IMG-0007-00018.dcm",
+        "Test_Sets/CT/34/DICOM_anon/IMG-0006-00127.dcm",
+        "Test_Sets/CT/34/DICOM_anon/IMG-0006-00001.dcm"
+      ]
+    }
+  },
+  "training_sampler": {
+    "algorithm": "patient_balanced_v1",
+    "audit_seed": 2026,
+    "epoch_size": 4160,
+    "patients": 25,
+    "base_quota": 166,
+    "remainder": 10,
+    "quota_rule": "(epoch * remainder) % n_patients selects the rotation start",
+    "within_patient": "shuffled_cycles",
+    "final_epoch_shuffle": true,
+    "epochs": {
+      "0": {
+        "total_draws": 4160,
+        "patients": 25,
+        "min_samples_per_patient": 166,
+        "max_samples_per_patient": 167,
+        "patient_count_distribution": {
+          "166": 15,
+          "167": 10
+        },
+        "unique_slices_sampled": 3167,
+        "repeated_slice_selections": 993,
+        "train_slices_not_sampled": 993,
+        "extra_quota_patients": [
+          "2",
+          "3",
+          "5",
+          "7",
+          "8",
+          "9",
+          "10",
+          "12",
+          "15",
+          "16"
+        ],
+        "samples_per_patient": {
+          "2": 167,
+          "3": 167,
+          "5": 167,
+          "7": 167,
+          "8": 167,
+          "9": 167,
+          "10": 167,
+          "12": 167,
+          "15": 167,
+          "16": 167,
+          "18": 166,
+          "20": 166,
+          "21": 166,
+          "22": 166,
+          "26": 166,
+          "27": 166,
+          "28": 166,
+          "30": 166,
+          "31": 166,
+          "33": 166,
+          "35": 166,
+          "36": 166,
+          "37": 166,
+          "38": 166,
+          "40": 166
+        },
+        "sequence_sha256": "42d00e2cf9daa8e523290f5f98c4ce8d213d76254cbe0c14d584cd5113d5dee6"
+      },
+      "1": {
+        "total_draws": 4160,
+        "patients": 25,
+        "min_samples_per_patient": 166,
+        "max_samples_per_patient": 167,
+        "patient_count_distribution": {
+          "166": 15,
+          "167": 10
+        },
+        "unique_slices_sampled": 3172,
+        "repeated_slice_selections": 988,
+        "train_slices_not_sampled": 988,
+        "extra_quota_patients": [
+          "18",
+          "20",
+          "21",
+          "22",
+          "26",
+          "27",
+          "28",
+          "30",
+          "31",
+          "33"
+        ],
+        "samples_per_patient": {
+          "2": 166,
+          "3": 166,
+          "5": 166,
+          "7": 166,
+          "8": 166,
+          "9": 166,
+          "10": 166,
+          "12": 166,
+          "15": 166,
+          "16": 166,
+          "18": 167,
+          "20": 167,
+          "21": 167,
+          "22": 167,
+          "26": 167,
+          "27": 167,
+          "28": 167,
+          "30": 167,
+          "31": 167,
+          "33": 167,
+          "35": 166,
+          "36": 166,
+          "37": 166,
+          "38": 166,
+          "40": 166
+        },
+        "sequence_sha256": "15113d811bbc8d4c4229e3e03841527d7fee859ab20a8a60444021dffcdf145d"
+      },
+      "2": {
+        "total_draws": 4160,
+        "patients": 25,
+        "min_samples_per_patient": 166,
+        "max_samples_per_patient": 167,
+        "patient_count_distribution": {
+          "166": 15,
+          "167": 10
+        },
+        "unique_slices_sampled": 3172,
+        "repeated_slice_selections": 988,
+        "train_slices_not_sampled": 988,
+        "extra_quota_patients": [
+          "2",
+          "3",
+          "5",
+          "7",
+          "8",
+          "35",
+          "36",
+          "37",
+          "38",
+          "40"
+        ],
+        "samples_per_patient": {
+          "2": 167,
+          "3": 167,
+          "5": 167,
+          "7": 167,
+          "8": 167,
+          "9": 166,
+          "10": 166,
+          "12": 166,
+          "15": 166,
+          "16": 166,
+          "18": 166,
+          "20": 166,
+          "21": 166,
+          "22": 166,
+          "26": 166,
+          "27": 166,
+          "28": 166,
+          "30": 166,
+          "31": 166,
+          "33": 166,
+          "35": 167,
+          "36": 167,
+          "37": 167,
+          "38": 167,
+          "40": 167
+        },
+        "sequence_sha256": "37062b5ebbed0b549c2b374416b5c79cf90220b14e9933913a486e7e8a0aadb6"
+      }
+    },
+    "epoch_0_recomputed_sha256": "42d00e2cf9daa8e523290f5f98c4ce8d213d76254cbe0c14d584cd5113d5dee6",
+    "epoch_0_reproducible": true,
+    "epoch_0_differs_from_epoch_1": true,
+    "different_seed_differs": true,
+    "extra_quota_rotation": {
+      "0": [
+        "2",
+        "3",
+        "5",
+        "7",
+        "8",
+        "9",
+        "10",
+        "12",
+        "15",
+        "16"
+      ],
+      "1": [
+        "18",
+        "20",
+        "21",
+        "22",
+        "26",
+        "27",
+        "28",
+        "30",
+        "31",
+        "33"
+      ],
+      "2": [
+        "2",
+        "3",
+        "5",
+        "7",
+        "8",
+        "35",
+        "36",
+        "37",
+        "38",
+        "40"
+      ],
+      "3": [
+        "9",
+        "10",
+        "12",
+        "15",
+        "16",
+        "18",
+        "20",
+        "21",
+        "22",
+        "26"
+      ],
+      "4": [
+        "27",
+        "28",
+        "30",
+        "31",
+        "33",
+        "35",
+        "36",
+        "37",
+        "38",
+        "40"
+      ],
+      "5": [
+        "2",
+        "3",
+        "5",
+        "7",
+        "8",
+        "9",
+        "10",
+        "12",
+        "15",
+        "16"
+      ],
+      "6": [
+        "18",
+        "20",
+        "21",
+        "22",
+        "26",
+        "27",
+        "28",
+        "30",
+        "31",
+        "33"
+      ],
+      "7": [
+        "2",
+        "3",
+        "5",
+        "7",
+        "8",
+        "35",
+        "36",
+        "37",
+        "38",
+        "40"
+      ]
+    },
+    "extra_quota_times_in_first_8_epochs": {
+      "2": 4,
+      "3": 4,
+      "5": 4,
+      "7": 4,
+      "8": 4,
+      "9": 3,
+      "10": 3,
+      "12": 3,
+      "15": 3,
+      "16": 3,
+      "18": 3,
+      "20": 3,
+      "21": 3,
+      "22": 3,
+      "26": 3,
+      "27": 3,
+      "28": 3,
+      "30": 3,
+      "31": 3,
+      "33": 3,
+      "35": 3,
+      "36": 3,
+      "37": 3,
+      "38": 3,
+      "40": 3
+    },
+    "within_patient_cycle": {
+      "shortest_patient": "3",
+      "slices_available": 78,
+      "quota": 167,
+      "first_pass_is_a_full_permutation": true,
+      "repeats_before_full_coverage": 0
+    }
+  },
+  "validation_loader": {
+    "batch_sizes_compared": [
+      1,
+      17
+    ],
+    "identical_key_sequence": true,
+    "matches_canonical_manifest_order": true,
+    "samples_visited": 885,
+    "unique_samples_visited": 885,
+    "every_sample_exactly_once": true,
+    "shuffle": false,
+    "drop_last": false,
+    "sequence_sha256": "f546a99ef2350bd2542eb2f3f006fda8a3373c2be41634d34f19b095ff2e1fe4"
+  },
+  "training_loader": {
+    "batch_sizes_compared": [
+      1,
+      17
+    ],
+    "identical_key_sequence": true,
+    "matches_sampler_sequence": true,
+    "draws": 4160,
+    "shuffle": false,
+    "drop_last": false,
+    "sequence_sha256": "42d00e2cf9daa8e523290f5f98c4ce8d213d76254cbe0c14d584cd5113d5dee6"
+  },
+  "worker_check": {
+    "compared_num_workers": [
+      0,
+      2
+    ],
+    "status": "compared",
+    "samples_compared": 8,
+    "identical_sample_keys": true,
+    "tensor_byte_mismatches": 0
+  }
+}

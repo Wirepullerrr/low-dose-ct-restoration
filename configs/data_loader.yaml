@@ -1,0 +1,73 @@
+# Data policy for the learned restoration methods.
+#
+# This file records the DATA contract the CNN and the U-Net will inherit: what
+# one supervised sample is, how training patients are weighted, and how
+# validation is traversed. It is deliberately not a training config.
+#
+# What does NOT belong here
+# -------------------------
+# Batch size, optimizer, learning rate, epoch count, architecture and loss are
+# model decisions. They belong to the milestone that defines each model, so
+# that two models can differ in those while provably sharing this data layer.
+#
+# The sampler's seed is also absent on purpose. It is a run input: a training
+# run owns its seed and records it with its results. Freezing one seed here
+# would make every future run share it, which is the opposite of being able to
+# check that a result is not an artifact of one draw. The Milestone 7 audit
+# used seed 2026.
+
+dataset:
+  # The pair-generation contract. A different preprocessing, a different
+  # degradation, or a cached representation would be a new version, never a
+  # silent change to this one.
+  pair_generation: frozen_clean_plus_degradation_v1
+  preprocessing_config: configs/baseline.yaml
+  degradation_config: configs/degradation.yaml
+
+  # Model input and supervised target. Both halves, always.
+  output_shape: [1, 256, 256] # (channels, height, width)
+  output_dtype: float32
+  output_range: [0.0, 1.0]
+
+  # The frozen [0,1] windowed representation every current method already
+  # uses. No transform to [-1,1], no z-scoring: a model needing a different
+  # internal normalization must declare it as part of that model.
+  model_normalization: none
+
+  # Not yet. The first learned benchmark should establish whether a model can
+  # learn the frozen restoration problem at all before augmentation adds
+  # another experimental factor to attribute results to.
+  augmentation: none
+
+  # The degraded image is generated on demand from the DICOM. No .npy, .pt,
+  # PNG, LMDB, HDF5 or WebDataset cache exists.
+  cache: none
+
+  # Evaluation-only quantities are never returned to a model.
+  returns_evaluation_mask: false
+  returns_clean_hu: false
+
+training_sampler:
+  algorithm: patient_balanced_v1
+  epoch_size: manifest_slice_count # 4160 for the frozen train split
+  patient_quota: floor_plus_rotating_remainder # 166 or 167; differs by at most 1
+  remainder_rotation: (epoch * remainder) % n_patients
+  within_patient: shuffled_cycles # full shuffled pass before any repeat
+  final_epoch_shuffle: true # so batches intermix patients
+  seed_derivation: sha256(algorithm, seed, epoch, stream)
+  drop_last: false # dropping the tail would discard audited patient draws
+
+  # Patients are balanced. Nothing else is.
+  balances: [patient]
+  does_not_balance: [acquisition_group, source_archive, slice_position]
+
+validation:
+  sampling: canonical_sequential
+  exactly_once: true
+  shuffle: false
+  drop_last: false
+
+splits:
+  # The Milestone 7 development helpers accept these and refuse the rest.
+  development: [train, validation]
+  sealed: [test, stress]
