@@ -1,0 +1,344 @@
+{
+  "milestone": "6 - CLAHE classical baseline",
+  "method": "clahe",
+  "method_description": "Contrast Limited Adaptive Histogram Equalization applied to the frozen degraded image. Not a denoiser and not trained. It receives the degraded image only: no clean reference, no body mask, no patient identity.",
+  "split": "validation",
+  "patients": 6,
+  "slices": 885,
+  "subject_ids": [
+    "4",
+    "14",
+    "17",
+    "23",
+    "24",
+    "34"
+  ],
+  "clahe_config": {
+    "algorithm": "opencv_clahe_v1",
+    "input_quantization_bits": 8,
+    "clip_limit": 0.5,
+    "tile_grid_size": [
+      4,
+      4
+    ]
+  },
+  "evaluation_config": {
+    "data_range": 1.0,
+    "ssim": {
+      "win_size": 11,
+      "gaussian_weights": true,
+      "sigma": 1.5,
+      "use_sample_covariance": false,
+      "data_range": 1.0
+    },
+    "body_mask": {
+      "threshold_hu": -500.0,
+      "connectivity": 8,
+      "keep_largest_component": true,
+      "fill_holes": true,
+      "resize_interpolation": "nearest"
+    },
+    "aggregation": {
+      "slice_to_patient": "arithmetic_mean",
+      "patient_to_split": "arithmetic_mean",
+      "primary_unit": "patient"
+    }
+  },
+  "degradation_config": {
+    "algorithm": "correlated_heteroscedastic_gaussian_v1",
+    "global_seed": 2026,
+    "sigma_floor": 0.015,
+    "sigma_signal": 0.035,
+    "correlation_sigma_px": 0.6,
+    "clip_min": 0.0,
+    "clip_max": 1.0
+  },
+  "primary_result": {
+    "unit": "patient",
+    "description": "PRIMARY figure. Per-slice metrics averaged within each patient, then patients averaged with equal weight.",
+    "patients": 6,
+    "full_mae": {
+      "mean": 0.0235697227,
+      "std": 0.0011996863,
+      "median": 0.0240590329,
+      "min": 0.0213914215,
+      "max": 0.0244409678
+    },
+    "full_mse": {
+      "mean": 0.0012325209,
+      "std": 0.0001177084,
+      "median": 0.0012630182,
+      "min": 0.0010120287,
+      "max": 0.0013406934
+    },
+    "full_psnr": {
+      "mean": 29.1561203908,
+      "std": 0.4365339228,
+      "median": 29.0215962489,
+      "min": 28.768560023,
+      "max": 29.9759788078
+    },
+    "full_ssim": {
+      "mean": 0.620768736,
+      "std": 0.0161530977,
+      "median": 0.6200678106,
+      "min": 0.5968033212,
+      "max": 0.6452163483
+    },
+    "body_mae": {
+      "mean": 0.0362809152,
+      "std": 0.0014224341,
+      "median": 0.0364775149,
+      "min": 0.0341154143,
+      "max": 0.0384392933
+    },
+    "body_mse": {
+      "mean": 0.0022988021,
+      "std": 0.0001782825,
+      "median": 0.0022996817,
+      "min": 0.0020263609,
+      "max": 0.0025741924
+    },
+    "body_psnr": {
+      "mean": 26.483128773,
+      "std": 0.3156893416,
+      "median": 26.4539288288,
+      "min": 26.0109636363,
+      "max": 26.9859166578
+    },
+    "body_ssim": {
+      "mean": 0.7680845838,
+      "std": 0.0242520372,
+      "median": 0.762999784,
+      "min": 0.7434782657,
+      "max": 0.8020006198
+    }
+  },
+  "secondary_slice_weighted_summary": {
+    "unit": "slice",
+    "description": "SECONDARY slice-weighted descriptive summary, NOT the benchmark result.",
+    "slices": 885,
+    "full_mae": {
+      "mean": 0.0237471407
+    },
+    "full_mse": {
+      "mean": 0.0012542934
+    },
+    "full_psnr": {
+      "mean": 29.0740349235
+    },
+    "full_ssim": {
+      "mean": 0.620745599
+    },
+    "body_mae": {
+      "mean": 0.0365086432
+    },
+    "body_mse": {
+      "mean": 0.0023350078
+    },
+    "body_psnr": {
+      "mean": 26.4245401235
+    },
+    "body_ssim": {
+      "mean": 0.7637262937
+    }
+  },
+  "paired_comparison_vs_degraded_baseline": {
+    "description": "delta = CLAHE - degraded baseline, per patient, same patients and same slices. Positive is an improvement for PSNR and SSIM; negative is an improvement for MAE and MSE. No significance test is run: six patients is a small descriptive sample.",
+    "baseline": "degraded_baseline_validation_patients.csv",
+    "patient_deltas_csv": "outputs/metrics/clahe_vs_degraded_baseline_validation_patient_deltas.csv",
+    "patients": 6,
+    "full_mae": {
+      "direction": "lower",
+      "improvement_sign": "negative",
+      "mean": 0.0072108009,
+      "median": 0.0071589582,
+      "std": 0.0007862595,
+      "min": 0.0062224859,
+      "max": 0.008466365,
+      "count_improved": 0,
+      "count_worsened": 6,
+      "count_tied": 0
+    },
+    "full_mse": {
+      "direction": "lower",
+      "improvement_sign": "negative",
+      "mean": 0.0005112167,
+      "median": 0.0005060554,
+      "std": 9.65682e-05,
+      "min": 0.0003977918,
+      "max": 0.0006600052,
+      "count_improved": 0,
+      "count_worsened": 6,
+      "count_tied": 0
+    },
+    "full_psnr": {
+      "direction": "higher",
+      "improvement_sign": "positive",
+      "mean": -2.3251387973,
+      "median": -2.3038011108,
+      "std": 0.3900333122,
+      "min": -2.9354980746,
+      "max": -1.7727644801,
+      "count_improved": 0,
+      "count_worsened": 6,
+      "count_tied": 0
+    },
+    "full_ssim": {
+      "direction": "higher",
+      "improvement_sign": "positive",
+      "mean": -0.1605768076,
+      "median": -0.1617951261,
+      "std": 0.0133039976,
+      "min": -0.1758126293,
+      "max": -0.1406205618,
+      "count_improved": 0,
+      "count_worsened": 6,
+      "count_tied": 0
+    },
+    "body_mae": {
+      "direction": "lower",
+      "improvement_sign": "negative",
+      "mean": 0.0080943792,
+      "median": 0.0079655892,
+      "std": 0.0017664354,
+      "min": 0.0060272577,
+      "max": 0.0109337941,
+      "count_improved": 0,
+      "count_worsened": 6,
+      "count_tied": 0
+    },
+    "body_mse": {
+      "direction": "lower",
+      "improvement_sign": "negative",
+      "mean": 0.000883535,
+      "median": 0.000872373,
+      "std": 0.000209895,
+      "min": 0.0006715959,
+      "max": 0.0012339739,
+      "count_improved": 0,
+      "count_worsened": 6,
+      "count_tied": 0
+    },
+    "body_psnr": {
+      "direction": "higher",
+      "improvement_sign": "positive",
+      "mean": -2.0789013492,
+      "median": -2.0458627891,
+      "std": 0.4450304711,
+      "min": -2.7666446635,
+      "max": -1.5196552354,
+      "count_improved": 0,
+      "count_worsened": 6,
+      "count_tied": 0
+    },
+    "body_ssim": {
+      "direction": "higher",
+      "improvement_sign": "positive",
+      "mean": -0.0423454592,
+      "median": -0.042692942,
+      "std": 0.012207205,
+      "min": -0.0573013189,
+      "max": -0.0210836984,
+      "count_improved": 0,
+      "count_worsened": 6,
+      "count_tied": 0
+    }
+  },
+  "verdict": {
+    "predeclared_primary_metric": "body_ssim",
+    "beats_degraded_baseline_on_primary_metric": false,
+    "statement": "The frozen CLAHE configuration does NOT improve patient-weighted body_ssim relative to no restoration on the validation split (mean paired delta -0.042345)."
+  },
+  "clahe_diagnostics": {
+    "fraction_output_at_zero": 0.0,
+    "fraction_output_at_one": 0.011464161,
+    "mean_absolute_change_vs_degraded": 0.0123607088,
+    "per_slice_mean_absolute_change": {
+      "q05": 0.0095113755,
+      "q50": 0.0117426552,
+      "q95": 0.0182269482
+    },
+    "finite_value_failures": 0,
+    "range_failures": 0,
+    "quantization_policy": "fixed round(x * 255) over the whole [0,1] benchmark range, never per-image min/max; round-trip error at most 0.00196078 in normalized units. The 8-bit conversion is part of the method definition."
+  },
+  "acquisition_group_breakdown": {
+    "description": "Descriptive only, patient-weighted within each group, three patients each. No significance test and no general claim about acquisition settings.",
+    "groups": {
+      "A": {
+        "patients": 3,
+        "full_mae": {
+          "mean": 0.0241776308
+        },
+        "full_mse": {
+          "mean": 0.0012997625
+        },
+        "full_psnr": {
+          "mean": 28.9070801072
+        },
+        "full_ssim": {
+          "mean": 0.6226590945
+        },
+        "body_mae": {
+          "mean": 0.0368716823
+        },
+        "body_mse": {
+          "mean": 0.00238827
+        },
+        "body_psnr": {
+          "mean": 26.3392211582
+        },
+        "body_ssim": {
+          "mean": 0.753142769
+        }
+      },
+      "B": {
+        "patients": 3,
+        "full_mae": {
+          "mean": 0.0229618147
+        },
+        "full_mse": {
+          "mean": 0.0011652793
+        },
+        "full_psnr": {
+          "mean": 29.4051606744
+        },
+        "full_ssim": {
+          "mean": 0.6188783775
+        },
+        "body_mae": {
+          "mean": 0.035690148
+        },
+        "body_mse": {
+          "mean": 0.0022093342
+        },
+        "body_psnr": {
+          "mean": 26.6270363879
+        },
+        "body_ssim": {
+          "mean": 0.7830263986
+        }
+      }
+    }
+  },
+  "inspection_policy": {
+    "train_images_read": false,
+    "validation_images_read": true,
+    "test_images_read": false,
+    "stress_images_read": false,
+    "note": "This command cannot evaluate test or stress: require_development_split refuses them. CLAHE parameters were selected on validation only."
+  },
+  "interpretation": {
+    "mae": "lower is better",
+    "mse": "lower is better",
+    "psnr": "higher is better, in decibels",
+    "ssim": "higher is better, 1.0 for identical images",
+    "caution": "A validation development result, not a final benchmark result. No value here indicates clinical adequacy, and a PSNR difference is in decibels, never a percentage."
+  },
+  "outputs": {
+    "slices_csv": "outputs/metrics/clahe_validation_slices.csv",
+    "patients_csv": "outputs/metrics/clahe_validation_patients.csv",
+    "patient_deltas_csv": "outputs/metrics/clahe_vs_degraded_baseline_validation_patient_deltas.csv"
+  }
+}

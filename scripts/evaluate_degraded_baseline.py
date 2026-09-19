@@ -42,145 +42,47 @@ No timestamps, no pixel data, no DICOM UIDs.
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 from pathlib import Path
-from typing import Any
-
-import numpy as np
-import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from ct_restoration.config import ensure_dir, load_config  # noqa: E402
-from ct_restoration.data.degradation import DegradationConfig, degrade_low_dose_like  # noqa: E402
+from ct_restoration.benchmark import (  # noqa: E402
+    METRICS_DIR,
+    SLICE_COLUMNS,
+    check_metrics_output_policy,
+    evaluate_slices,
+    manifest_rows,
+    round_floats,
+    write_csv,
+    write_json,
+)
+from ct_restoration.config import load_config  # noqa: E402
+from ct_restoration.data.degradation import DegradationConfig  # noqa: E402
 from ct_restoration.evaluation import (  # noqa: E402
-    METRIC_COLUMNS,
     EvaluationConfig,
     aggregate_slices_to_patients,
     group_breakdown,
-    prepare_evaluation_slice,
     require_development_split,
     slice_weighted_summary,
     summarise_patients,
 )
-from ct_restoration.metrics import slice_metrics  # noqa: E402
-
-#: Directory holding the tracked metric tables.
-METRICS_DIR = Path("outputs/metrics")
 
 #: Stem of every output file. The split is appended, so a debug run on train
 #: cannot overwrite the validation result.
 OUTPUT_STEM = "degraded_baseline"
 
-#: Identity of the method being measured. Later methods reuse this pipeline
+#: Identity of the method being measured. Later methods reuse this harness
 #: with a different name and a real restoration step.
 METHOD_NAME = "degraded_baseline"
 
-SLICE_COLUMNS = (
-    "subject_id",
-    "source_archive",
-    "acquisition_group",
-    "relative_dicom_path",
-    "geometric_slice_index",
-    *METRIC_COLUMNS,
-    "body_pixel_fraction",
-    "body_ssim_interior_fraction",
-)
+# Aliases kept so this command, and the tests that import it, keep one obvious
+# name for each shared helper. SLICE_COLUMNS is re-exported because the
+# per-slice schema belongs to the shared harness, not to this command.
+__all__ = ["METHOD_NAME", "OUTPUT_STEM", "SLICE_COLUMNS", "check_output_policy", "main"]
 
-#: Decimal places for floats in tracked outputs. Enough for an MSE around
-#: 1e-4 to keep every significant digit.
-_ROUND = 10
-
-
-def _round(value: Any) -> Any:
-    if isinstance(value, dict):
-        return {key: _round(item) for key, item in value.items()}
-    if isinstance(value, list):
-        return [_round(item) for item in value]
-    if isinstance(value, float | np.floating):
-        return round(float(value), _ROUND)
-    if isinstance(value, np.integer):
-        return int(value)
-    return value
-
-
-def write_csv(frame: pd.DataFrame, path: Path) -> Path:
-    """Write a CSV with a fixed line ending so its checksum is portable."""
-    ensure_dir(path.parent)
-    with path.open("w", encoding="utf-8", newline="\n") as handle:
-        frame.to_csv(handle, index=False, lineterminator="\n")
-    return path
-
-
-def check_output_policy(limit: int, slices_path: Path) -> None:
-    """Refuse to write a partial evaluation over a canonical tracked table.
-
-    Raises:
-        ValueError: ``limit`` is set and the output is a canonical path.
-    """
-    if limit and Path(slices_path).resolve().parent == METRICS_DIR.resolve():
-        raise ValueError(
-            f"--limit {limit} is debug-only and would overwrite canonical tracked metrics in "
-            f"{METRICS_DIR.as_posix()} with a partial evaluation. "
-            "Re-run without --limit, or pass a noncanonical --output-dir."
-        )
-
-
-def manifest_rows(manifest_path: Path, split: str) -> pd.DataFrame:
-    """Rows of one development split, sorted deterministically.
-
-    Raises:
-        HeldOutSplitError: the split is sealed.
-        ValueError: the manifest holds no rows for that split.
-    """
-    require_development_split(split)
-    manifest = pd.read_csv(manifest_path, dtype={"subject_id": str})
-    rows = manifest[manifest["split"] == split].copy()
-    if rows.empty:
-        raise ValueError(f"No split == {split} rows in {manifest_path}")
-    rows["subject_order"] = rows["subject_id"].astype(int)
-    rows = rows.sort_values(["subject_order", "geometric_slice_index"])
-    return rows.drop(columns="subject_order").reset_index(drop=True)
-
-
-def evaluate_split(
-    rows: pd.DataFrame,
-    root: Path,
-    preprocessing: dict[str, Any],
-    evaluation: EvaluationConfig,
-    degradation: DegradationConfig,
-    progress_every: int = 100,
-) -> pd.DataFrame:
-    """Score the degraded baseline on every row. One row in, one row out."""
-    records: list[dict[str, Any]] = []
-    for position, row in enumerate(rows.itertuples(), start=1):
-        key = row.relative_dicom_path
-        clean, body, interior = prepare_evaluation_slice(root / key, preprocessing, evaluation)
-        # The degraded image IS the baseline's output: no restoration happens.
-        degraded = degrade_low_dose_like(clean, key, degradation)
-
-        measured = slice_metrics(clean, degraded, body, interior, evaluation.ssim)
-        records.append(
-            {
-                "subject_id": row.subject_id,
-                "source_archive": row.source_archive,
-                "acquisition_group": row.acquisition_group,
-                "relative_dicom_path": key,
-                "geometric_slice_index": int(row.geometric_slice_index),
-                **measured,
-                "body_pixel_fraction": float(body.mean()),
-                "body_ssim_interior_fraction": float(interior.mean()),
-            }
-        )
-        if position % progress_every == 0 or position == len(rows):
-            print(f"  processed {position:>5} / {len(rows)}")
-
-    frame = pd.DataFrame(records)[list(SLICE_COLUMNS)]
-    for column in frame.columns:
-        if frame[column].dtype.kind == "f":
-            frame[column] = frame[column].round(_ROUND)
-    return frame
+_round = round_floats
+check_output_policy = check_metrics_output_policy
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -246,7 +148,7 @@ def main() -> int:
     print("test and stress image content is NOT read by this command")
     print()
 
-    slice_frame = evaluate_split(rows, root, preprocessing, evaluation, degradation)
+    slice_frame = evaluate_slices(rows, root, preprocessing, evaluation, degradation)
     patient_frame = aggregate_slices_to_patients(slice_frame)
     primary = summarise_patients(patient_frame)
     secondary = slice_weighted_summary(slice_frame)
@@ -344,11 +246,7 @@ def main() -> int:
         },
     }
 
-    summary_path = output_dir / f"{OUTPUT_STEM}_{split}_summary.json"
-    ensure_dir(summary_path.parent)
-    with summary_path.open("w", encoding="utf-8", newline="\n") as handle:
-        json.dump(_round(summary), handle, indent=2, allow_nan=False)
-        handle.write("\n")
+    summary_path = write_json(summary, output_dir / f"{OUTPUT_STEM}_{split}_summary.json")
 
     print()
     print(f"PRIMARY patient-weighted result, {len(patient_frame)} patients, equal weight")

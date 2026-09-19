@@ -71,6 +71,7 @@ import numpy as np
 import pandas as pd
 from scipy import ndimage
 
+from ct_restoration.data.splits import subject_sort_key
 from ct_restoration.metrics import METRIC_NAMES, REGION_NAMES, SsimSettings
 
 #: Splits whose image content this stage of the project may read.
@@ -473,7 +474,9 @@ def aggregate_slices_to_patients(
         rows.append(row)
 
     frame = pd.DataFrame(rows)
-    frame["order"] = frame["subject_id"].map(lambda value: (len(str(value)), str(value)))
+    # The same canonical ordering the frozen split uses, so patient tables from
+    # different methods line up row for row and can be diffed directly.
+    frame["order"] = frame["subject_id"].map(subject_sort_key)
     return frame.sort_values("order").drop(columns="order").reset_index(drop=True)
 
 
@@ -555,3 +558,158 @@ def group_breakdown(
             entry[name] = {"mean": float(group[f"mean_{name}"].mean())}
         breakdown[str(value)] = entry
     return breakdown
+
+
+# --------------------------------------------------------------------------
+# Paired patient-level comparison between two methods
+# --------------------------------------------------------------------------
+
+#: Which direction counts as an improvement, per metric family.
+METRIC_DIRECTION: dict[str, str] = {
+    "mae": "lower",
+    "mse": "lower",
+    "psnr": "higher",
+    "ssim": "higher",
+}
+
+
+def metric_direction(metric: str) -> str:
+    """``"lower"`` or ``"higher"`` for a metric column such as ``body_psnr``.
+
+    Raises:
+        EvaluationError: the column name carries no recognised metric family.
+    """
+    family = metric.rsplit("_", 1)[-1]
+    if family not in METRIC_DIRECTION:
+        raise EvaluationError(
+            f"Cannot tell which direction improves {metric!r}; known families are "
+            f"{sorted(METRIC_DIRECTION)}"
+        )
+    return METRIC_DIRECTION[family]
+
+
+def improved(metric: str, delta: float) -> bool:
+    """Does this signed delta represent an improvement for this metric?"""
+    if delta == 0:
+        return False
+    return delta > 0 if metric_direction(metric) == "higher" else delta < 0
+
+
+def paired_patient_deltas(
+    method_patients: pd.DataFrame,
+    baseline_patients: pd.DataFrame,
+    metric_columns: tuple[str, ...] = METRIC_COLUMNS,
+    require_matching: tuple[str, ...] = ("source_archive", "acquisition_group", "slice_count"),
+) -> pd.DataFrame:
+    """Per-patient ``method - baseline`` deltas, strictly aligned.
+
+    The sign convention is uniform and deliberate: the delta is always
+    ``method - baseline``, so it is **positive for an improvement in PSNR and
+    SSIM and negative for an improvement in MAE and MSE**. Reading a delta
+    therefore requires knowing the metric's direction, which
+    :func:`metric_direction` supplies; flipping signs per metric instead would
+    hide which way the raw numbers moved.
+
+    Alignment is strict on purpose. A silent inner join that quietly dropped a
+    patient would turn a six-patient comparison into a five-patient one while
+    still looking like a complete result, and the drop would most likely happen
+    to whichever patient a method failed on.
+
+    Raises:
+        EvaluationError: the patient sets differ, a patient is duplicated, a
+            metric column is missing, or a paired attribute such as
+            ``slice_count`` disagrees between the two tables.
+    """
+    for name, frame in (("method", method_patients), ("baseline", baseline_patients)):
+        if frame.empty:
+            raise EvaluationError(f"{name} patient table is empty")
+        if "subject_id" not in frame:
+            raise EvaluationError(f"{name} patient table has no subject_id column")
+        duplicated = sorted(frame.loc[frame["subject_id"].duplicated(), "subject_id"])
+        if duplicated:
+            raise EvaluationError(f"{name} patient table repeats subject(s) {duplicated}")
+
+    method_ids = set(method_patients["subject_id"])
+    baseline_ids = set(baseline_patients["subject_id"])
+    if method_ids != baseline_ids:
+        only_method = sorted(method_ids - baseline_ids, key=subject_sort_key)
+        only_baseline = sorted(baseline_ids - method_ids, key=subject_sort_key)
+        raise EvaluationError(
+            "Paired comparison needs the same patients on both sides; "
+            f"only in method {only_method}, only in baseline {only_baseline}"
+        )
+
+    columns = [f"mean_{name}" for name in metric_columns]
+    for name, frame in (("method", method_patients), ("baseline", baseline_patients)):
+        missing = [column for column in columns if column not in frame]
+        if missing:
+            raise EvaluationError(f"{name} patient table is missing column(s): {missing}")
+
+    method = method_patients.set_index("subject_id")
+    baseline = baseline_patients.set_index("subject_id")
+    for attribute in require_matching:
+        if attribute in method and attribute in baseline:
+            disagreeing = sorted(
+                str(subject)
+                for subject in method.index
+                if method.loc[subject, attribute] != baseline.loc[subject, attribute]
+            )
+            if disagreeing:
+                raise EvaluationError(
+                    f"{attribute} disagrees between the two tables for subject(s) "
+                    f"{disagreeing}; the two methods did not score the same slices"
+                )
+
+    order = sorted(method.index, key=subject_sort_key)
+    rows: list[dict[str, Any]] = []
+    for subject in order:
+        row: dict[str, Any] = {"subject_id": subject}
+        for attribute in require_matching:
+            if attribute in method:
+                row[attribute] = method.loc[subject, attribute]
+        for name, column in zip(metric_columns, columns, strict=True):
+            method_value = float(method.loc[subject, column])
+            baseline_value = float(baseline.loc[subject, column])
+            row[f"baseline_{name}"] = baseline_value
+            row[f"method_{name}"] = method_value
+            row[f"delta_{name}"] = method_value - baseline_value
+        rows.append(row)
+    return pd.DataFrame(rows)
+
+
+def summarise_paired_deltas(
+    deltas: pd.DataFrame,
+    metric_columns: tuple[str, ...] = METRIC_COLUMNS,
+) -> dict[str, Any]:
+    """Describe the distribution of per-patient deltas, metric by metric.
+
+    The counts matter as much as the mean. A method that helps all six patients
+    a little is a different thing from one that helps three a lot and harms
+    three, and the two can share a mean. No significance test is run and no
+    p-value is produced: with six patients this is descriptive model selection,
+    not inference.
+    """
+    if deltas.empty:
+        raise EvaluationError("cannot summarise an empty delta table")
+
+    summary: dict[str, Any] = {"patients": int(len(deltas))}
+    for name in metric_columns:
+        column = f"delta_{name}"
+        if column not in deltas:
+            raise EvaluationError(f"delta table is missing {column}")
+        values = deltas[column].to_numpy(dtype=np.float64)
+        direction = metric_direction(name)
+        gains = [improved(name, float(value)) for value in values]
+        summary[name] = {
+            "direction": direction,
+            "improvement_sign": "positive" if direction == "higher" else "negative",
+            "mean": float(values.mean()),
+            "median": float(np.median(values)),
+            "std": float(values.std(ddof=STD_DDOF)) if values.size > STD_DDOF else None,
+            "min": float(values.min()),
+            "max": float(values.max()),
+            "count_improved": int(sum(gains)),
+            "count_worsened": int(sum(1 for value in values if value != 0)) - int(sum(gains)),
+            "count_tied": int(sum(1 for value in values if value == 0)),
+        }
+    return summary

@@ -4,13 +4,17 @@ An engineering benchmark comparing classical and lightweight deep-learning
 restoration methods on **synthetically degraded, low-dose-like CT images**
 built from public abdominal CT data.
 
-> **Status: in progress (Milestone 5 of 15 - evaluation framework frozen, and
-> the no-restoration baseline measured on validation).**
+> **Status: in progress (Milestone 6 of 15 - CLAHE implemented, tuned on
+> validation and frozen).**
 >
-> No restoration *method* has been implemented yet: there is no CLAHE, CNN or
-> U-Net result anywhere in this document. The only measured result is the
-> degraded baseline, which is the no-restoration reference, and it is measured
-> on the **validation** split only. No test or stress number exists.
+> Two methods are measured so far: the no-restoration degraded baseline and
+> CLAHE. **CLAHE scored worse than doing nothing on every metric and every
+> patient**, which is reported as it stands. No neural network exists yet:
+> there is no CNN or U-Net result anywhere in this document.
+>
+> Every measured number here is a **validation** development result. No test
+> or stress number exists, and no test or stress image content has been read
+> since the split was frozen.
 >
 > Every number reported here is reproducible from files committed under
 > `outputs/`.
@@ -26,7 +30,7 @@ quality, and what does each method cost in inference latency?
 | Method | Type | Status |
 | --- | --- | --- |
 | Degraded input (no restoration) | mandatory reference baseline | implemented; [measured on validation](#validation-degraded-baseline) |
-| CLAHE | classical local contrast enhancement | not implemented |
+| CLAHE | classical local contrast enhancement | implemented, validation-tuned and frozen; [worse than no restoration](#validation-result-clahe-versus-no-restoration) |
 | Small residual CNN | deep learning | not implemented |
 | Lightweight U-Net | deep learning | not implemented |
 
@@ -186,8 +190,9 @@ Three limitations follow directly from this design.
   [Two regions, both reported](#two-regions-both-reported). What the later
   milestones measured is that the background is not a neutral filler — it
   pulls the two metric families in opposite directions, easing MAE/MSE/PSNR
-  while depressing SSIM. How each *restoration method* behaves there is still
-  unknown, since no restoration method exists yet.
+  while depressing SSIM. The first method measured there, CLAHE, redistributes
+  regional brightness and carries no denoising mechanism; it loses on both
+  families. How a *learned* method behaves there is still unknown.
 
 ## Real-data audit
 
@@ -876,6 +881,254 @@ tests assert the refusal:
 Those splits stay sealed for all post-split experimental development. The final
 benchmark will be a separate, explicitly final command, run after every method
 decision is frozen.
+
+## CLAHE: the classical comparison method
+
+Contrast Limited Adaptive Histogram Equalization, via OpenCV, implemented in
+[src/ct_restoration/classical/clahe.py](src/ct_restoration/classical/clahe.py).
+It is the classical reference point the deep-learning methods are measured
+against. It is **not** a denoiser and carries no trained parameters.
+
+The headline finding, stated first because the rest of this section explains
+it: **every CLAHE configuration tried scored worse than doing nothing.**
+
+### What CLAHE sees
+
+Exactly the frozen degraded image, and nothing else.
+
+```
+clean reference -> frozen degradation -> degraded image -> CLAHE -> output -> evaluator
+```
+
+No clean reference, no HU slice, no body mask, no acquisition group, no source
+archive, no patient identity. The restoration contract is a one-argument
+callable for precisely this reason. The body mask in particular is
+evaluation-only: applying CLAHE inside it would feed the method a region
+derived from the clean reference, which a deployed method would never have.
+
+### The 8-bit conversion is part of the method
+
+OpenCV's CLAHE builds per-tile histograms and needs an integer single-channel
+image, so the [0, 1] benchmark representation is quantized, enhanced, and
+mapped back:
+
+```
+uint8 = round(x * 255)   ->   CLAHE   ->   float32 = uint8 / 255
+```
+
+The mapping is fixed to the benchmark range, never to the image's own minimum
+and maximum: per-image normalization would give a different mapping to every
+slice and destroy the comparability the fixed 40/400 HU window exists to
+provide. This quantization is declared in the config as
+`input_quantization_bits` and is a defining part of the method, not an
+incidental detail — a different depth would be a different method, and the
+config refuses one.
+
+Its cost, measured rather than assumed: the round-trip error is at most
+`0.5 / 255 ≈ 0.00196` in normalized units. Spread over the 400 HU window that
+is about 0.8 HU per step, against a degradation whose per-slice perturbation
+standard deviation is about 0.026. Small, but an approximation all the same.
+This is not a claim that 8 bits is clinically lossless.
+
+### The predeclared search space
+
+Fixed in [configs/clahe_search.yaml](configs/clahe_search.yaml) **before any
+CLAHE candidate was scored**: 4 clip limits × 3 tile grids = 12 candidates.
+(The Milestone 5 degraded-baseline numbers already existed at that point; what
+was fixed in advance is the CLAHE grid and the rule for choosing within it.)
+
+| Parameter | Values |
+| --- | --- |
+| `clip_limit` | 0.5, 1.0, 2.0, 4.0 |
+| `tile_grid_size` | [4, 4], [8, 8], [16, 16] |
+
+On the 256×256 benchmark image those grids give 64×64, 32×32 and 16×16 pixel
+tiles. `clip_limit` bounds how far a single histogram bin may rise before the
+excess is redistributed across the tile — the "contrast limited" part, and the
+thing that stops a near-uniform tile from having its noise stretched across
+the full output range.
+
+The grid was **not** widened after the results came in. Trying extra values
+until something beats the baseline is how a validation split stops being an
+honest development estimate.
+
+### The predeclared selection rule
+
+Also fixed in advance. Primary metric: **patient-weighted mean body SSIM**,
+higher is better. CLAHE is a local contrast and structure method, so a local
+structural measure inside the anatomy is the metric most aligned with what it
+attempts; choosing it beforehand avoids picking whichever metric the method
+happened to win on. Ties break on body PSNR, then full SSIM, then full PSNR,
+then the lower clip limit, then the smaller grid — a total order, so exactly
+one candidate wins and the winner never depends on row order.
+
+Candidates are ranked on six patients, not 885 slices: per-slice metrics are
+averaged within a patient first, then patients are averaged with equal weight.
+
+### The 12-candidate validation sweep
+
+All 885 validation slices, each loaded and degraded once and then shown to all
+12 candidates, scored with the same Milestone 5 metric code.
+[outputs/metrics/clahe_validation_search.csv](outputs/metrics/clahe_validation_search.csv)
+holds the full table.
+
+| clip | grid | body SSIM | body PSNR | full SSIM | full PSNR | rank |
+| --- | --- | --- | --- | --- | --- | --- |
+| 0.5 | 4×4 | 0.768085 | 26.4831 | 0.620769 | 29.1561 | **1 selected** |
+| 0.5 | 8×8 | 0.755407 | 25.0473 | 0.604626 | 27.8322 | 2 |
+| 1.0 | 4×4 | 0.722111 | 24.0467 | 0.530833 | 26.6919 | 3 |
+| 1.0 | 8×8 | 0.703800 | 22.8213 | 0.511055 | 25.5663 | 4 |
+| 0.5 | 16×16 | 0.664602 | 16.7047 | 0.478881 | 19.9083 | 5 |
+| 1.0 | 16×16 | 0.664602 | 16.7047 | 0.478881 | 19.9083 | 6 |
+| 2.0 | 4×4 | 0.658124 | 21.2925 | 0.443808 | 23.7825 | 7 |
+| 2.0 | 8×8 | 0.625283 | 19.7940 | 0.422941 | 22.5031 | 8 |
+| 4.0 | 4×4 | 0.614461 | 19.3077 | 0.382250 | 21.2416 | 9 |
+| 2.0 | 16×16 | 0.607239 | 18.4132 | 0.403766 | 21.2020 | 10 |
+| 4.0 | 8×8 | 0.554888 | 17.2304 | 0.353577 | 19.6415 | 11 |
+| 4.0 | 16×16 | 0.514593 | 16.1574 | 0.327203 | 18.6425 | 12 |
+| — | *no restoration* | *0.810430* | *28.5620* | *0.781346* | *31.4813* | *baseline* |
+
+Two things in that table are worth naming.
+
+Ranks 5 and 6 are **identical to the last digit**, and that is not a
+coincidence. OpenCV converts `clip_limit` into an integer per-bin threshold,
+`max(int(clip_limit * tile_area / 256), 1)`. At a 16×16 grid on a 256×256
+image the tile area is exactly 256, so clip limit 0.5 gives `int(0.5) = 0`
+and clip limit 1.0 gives `int(1.0) = 1`; the `max(..., 1)` then raises both to
+a threshold of 1, and the two select the *same* effective operator. The search space
+still contains **12 declared parameter tuples**, but two of them map to one
+operator under the pinned OpenCV build, so the sweep covers **11 distinct
+effective operators**. The tie-breaker resolved the duplicate pair
+deterministically in favour of the lower clip limit. Neither declared
+candidate was removed after the result was seen, and the grid was left as
+declared rather than quietly repaired.
+
+Within the predeclared grid the ranking is **monotone in both parameters**:
+the lower tested clip limits and the coarser tested tile grids scored better.
+The winner therefore lies at the boundary of the tested parameter space, so
+the sweep does **not** establish what would happen outside that space —
+neither that a still lower clip limit would keep improving, nor what OpenCV's
+integer clip threshold would do there. The grid was intentionally not expanded
+after the validation results were seen.
+
+Stated separately, because it is the comparison that matters: **the
+no-restoration identity baseline outperformed every one of the 12 tested
+parameter combinations**, on all four metrics in the table above.
+
+### The frozen configuration
+
+[configs/clahe.yaml](configs/clahe.yaml), written by the sweep, not hand-
+transcribed:
+
+```yaml
+clahe:
+  algorithm: opencv_clahe_v1
+  input_quantization_bits: 8
+  clip_limit: 0.5
+  tile_grid_size: [4, 4]
+  selected_by:
+    split: validation
+    primary_metric: body_ssim
+    aggregation: patient_weighted
+    search_config: configs/clahe_search.yaml
+```
+
+Frozen. `scripts/tune_clahe.py` refuses to overwrite it without an explicit
+`--overwrite`, so CLAHE cannot be quietly retuned once CNN or U-Net results
+exist.
+
+### Validation result: CLAHE versus no restoration
+
+Same 6 patients, same 885 slices, same masks, same metric code. Patient-
+weighted:
+
+| Region | Metric | No restoration | CLAHE | Delta |
+| --- | --- | --- | --- | --- |
+| full | MAE | 0.016359 | 0.023570 | +0.007211 |
+| full | MSE | 0.00072130 | 0.00123279 | +0.00051149 |
+| full | PSNR | 31.4813 | 29.1561 | −2.3251 |
+| full | SSIM | 0.781346 | 0.620769 | −0.160577 |
+| body | MAE | 0.028187 | 0.036281 | +0.008094 |
+| body | MSE | 0.00141527 | 0.00229926 | +0.00088399 |
+| body | PSNR | 28.5620 | 26.4831 | −2.0789 |
+| body | SSIM | 0.810430 | 0.768085 | −0.042345 |
+
+**Did CLAHE beat the degraded baseline on the predeclared primary metric,
+patient-weighted body SSIM? No.** It lost by 0.042345.
+
+It also lost on body PSNR (−2.08 dB), full SSIM (−0.161), full PSNR
+(−2.33 dB), and on MAE and MSE in both regions, where higher is worse. **No
+metric moved in CLAHE's favour.** There is no qualification to add and no
+angle from which this is an improvement.
+
+### The paired per-patient deltas
+
+The split means above say which number is larger. The paired deltas say
+whether that holds patient by patient, and here they are unanimous:
+
+| Subject | Group | Δ body PSNR | Δ body SSIM | Δ full PSNR | Δ full SSIM |
+| --- | --- | --- | --- | --- | --- |
+| 4 | B | −1.519655 | −0.021084 | −1.772764 | −0.140621 |
+| 14 | B | −1.859560 | −0.040561 | −2.153464 | −0.171720 |
+| 17 | B | −1.791796 | −0.040447 | −2.185182 | −0.175813 |
+| 23 | A | −2.232165 | −0.057301 | −2.422420 | −0.156846 |
+| 24 | A | −2.303587 | −0.049855 | −2.481504 | −0.151718 |
+| 34 | A | −2.766645 | −0.044825 | −2.935498 | −0.166744 |
+| **mean** | | **−2.078901** | **−0.042345** | **−2.325139** | **−0.160577** |
+| **improved** | | **0 / 6** | **0 / 6** | **0 / 6** | **0 / 6** |
+
+Zero patients improved on any metric. That unanimity is more informative than
+the mean alone would be: a method that helped three patients and harmed three
+could average to the same place while meaning something quite different. No
+significance test is run and no p-value is computed — six patients is a small
+descriptive sample, and this is model selection, not inference.
+
+### Why CLAHE loses here
+
+At clip 0.5 with 4×4 tiles CLAHE makes a smooth, low-amplitude, tile-scale
+change to the image. Measured across all 885 validation slices, the mean
+absolute change it makes to the degraded image is **0.012361** in normalized
+units, with per-slice values of 0.009511 / 0.011743 / 0.018227 at the 5th,
+50th and 95th percentiles
+([clahe_validation_summary.json](outputs/metrics/clahe_validation_summary.json)).
+
+What CLAHE has no mechanism for is noise. It performs no noise estimation and
+no denoising: it has no model of what in a tile is structure and what is
+perturbation. The degradation's noise is simply part of every local histogram,
+and the histogram remapping redistributes it along with the structure. That
+remapping is nonlinear, so the noise realization in the output is not the
+input noise carried through numerically unchanged — it is altered, and at
+harsher settings amplified, which is consistent with every harsher candidate
+in the table scoring worse. Whatever the detailed mechanism, the measured
+outcome is unambiguous: the output moved farther from the clean reference on
+all eight reported metrics.
+
+That is not a flaw in CLAHE, which is a contrast enhancement method and was
+never a denoiser. The frozen degradation here is a **noise-only image-domain
+corruption** — a signal-dependent (heteroscedastic), spatially correlated
+Gaussian perturbation followed by clipping — with no blur, no contrast
+compression and no streak artifacts of the kind a contrast method might have
+something to work against.
+
+The conclusion, kept to what was measured: **the tested CLAHE baseline did not
+improve this frozen benchmark.** That is one algorithm over one predeclared
+search grid on one degradation, not a statement about classical contrast
+methods in general. It still sets a meaningful bar for the deep-learning
+methods: they must beat no restoration, not merely beat CLAHE.
+
+### What was and was not looked at
+
+Tuning read the **validation** split only — `scripts/tune_clahe.py` has no
+`--split` option at all. Visual QC read **training** slices only, after the
+configuration had already been selected numerically, and nothing was adjusted
+afterwards. No validation image was inspected visually.
+
+**No test or stress image content was read during this milestone.** Every M6
+command refuses those splits, and tests assert the refusal.
+
+These are validation development results. They are not a final benchmark
+result, and the final comparison on the held-out test split happens only once
+every method decision is frozen.
 
 ## Setup
 

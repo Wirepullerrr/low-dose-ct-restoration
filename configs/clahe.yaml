@@ -1,0 +1,27 @@
+# Canonical CLAHE configuration for this benchmark.
+#
+# FROZEN. Selected by the predeclared sweep in configs/clahe_search.yaml, on the
+# validation split only, using patient-weighted mean body SSIM as the primary
+# metric with the predeclared tie-breakers. Written by scripts/tune_clahe.py;
+# not hand-edited.
+#
+# Do not retune CLAHE after CNN or U-Net results exist. A changed
+# configuration here is a different method, and earlier comparisons against it
+# would no longer describe the same benchmark.
+#
+# input_quantization_bits is part of the method definition, not an
+# implementation detail: OpenCV CLAHE needs an integer image, and the fixed
+# mapping round(x * 255) over the whole [0,1] benchmark range is what this
+# method is defined to use.
+
+clahe:
+  algorithm: opencv_clahe_v1
+  input_quantization_bits: 8
+  clip_limit: 0.5
+  tile_grid_size: [4, 4]
+
+  selected_by:
+    split: validation
+    primary_metric: body_ssim
+    aggregation: patient_weighted
+    search_config: configs/clahe_search.yaml

@@ -1,0 +1,74 @@
+# Predeclared CLAHE search space and selection rule.
+#
+# FROZEN BEFORE ANY CLAHE CANDIDATE RESULT WAS SEEN. This file exists so that
+# the set of candidates and the rule for picking between them are a commitment
+# made in advance, not a description written afterwards to fit whatever won.
+#
+# To be precise about what that claim does and does not cover: the Milestone 5
+# no-restoration degraded-baseline validation numbers already existed when
+# this file was written, and the comparison target was therefore known. What
+# was fixed in advance is the CLAHE candidate grid and the CLAHE selection
+# rule, before any CLAHE candidate's performance was inspected. Neither was
+# changed afterwards: the grid was not widened and the criterion was not
+# switched once the sweep had run.
+#
+# The grid is not to be widened because the first sweep disappoints. Trying
+# dozens of extra values until something beats the baseline is how a validation
+# split stops being an honest development estimate: every additional peek
+# spends a little more of it, and the winner increasingly reflects the search
+# rather than the method.
+#
+# Search space: 4 clip limits x 3 tile grids = 12 candidates, no more.
+#
+# On the 256x256 benchmark image the grids correspond to:
+#   4x4   grid -> 64x64-pixel tiles
+#   8x8   grid -> 32x32-pixel tiles
+#   16x16 grid -> 16x16-pixel tiles
+
+search:
+  implementation: opencv_clahe_v1
+
+  # Part of the method definition, not an implementation detail: OpenCV CLAHE
+  # needs an integer single-channel image, so the [0,1] benchmark
+  # representation is quantized with the fixed mapping round(x * 255).
+  input_quantization_bits: 8
+
+  # How far a single histogram bin may rise before the excess is redistributed
+  # across the tile. Lower is a gentler enhancement.
+  clip_limit:
+    - 0.5
+    - 1.0
+    - 2.0
+    - 4.0
+
+  # (rows, columns) of tiles.
+  tile_grid_size:
+    - [4, 4]
+    - [8, 8]
+    - [16, 16]
+
+# The selection rule, also predeclared.
+#
+# Primary metric: patient-weighted mean body SSIM, higher is better.
+#
+# Why body SSIM. CLAHE is a local contrast and structure method, so a local
+# structural measure inside the anatomy is the metric most aligned with what it
+# is trying to do. Choosing it in advance is the point: picking the metric
+# after seeing the table would mean picking whichever metric the method
+# happened to win on.
+#
+# This does NOT mean other metrics may be ignored. The selected candidate may
+# still worsen MAE, MSE, PSNR, or lose to no-restoration overall. Every metric
+# is reported either way.
+#
+# Ties are broken in this exact order, giving one deterministic winner:
+selection:
+  split: validation
+  aggregation: patient_weighted
+  primary_metric: body_ssim
+  tie_breakers:
+    - body_psnr        # higher is better
+    - full_ssim        # higher is better
+    - full_psnr        # higher is better
+    - lower_clip_limit
+    - smaller_tile_grid
