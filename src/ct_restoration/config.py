@@ -37,6 +37,32 @@ RUNS_DIR = OUTPUTS_DIR / "runs"
 FINAL_DIR = OUTPUTS_DIR / "final"
 
 
+def resolve_config_path(path: str | Path) -> Path:
+    """The file :func:`load_config` would actually read for ``path``.
+
+    A bare filename or relative path that does not exist in the current
+    working directory is also looked up inside ``configs/``.
+
+    Exposed separately so a caller that needs to record *which* file was
+    loaded - to hash it, or to report its provenance - resolves it by the
+    same rule the loader used, rather than by a second copy of the rule that
+    can drift out of step and hash a different file than the one that was
+    read.
+
+    Raises:
+        FileNotFoundError: the file does not exist.
+    """
+    candidate = Path(path)
+    if not candidate.exists() and not candidate.is_absolute():
+        in_configs = CONFIGS_DIR / candidate
+        if in_configs.exists():
+            candidate = in_configs
+
+    if not candidate.exists():
+        raise FileNotFoundError(f"Config file not found: {path}")
+    return candidate
+
+
 def load_config(path: str | Path) -> dict[str, Any]:
     """Load a YAML config file into a dictionary.
 
@@ -47,14 +73,7 @@ def load_config(path: str | Path) -> dict[str, Any]:
         FileNotFoundError: the file does not exist.
         TypeError: the YAML document is not a mapping.
     """
-    candidate = Path(path)
-    if not candidate.exists() and not candidate.is_absolute():
-        in_configs = CONFIGS_DIR / candidate
-        if in_configs.exists():
-            candidate = in_configs
-
-    if not candidate.exists():
-        raise FileNotFoundError(f"Config file not found: {path}")
+    candidate = resolve_config_path(path)
 
     with candidate.open("r", encoding="utf-8") as handle:
         loaded = yaml.safe_load(handle)

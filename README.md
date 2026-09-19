@@ -4,22 +4,28 @@ An engineering benchmark comparing classical and lightweight deep-learning
 restoration methods on **synthetically degraded, low-dose-like CT images**
 built from public abdominal CT data.
 
-> **Status: in progress (Milestone 7 of 15 - the supervised Dataset,
-> DataLoader and patient-balanced training sampler are built and audited).**
+> **Status: in progress (Milestone 8 of 15 - a small residual CNN is
+> trained and measured).**
 >
-> Two methods are measured so far: the no-restoration degraded baseline and
-> CLAHE. **CLAHE scored worse than doing nothing on every metric and every
-> patient**, which is reported as it stands. The data layer the learned
-> methods will train on now exists and is audited, but **no neural network
-> does**: no CNN, no U-Net, no training run, and no learned result anywhere in
-> this document.
+> Three methods are measured so far. **CLAHE scored worse than doing nothing
+> on every metric and every patient.** A 28,353-parameter residual CNN, one
+> training seed, **beat no restoration on all eight reported metrics and on
+> all six validation patients** - full-frame PSNR +3.18 dB, body PSNR
+> +2.80 dB. No U-Net exists yet.
+>
+> The CNN figure is a **single-seed development result**. One seed shows what
+> that run did; it does not establish that the architecture is stable, and
+> multi-seed work is a later milestone.
 >
 > Every measured number here is a **validation** development result. No test
 > or stress number exists, and no test or stress image content has been read
 > since the split was frozen.
 >
-> Every number reported here is reproducible from files committed under
-> `outputs/`.
+> Every number reported here is read from a tracked file under `outputs/`.
+> All of them except the CNN's are re-derivable from the committed configs and
+> the imaging data alone; the CNN's additionally require re-running the
+> training command, whose checkpoint is git-ignored with only its SHA-256
+> tracked.
 
 ## Research question
 
@@ -33,17 +39,18 @@ quality, and what does each method cost in inference latency?
 | --- | --- | --- |
 | Degraded input (no restoration) | mandatory reference baseline | implemented; [measured on validation](#validation-degraded-baseline) |
 | CLAHE | classical local contrast enhancement | implemented, validation-tuned and frozen; [worse than no restoration](#validation-result-clahe-versus-no-restoration) |
-| Small residual CNN | deep learning | not implemented; [training data layer ready](#the-learned-method-data-pipeline) |
+| Small residual CNN | deep learning | implemented and trained, one seed; [beat no restoration on all 8 metrics](#validation-result-cnn-versus-no-restoration) |
 | Lightweight U-Net | deep learning | not implemented; [training data layer ready](#the-learned-method-data-pipeline) |
 
 All four will be evaluated on identical patients, identical clean targets and
 identical degraded inputs, through the same frozen metric code, using MAE, MSE,
-PSNR, SSIM, and inference latency.
+PSNR, SSIM, and inference latency. No latency has been measured yet.
 
 The final comparison will be made on the held-out **test** split, once every
-method decision is frozen. Nothing has been evaluated on test or stress yet;
-the baseline above is a validation figure, used to develop and sanity-check the
-measurement, not a final result.
+method decision is frozen. Nothing has been evaluated on test or stress yet:
+every figure in this document is a validation number, used to develop and
+sanity-check the measurement and to select among candidates, not a final
+result.
 
 ## Planned pipeline
 
@@ -287,8 +294,9 @@ set**.
 
 That stress set is not a second statistically powered benchmark, is not
 evidence of broad generalization across acquisition settings, and is not
-validation data. It is three patients. No robustness claim is made here,
-because no model has been evaluated yet.
+validation data. It is three patients. No robustness claim is made here: no
+model has been evaluated on it, and nothing in this document is a
+robustness result.
 
 The primary test set is the held-out patient-level benchmark drawn from the
 adequately represented A and B acquisition groups, and results from it should
@@ -589,9 +597,9 @@ The measuring apparatus is defined and frozen in
 [configs/evaluation.yaml](configs/evaluation.yaml), implemented in
 [src/ct_restoration/metrics.py](src/ct_restoration/metrics.py) and
 [src/ct_restoration/evaluation.py](src/ct_restoration/evaluation.py), and fixed
-**before any method exists**. CLAHE, the CNN and the U-Net will all call the
-same functions on the same slices with the same masks, so a later comparison
-reflects the methods rather than the measurement.
+**before any method exists**. CLAHE and the CNN call those same functions on
+the same slices with the same masks, and the U-Net will too, so a comparison
+between them reflects the methods rather than the measurement.
 
 ### The degraded baseline is "no restoration"
 
@@ -1036,8 +1044,8 @@ clahe:
 ```
 
 Frozen. `scripts/tune_clahe.py` refuses to overwrite it without an explicit
-`--overwrite`, so CLAHE cannot be quietly retuned once CNN or U-Net results
-exist.
+`--overwrite`, so CLAHE could not be quietly retuned once the CNN result
+existed, and cannot be once a U-Net result does.
 
 ### Validation result: CLAHE versus no restoration
 
@@ -1134,7 +1142,8 @@ every method decision is frozen.
 
 ## The learned-method data pipeline
 
-Everything the CNN and the U-Net will train on is defined here and nowhere
+Everything the CNN trained on, and everything the U-Net will train on, is
+defined here and nowhere
 else: what one supervised sample is, how the pair is built, how patients are
 weighted during training, and how validation is traversed. No architecture, no
 optimizer, no loss, no learning rate. Implemented in
@@ -1193,7 +1202,7 @@ global NumPy or PyTorch RNG.
 The reason is a scoping decision, not a claim that the alternative is
 invalid. This benchmark defines exactly **one** degraded counterpart per clean
 slice. Holding that pair fixed makes the training inputs reproducible and lets
-the CNN and the U-Net inherit an identical input-target mapping, so a
+the CNN and a future U-Net inherit an identical input-target mapping, so a
 difference between them is attributable to the model. Re-drawing the
 corruption every epoch is a perfectly legitimate way to train a denoiser — it
 is a standard stochastic augmentation — but it is a different experiment: it
@@ -1332,7 +1341,8 @@ byte-identical tensors.
 
 ### No augmentation, no model-specific normalization
 
-Neither exists yet, on purpose.
+Neither is used, on purpose. The CNN in the next section was trained without
+either.
 
 No flips, rotations, crops, intensity jitter, extra noise, mixup or CutMix.
 The first learned benchmark should establish whether a model can learn the
@@ -1370,8 +1380,440 @@ Two different checks, at two different scopes, and the distinction matters:
 **No test or stress image content was read.** Regenerating the summary is
 byte-identical.
 
-No model exists yet. There is no CNN or U-Net result anywhere in this
-document.
+Everything above describes the data layer only. The first model trained on it
+is the subject of the next section.
+
+## The small residual CNN
+
+The first learned method: a deliberately small convolutional network,
+implemented in
+[src/ct_restoration/models/cnn.py](src/ct_restoration/models/cnn.py), trained
+by [scripts/train_cnn.py](scripts/train_cnn.py) and scored by
+[scripts/evaluate_cnn.py](scripts/evaluate_cnn.py) through the same frozen
+benchmark harness the degraded baseline and CLAHE went through.
+
+### What the model is
+
+| | |
+| --- | --- |
+| algorithm | `residual_cnn_v1` |
+| layers | 5 × `Conv2d` 3×3, stride 1, padding 1 |
+| hidden channels | 32 |
+| activation | ReLU between convolutions, **not** after the last one |
+| normalization | none — no batch norm, no dropout |
+| trainable parameters | **28,353** |
+| receptive field | **11 pixels** |
+| input | the degraded slice only, `[B, 1, 256, 256]` in [0, 1] |
+| output | `clamp(degraded + correction, 0, 1)` |
+
+The receptive field is arithmetic, not a claim about anatomy: five stacked
+3×3 stride-1 convolutions see `1 + 5 × 2 = 11` pixels. Every output pixel is
+therefore a function of an 11×11 neighbourhood of the input and of nothing
+further away. That is a real constraint on what this architecture can do —
+it cannot use context beyond that window, whatever the context might be worth
+— and it is the main structural difference between this model and the U-Net
+that follows it.
+
+There is no activation after the final convolution. A sigmoid or tanh there
+would bound the output, but it would also bound the *correction*, place the
+easy answer (predict nothing) at a saturating point of the nonlinearity, and
+make the identity initialization below impossible. The output range is
+enforced by an explicit clamp instead, which is a declared post-processing
+step rather than a property of the architecture.
+
+### Why it predicts a correction, not an image
+
+The last convolution is **initialized to exactly zero** — zero weights, zero
+bias. At initialization the network's correction is identically 0, so its
+output is `clamp(degraded + 0, 0, 1)`, which is the degraded image unchanged.
+
+Two things follow, and both matter more than they might look.
+
+**The model starts as the baseline and has to earn every departure from it.**
+Predicting the clean image from scratch means learning to reproduce the
+anatomy as well as remove the perturbation; predicting a correction means the
+anatomy is already there and only the difference has to be learned. The
+restoration problem here is a small perturbation of the identity, so that is
+the cheaper parameterization by a wide margin.
+
+**It gives a falsifiable plumbing check.** A zero-initialized model is
+feeding the degraded image straight through, so it must score what the
+degraded baseline scored, up to floating-point reduction order. If it does
+not, the learned-method evaluation path and the frozen benchmark disagree
+about something — the slice set, the mask, the aggregation — and every later
+number is suspect. That check runs before training starts, below.
+
+### The training recipe, frozen before the run
+
+Written into [configs/cnn.yaml](configs/cnn.yaml)
+(SHA-256 `ac4bf06c3957b799…`) before the first training run, and the config's
+hash is recorded in every artifact the run produced.
+
+| | |
+| --- | --- |
+| loss | full-frame **L1** on the **raw, unclamped** restoration |
+| optimizer | Adam, lr 1e-3, betas (0.9, 0.999), eps 1e-8, weight decay 0 |
+| schedule | none — constant learning rate |
+| epochs | 30, all of them, no early stopping |
+| batch size | 32 |
+| sampling | `patient_balanced_v1`, 4160 draws per epoch |
+| augmentation | none |
+| gradient clipping | none |
+| mixed precision | none |
+| seed | 2026 |
+
+Three of these are worth stating plainly rather than leaving in a table.
+
+**The loss is computed on the raw output, before the clamp.** Clamping first
+would zero the gradient everywhere the prediction had left [0, 1], so the
+optimizer would get no signal precisely where the model is most wrong. The
+clamp belongs to evaluation, not to the objective.
+
+**The loss is full-frame, and that is a choice with consequences.** It weights
+every pixel equally, including the large clipped-background region, which is
+not what a radiologist would weight. It was chosen because it is the simplest
+objective that is not tuned to the metric it will be judged on, and it is not
+claimed to be clinically optimal. Body-region and perceptual objectives are
+exactly the kind of thing a later milestone could compare — but comparing them
+is a search, and this milestone deliberately runs none.
+
+**No search was run over any of it.** One architecture, one learning rate, one
+batch size, one loss, one seed. Everything above was declared before the first
+gradient step and nothing was changed after seeing a validation number. That
+is the whole reason the result below can be read at face value; it is also why
+it is a weaker result than a tuned one would look.
+
+### One predeclared checkpoint criterion
+
+**Lowest patient-weighted validation full-frame MAE, computed from the clamped
+prediction, over epochs 1..30, ties broken towards the earlier epoch.** One
+metric, declared in the config before training.
+
+Epoch 0 is recorded but never eligible: it is the identity check, and a
+selection rule that could return it would be able to conclude "do nothing" by
+accident.
+
+Selecting on one predeclared number is the point. Scanning across MAE, MSE,
+PSNR, SSIM, full frame and body and then choosing the epoch that looks best
+somewhere would be eight chances to find a favourable epoch and no way to say
+afterwards which one the method actually committed to. The other seven metrics
+are computed **once, afterwards, for the already-selected checkpoint**. They
+are reported, not optimized against.
+
+### The epoch-0 identity check
+
+Before any training, the zero-initialized model was run through the full
+validation evaluation path:
+
+| | |
+| --- | --- |
+| zero-initialized CNN, patient-weighted validation full MAE | 0.016358921897 |
+| committed degraded baseline, same figure | 0.016358921877 |
+| absolute difference | **2.03e-11** |
+| tolerance | 1e-6 |
+
+The baseline value is **read from the committed
+[degraded_baseline_validation_patients.csv](outputs/metrics/degraded_baseline_validation_patients.csv)**,
+not from a number typed into the script, so the comparison cannot pass by
+agreeing with a stale literal. The training command exits non-zero and refuses
+to train if this check fails.
+
+The difference is not exactly zero and is not expected to be: the benchmark
+computes its figure with NumPy metric code and the training script with a
+torch reduction, so the two differ by floating-point summation order. A real
+plumbing mismatch — a different mask, a different slice set, a different
+normalization — would be orders of magnitude larger than 2e-11. The summary
+records the exact value as a string as well as a rounded float, because the
+tracked JSON rounds to 10 decimal places and would otherwise print this as a
+flat `0.0` and read as exact equality.
+
+### The training run
+
+30 epochs on one RTX 5070 Ti, 4160 patient-balanced draws per epoch, validation
+evaluated in full after every epoch. The per-epoch record is
+[outputs/runs/cnn_seed2026/training_history.csv](outputs/runs/cnn_seed2026/training_history.csv).
+
+| epoch | train L1 (raw) | validation patient-weighted full MAE | |
+| --- | --- | --- | --- |
+| 0 | — | 0.01635892 | identity check, ineligible |
+| 1 | 0.01614127 | 0.01225671 | |
+| 5 | 0.01126369 | 0.01003056 | |
+| 10 | 0.01097686 | 0.00990126 | |
+| 15 | 0.01081030 | 0.00962256 | |
+| 20 | 0.01069439 | 0.00966141 | |
+| 25 | 0.01060133 | 0.00938976 | |
+| **29** | **0.01053796** | **0.00935309** | **selected** |
+| 30 | 0.01052905 | 0.00953269 | |
+
+Training loss fell monotonically apart from small increases at epochs 8, 24
+and 28. The validation metric oscillated by roughly ±0.0002 from epoch to
+epoch while trending downwards throughout, and epoch 30 sits on an upward
+wobble rather than at the bottom — which is why the criterion selects 29 and
+why "use the last epoch" would have been a slightly worse rule here by luck as
+much as by anything else.
+
+**No overfitting is visible in this run**, in the narrow sense that the
+validation curve never turned around and rose while training loss kept
+falling. Thirty epochs of a 28k-parameter model on 4160 slices is not a
+regime where overfitting would be the expected failure mode, and the absence
+of it in one run is a description of that run, not a general property.
+
+### Validation result: CNN versus no restoration
+
+Same 6 patients, same 885 slices, same masks, same metric code, same frozen
+degradation. Patient-weighted, every patient equally weighted:
+
+| Region | Metric | No restoration | CLAHE | **CNN** | CNN − no restoration |
+| --- | --- | --- | --- | --- | --- |
+| full | MAE | 0.016359 | 0.023570 | **0.009353** | −0.007006 |
+| full | MSE | 0.00072130 | 0.00123279 | **0.00034916** | −0.00037215 |
+| full | PSNR | 31.4813 | 29.1561 | **34.6583** | **+3.1771** |
+| full | SSIM | 0.781346 | 0.620769 | **0.953860** | **+0.172515** |
+| body | MAE | 0.028187 | 0.036281 | **0.019940** | −0.008247 |
+| body | MSE | 0.00141527 | 0.00229926 | **0.00074864** | −0.00066662 |
+| body | PSNR | 28.5620 | 26.4831 | **31.3631** | **+2.8011** |
+| body | SSIM | 0.810430 | 0.768085 | **0.897097** | **+0.086667** |
+
+**Did the CNN beat no restoration? Yes, on all eight metrics.** Full-frame
+PSNR improved by 3.18 dB and body PSNR by 2.80 dB; full-frame SSIM rose from
+0.781 to 0.954.
+
+The selection metric deserves one note. Full MAE here, 0.009353093, is the
+same quantity the checkpoint was chosen on, 0.0093530865 — they agree to
+6.5e-9, again a summation-order difference between two code paths. The other
+seven columns were never used to choose anything.
+
+Spread across the six patients, and the secondary slice-weighted figure:
+
+| Metric | patient std | min | max | slice-weighted |
+| --- | --- | --- | --- | --- |
+| full PSNR | 0.5266 | 33.7300 | 35.1811 | 34.7484 |
+| body PSNR | 0.4697 | 30.7315 | 31.7839 | 31.5004 |
+| full SSIM | 0.008246 | 0.944020 | 0.968284 | 0.954181 |
+| body SSIM | 0.013115 | 0.882705 | 0.917179 | 0.898668 |
+
+The slice-weighted column is descriptive only and is never the headline
+number.
+
+Descriptive acquisition-group breakdown, three patients each:
+
+| Group | full PSNR | body PSNR | full SSIM | body SSIM |
+| --- | --- | --- | --- | --- |
+| A | 34.8704 | 31.7581 | 0.953482 | 0.899947 |
+| B | 34.4463 | 30.9681 | 0.954238 | 0.894248 |
+
+With n = 3 per group there is nothing to conclude, no significance test is
+run, and no claim is made about acquisition settings.
+
+### The paired per-patient deltas
+
+The split means say which number is larger. The paired deltas say whether it
+holds patient by patient:
+
+| Subject | Group | Δ body PSNR | Δ body SSIM | Δ full PSNR | Δ full SSIM |
+| --- | --- | --- | --- | --- | --- |
+| 4 | B | +2.719899 | +0.070557 | +2.986792 | +0.158183 |
+| 14 | B | +2.621091 | +0.086285 | +3.005278 | +0.181888 |
+| 17 | B | +2.511159 | +0.074731 | +3.019941 | +0.177856 |
+| 23 | A | +2.919770 | +0.100726 | +3.271632 | +0.171625 |
+| 24 | A | +3.064383 | +0.100431 | +3.406450 | +0.170690 |
+| 34 | A | +2.970161 | +0.087273 | +3.372391 | +0.174846 |
+| **mean** | | **+2.801077** | **+0.086667** | **+3.177081** | **+0.172515** |
+| **improved** | | **6 / 6** | **6 / 6** | **6 / 6** | **6 / 6** |
+
+Every patient improved on every one of the eight metrics; the full table
+including MAE and MSE is
+[cnn_vs_degraded_baseline_validation_patient_deltas.csv](outputs/metrics/cnn_vs_degraded_baseline_validation_patient_deltas.csv).
+Unanimity across patients is worth more than the mean alone, because a method
+that helped four patients and harmed two could average to a similar place
+while behaving quite differently.
+
+**No significance test is run and no p-value is computed.** Six patients is a
+small descriptive sample, these are validation numbers used for development,
+and one seed is one seed.
+
+### CNN versus CLAHE
+
+Descriptive context only — the bar a restoration method has to clear is *no
+restoration*, not CLAHE:
+
+| Region | Metric | Δ (CNN − CLAHE) | improved |
+| --- | --- | --- | --- |
+| full | PSNR | +5.5022 | 6 / 6 |
+| full | SSIM | +0.333091 | 6 / 6 |
+| body | PSNR | +4.8800 | 6 / 6 |
+| body | SSIM | +0.129013 | 6 / 6 |
+
+This gap is large, and it is largely a statement about the problem rather than
+about the two methods' relative sophistication. The frozen degradation is a
+noise-only corruption; CLAHE is a contrast method with no noise model, applied
+to a problem with nothing for it to correct, and it damaged the image. The CNN
+was trained on exactly this corruption. A comparison arranged that way is not
+a general ranking of learned against classical methods.
+
+### What the clamp is doing
+
+The reported metrics come from the clamped output, so the clamp is part of the
+method and its behaviour is worth measuring rather than assuming.
+
+Two quantities have to be kept apart here. They are easy to conflate and they
+are not the same number:
+
+* the **predicted correction**, `raw − degraded` — what the network actually
+  asked for, measured on the **unclamped** output;
+* the **post-clamp change**, `restored − degraded` — the part of that request
+  which survived into the image the metrics were computed on.
+
+From
+[cnn_validation_summary.json](outputs/metrics/cnn_validation_summary.json),
+over all 885 validation slices:
+
+| | |
+| --- | --- |
+| raw minimum, before clamping | −0.025799 |
+| raw maximum, before clamping | 1.056146 |
+| fraction of pixels raw < 0 | **0.508982** |
+| fraction of pixels raw > 1 | 0.005719 |
+| fraction changed by the clamp | 0.514702 |
+| **mean absolute predicted correction**, from the raw output | **0.012068** |
+| per-slice, q05 / q50 / q95 | 0.010319 / 0.011903 / 0.014088 |
+| mean absolute post-clamp change vs degraded | 0.011788 |
+| per-slice, q05 / q50 / q95 | 0.009980 / 0.011617 / 0.013836 |
+| non-finite outputs | 0 |
+
+Half the frame is modified by the clamp, which sounds alarming until the
+magnitudes are read alongside it: the raw output never goes below −0.026 or
+above 1.056, so these are small overshoots, not wild predictions.
+
+The two correction figures make that precise. Because the degraded image
+always lies inside [0, 1], the gap between them is exactly the overshoot the
+clamp discarded: 0.012068 − 0.011788 = **0.000280** per pixel across the
+whole frame, or about 0.00054 spread over the 51.5% of pixels that were
+clamped at all. So the clamp touches half the frame and removes very little
+from it — which is the honest reading, and it is only visible because the two
+quantities are now reported separately.
+
+The mean body-pixel coverage of these slices is 0.4629, so roughly 53.7% of
+the frame lies outside the body mask — a fraction of similar size to the
+50.9% of pixels that are raw-negative. That similarity is **consistent with**
+the clamp acting mostly on background, but the tracked summary does not break
+the below-zero pixels down by region, so this is a consistency observation and
+nothing more. It would take a per-region diagnostic to establish it, and none
+was run.
+
+These numbers are descriptive. **None of them is an optimization objective**,
+and no model, loss or config decision was made on the basis of them.
+
+### Reproducibility of this run
+
+The claim is scoped: **same repository, same config, same environment, same
+hardware and same seed reproduce this run.** Bitwise identity across different
+GPUs, drivers or PyTorch builds is **not** claimed, because floating-point
+reduction order in cuDNN kernels depends on the hardware and on the algorithm
+chosen.
+
+Within that scope it was checked rather than asserted:
+
+* The training run was executed **twice**, start to finish. Both runs produced
+  a byte-identical `training_history.csv`
+  (`fb9546cf26c4188c…`) and a byte-identical checkpoint
+  (`fe3cdc42c72dea16…`). The second run used a script that additionally
+  performs the round-trip check below and records the identity difference at
+  full precision; nothing in the training path differed, and the identical
+  hashes are the evidence that nothing did.
+* The evaluation has been run repeatedly against that checkpoint, and all
+  four metric tables — the per-slice, per-patient and two paired-delta CSVs —
+  came out byte-identical every time. The summary JSON changed exactly once,
+  when the correction diagnostics were corrected and the two verification
+  records below were added; no metric in it moved.
+* `torch.use_deterministic_algorithms(True)` was enabled in strict mode — not
+  `warn_only` — with `cudnn.benchmark=False`, `cudnn.deterministic=True` and
+  `CUBLAS_WORKSPACE_CONFIG=:4096:8`. Python, NumPy, torch CPU and torch CUDA
+  RNGs are all seeded from 2026.
+* CUDA is required. The training command refuses to run on CPU rather than
+  silently producing a canonical result on different hardware.
+* After selection, the saved checkpoint was reloaded in-process and compared
+  against the model still in memory: **10 state-dict tensors, 0 mismatches**,
+  and **0 differing pixels** on four deterministic probe images. A checkpoint
+  that cannot reproduce the model it was written from is a failed run, however
+  good the validation curve looked, because every number above comes from
+  reloading that file.
+
+Two further conditions are enforced by the evaluation command rather than
+checked by hand, because a report nobody acts on is not a check:
+
+* **Checkpoint provenance, before a single validation image is opened.** The
+  command refuses to score a checkpoint it cannot prove is the frozen run's.
+  Fifteen conditions are checked, each against something computed
+  independently of the checkpoint: the frozen config's bytes are re-hashed,
+  the checkpoint file's bytes are re-hashed, and the tracked training history
+  is re-run through the predeclared selection rule to re-derive epoch 29
+  rather than trusting the epoch the file claims. Any mismatch exits without
+  reading an image.
+* **Sample alignment, before anything is written.** 885 rows, 885 unique
+  sample keys, 0 duplicates, and 0 missing, 0 extra and 0 order mismatches
+  against both the degraded-baseline and CLAHE slice tables. A paired delta
+  is only paired if both sides ran on the same slice; if any of that fails
+  the command writes no artifact at all.
+
+The checkpoint binary itself is **git-ignored**; its SHA-256 is tracked in
+[run_summary.json](outputs/runs/cnn_seed2026/run_summary.json) instead. It
+holds plain tensors and scalars only, so it loads with `weights_only=True` and
+restoring it never executes code from the file.
+
+### What this result is not
+
+**It is one seed.** The single most important limitation. One training run
+shows what that run did. It does not establish that this architecture reaches
+this number reliably, and the run-to-run spread is unmeasured — it could be
+small or it could be comparable to the gaps being discussed. Multi-seed
+stability is a deliberately separate later milestone, and until it exists no
+statement here should be read as "the residual CNN achieves 34.66 dB".
+
+**It is validation, not test.** These numbers were computed on the split the
+checkpoint was selected on. Selecting one of 30 epochs on validation makes a
+validation figure optimistic, even with a single predeclared criterion. The
+test split is still sealed.
+
+**It is not a denoising result in general.** The model was trained on one
+frozen synthetic corruption and measured on the same one. Nothing here
+indicates how it behaves on real low-dose CT noise, on a different
+reconstruction kernel, or on anatomy outside this cohort.
+
+**No metric here indicates clinical adequacy.** PSNR and SSIM improvements are
+not diagnostic-quality improvements, a PSNR difference is in decibels and
+never a percentage, and no reader study, no lesion-detection task and no
+clinical evaluation of any kind has been performed.
+
+**No latency has been measured.** The research question asks about inference
+cost and that part is unanswered for every method.
+
+### What was and was not looked at
+
+Training and validation image content was read numerically. **No test or
+stress image content was read** — `scripts/train_cnn.py` and
+`scripts/evaluate_cnn.py` both refuse those splits through the same hold-out
+gate every earlier command uses, and both summaries record
+`test_images_read: 0` and `stress_images_read: 0`.
+
+**No validation image was inspected visually at any point.** Visual QC
+(`scripts/qc_cnn.py`) has no `--split` option: it reads **training** slices
+only, and it was run *after* the checkpoint had already been selected
+numerically. Its panels — clean, degraded, restored, the correction, and the
+remaining error — are written to a git-ignored directory, and nothing about
+the model was changed after looking at them. Looking at held-out images and
+then adjusting something is how a held-out estimate quietly becomes a fitted
+one.
+
+Nothing in the architecture, the loss, the optimizer, the learning rate, the
+epoch count or the batch size was changed after the first validation number
+existed. The one change made to the training script after its first complete
+run added a checkpoint round-trip check and recorded the identity difference
+at full precision; the run was then repeated from scratch rather than patched
+after the fact, and no scientific hyperparameter moved.
+
+These are validation development results for one seed. The final comparison on
+the held-out test split happens only once every method decision is frozen.
 
 ## Setup
 
@@ -1393,12 +1835,16 @@ src/ct_restoration/   library code (importable package)
                       patient split, low-dose-like degradation, supervised
                       Dataset, patient-balanced sampler, DataLoaders
   classical/          CLAHE and its predeclared parameter search
+  models/             the residual CNN and its benchmark adapter
   metrics.py          MAE / MSE / PSNR / SSIM, shared by every method
   evaluation.py       body mask, patient aggregation, paired deltas, hold-out gate
   benchmark.py        the shared run harness every method is scored through
+  training.py         training loss, patient-weighted aggregation, epoch selection
+  reproducibility.py  seeding and deterministic-algorithm settings
 scripts/              runnable commands (cohort audit, split generation,
                       degradation audit, body-mask audit, baseline and CLAHE
-                      evaluation, CLAHE tuning, Dataset/DataLoader audit)
+                      evaluation, CLAHE tuning, Dataset/DataLoader audit,
+                      CNN training, CNN evaluation, CNN visual QC)
 tests/                pytest suite, fully synthetic, no downloads
 configs/              YAML experiment settings
 data/README.md        dataset provenance
@@ -1406,7 +1852,8 @@ data/splits/          the frozen patient split and slice manifest (tracked)
 data/raw/, processed/ image data (git-ignored)
 outputs/audit/        measured dataset facts (figures there are git-ignored)
 outputs/metrics/      tracked per-slice, per-patient and split-level scores
-outputs/              runs, final results
+outputs/runs/         per-epoch training histories and run summaries (tracked)
+outputs/checkpoints/  model weights (git-ignored; only their SHA-256 is tracked)
 ```
 
 Dataset provenance, licensing and the exact archive used are recorded in

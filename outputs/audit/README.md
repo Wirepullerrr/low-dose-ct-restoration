@@ -20,7 +20,7 @@ scripts over a fresh download regenerates all of them.
 | `degradation_train_summary.json` | technical diagnostics of the frozen degradation, computed on TRAINING slices only; no timestamp, so regenerating an unchanged definition rewrites it byte for byte |
 | `evaluation_body_mask_train_summary.json` | diagnostics of the frozen evaluation body mask, computed on TRAINING slices only; no timestamp, so regenerating an unchanged definition rewrites it byte for byte |
 | `dataset_dataloader_summary.json` | contract checks, sampling counts and sequence hashes for the Dataset / DataLoader layer, on TRAIN and VALIDATION only; no timestamp, so regenerating an unchanged definition rewrites it byte for byte |
-| `figures/` | rendered inspection panels, git-ignored |
+| `figures/` | rendered inspection panels, git-ignored - including `figures/cnn/`, the post-selection visual QC of the CNN checkpoint, rendered from TRAINING slices only |
 
 ## What is and is not in them
 
@@ -39,6 +39,11 @@ counting without reproducing the identifiers themselves.
 diagnostics.
 Validation, test and stress image content was not inspected while the
 degradation was being established, and the file records that explicitly.
+
+`figures/cnn/` is the same discipline applied to the learned method.
+`scripts/qc_cnn.py` has no `--split` option: it renders **training** slices
+only, and it runs *after* the checkpoint has already been selected
+numerically. No validation, test or stress image has been looked at.
 
 ## `dataset_dataloader_summary.json` in particular
 
