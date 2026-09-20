@@ -36,7 +36,19 @@ from ct_restoration.training import (
     slice_weighted_mean,
 )
 
+#: Seed for the synthetic tensors ``checkpoint_round_trip`` predicts on.
+#:
+#: NOT a training seed, despite sharing the number with the canonical one.
+#: It controls only deterministic verification probes: random images used to
+#: check that a reloaded checkpoint predicts what the in-memory model
+#: predicts. It is deliberately independent of the statistical training seed,
+#: and must stay fixed when that seed changes - a multi-seed comparison needs
+#: every run's round-trip check to use identical probe inputs, or a
+#: difference in the check would say nothing about the checkpoint.
+CHECKPOINT_ROUND_TRIP_PROBE_SEED = 2026
+
 __all__ = [
+    "CHECKPOINT_ROUND_TRIP_PROBE_SEED",
     "baseline_patient_weighted_full_mae",
     "checkpoint_round_trip",
     "evaluate_validation",
@@ -172,7 +184,7 @@ def checkpoint_round_trip(model, path: Path, device, rebuild) -> dict[str, Any]:
         for name, tensor in revived.state_dict().items()
     )
 
-    generator = torch.Generator().manual_seed(2026)
+    generator = torch.Generator().manual_seed(CHECKPOINT_ROUND_TRIP_PROBE_SEED)
     probes = torch.rand(4, 1, 256, 256, generator=generator, dtype=torch.float32).to(device)
     prediction_mismatches = int((model.restore(probes) != revived.restore(probes)).sum())
 

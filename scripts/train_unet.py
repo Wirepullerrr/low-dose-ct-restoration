@@ -85,6 +85,7 @@ from ct_restoration.data.loaders import (  # noqa: E402
 # reads it when its handle is created, which happens at the first CUDA operation, not
 # at import, so import order among these modules is not load-bearing - but no CUDA work
 # may happen before main() calls into that module.
+from ct_restoration.evaluation_integrity import repository_path  # noqa: E402
 from ct_restoration.models.unet import (  # noqa: E402
     CANONICAL_PARAMETER_COUNT,
     CANONICAL_RECEPTIVE_FIELD,
@@ -96,6 +97,10 @@ from ct_restoration.reproducibility import (  # noqa: E402
     enable_deterministic_algorithms,
     require_cuda,
     seed_everything,
+)
+from ct_restoration.run_layout import (  # noqa: E402
+    RunLayoutError,
+    require_writable_run_destination,
 )
 from ct_restoration.training import (  # noqa: E402
     SELECTION_METRIC,
@@ -147,15 +152,16 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--run-dir", default=RUN_DIR.as_posix())
     parser.add_argument("--checkpoint", default=CHECKPOINT_PATH.as_posix())
     parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="replace an existing run directory and checkpoint. Never used by multi-seed "
+        "automation: each seed writes to its own destination, so needing this means the "
+        "destination was wrong.",
+    )
+    parser.add_argument(
         "--device",
         default="cuda",
         help="cuda for the canonical run; cpu is debugging only and non-canonical",
-    )
-    parser.add_argument(
-        "--epochs",
-        type=int,
-        default=0,
-        help="debug only: override the frozen epoch budget. 0 uses the config.",
     )
     return parser
 
@@ -163,6 +169,17 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> int:
     arguments = build_parser().parse_args()
     run_dir = Path(arguments.run_dir)
+    # Destination safety first. Before the dataset is opened, before the
+    # optimizer exists, before a single gradient step and before any file is
+    # written: a refused run must cost an error message, not a lost checkpoint.
+    try:
+        require_writable_run_destination(
+            run_dir, Path(arguments.checkpoint), overwrite=arguments.overwrite
+        )
+    except RunLayoutError as error:
+        print(f"error: {error}", file=sys.stderr)
+        return 7
+
     config_path = resolve_config_path(arguments.unet_config)
 
     document = load_config(arguments.unet_config)
@@ -172,7 +189,12 @@ def main() -> int:
     selection = document["checkpoint_selection"]
     config_sha = file_sha256(config_path)
 
-    epochs = int(arguments.epochs) if arguments.epochs else int(training["epochs"])
+    # From the frozen config only. A CLI override would let a five-epoch run
+    # carry the SHA-256 of a config that declares thirty, and the provenance
+    # gate - which compares the checkpoint against that config's bytes -
+    # would pass. Debug runs belong in the synthetic tests, not in a scientific
+    # field behind the frozen config.
+    epochs = int(training["epochs"])
     seed = int(training["seed"])
     batch_size = int(training["batch_size"])
 
@@ -415,7 +437,7 @@ def main() -> int:
             "canonical_receptive_field": CANONICAL_RECEPTIVE_FIELD,
         },
         "config": {
-            "path": config_path.name,
+            "path": repository_path(config_path),
             "sha256": config_sha,
             "frozen_before_training": True,
         },

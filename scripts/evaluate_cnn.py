@@ -68,6 +68,7 @@ from ct_restoration.evaluation import (  # noqa: E402
 from ct_restoration.evaluation_integrity import (  # noqa: E402
     EvaluationIntegrityError,
     check_sample_alignment,
+    config_training_seed,
     require_sample_alignment,
     verify_checkpoint_provenance,
 )
@@ -84,6 +85,13 @@ METHOD_NAME = "cnn"
 OUTPUT_STEM = "cnn"
 
 #: The mandatory reference every method is judged against.
+#: Where the frozen non-learned references live: the degraded baseline and
+#: CLAHE. Those are measured once and never per seed, so an additional
+#: statistical seed reads them from here rather than needing its own copy.
+#: Separate from ``--output-dir`` so a seed can write into
+#: ``outputs/metrics/multiseed/seed<N>/`` without the references following it.
+REFERENCE_DIR = METRICS_DIR
+
 BASELINE_STEM = "degraded_baseline"
 
 #: The classical method, reported beside it for context.
@@ -129,6 +137,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--degradation-config", default="degradation.yaml")
     parser.add_argument("--preprocessing-config", default="baseline.yaml")
     parser.add_argument("--output-dir", default=METRICS_DIR.as_posix())
+    parser.add_argument(
+        "--reference-dir",
+        default=REFERENCE_DIR.as_posix(),
+        help="directory holding the frozen degraded-baseline and CLAHE artifacts. "
+        "Stays canonical when --output-dir points at a per-seed directory.",
+    )
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument(
         "--limit",
@@ -142,6 +156,7 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> int:
     arguments = build_parser().parse_args()
     output_dir = Path(arguments.output_dir)
+    reference_dir = Path(arguments.reference_dir)
 
     try:
         split = require_development_split(arguments.split)
@@ -153,7 +168,8 @@ def main() -> int:
 
     root = Path(arguments.root)
     device = torch.device(arguments.device)
-    model_config = ResidualCnnConfig.from_mapping(load_config(arguments.cnn_config))
+    model_document = load_config(arguments.cnn_config)
+    model_config = ResidualCnnConfig.from_mapping(model_document)
     evaluation = EvaluationConfig.from_mapping(load_config(arguments.evaluation_config))
     degradation = DegradationConfig.from_mapping(load_config(arguments.degradation_config))
     preprocessing = load_config(arguments.preprocessing_config)["preprocessing"]
@@ -170,6 +186,7 @@ def main() -> int:
             checkpoint_path,
             resolve_config_path(arguments.cnn_config),
             Path(arguments.run_dir),
+            expected_seed=config_training_seed(model_document),
             method="residual CNN (Milestone 8)",
             trainer="scripts/train_cnn.py",
         )
@@ -200,12 +217,12 @@ def main() -> int:
     secondary = slice_weighted_summary(slice_frame)
 
     baseline_patients = pd.read_csv(
-        output_dir / f"{BASELINE_STEM}_{split}_patients.csv", dtype={"subject_id": str}
+        reference_dir / f"{BASELINE_STEM}_{split}_patients.csv", dtype={"subject_id": str}
     )
     baseline_deltas = paired_patient_deltas(patient_frame, baseline_patients)
     baseline_paired = summarise_paired_deltas(baseline_deltas)
 
-    classical_path = output_dir / f"{CLASSICAL_STEM}_{split}_patients.csv"
+    classical_path = reference_dir / f"{CLASSICAL_STEM}_{split}_patients.csv"
     classical_deltas = None
     if classical_path.exists():
         classical_patients = pd.read_csv(classical_path, dtype={"subject_id": str})
@@ -214,8 +231,8 @@ def main() -> int:
     # The alignment gate runs BEFORE anything is written. A paired comparison
     # against the wrong slices, already on disk, is indistinguishable from a
     # correct one to every later reader.
-    references = {"vs_degraded_baseline": output_dir / f"{BASELINE_STEM}_{split}_slices.csv"}
-    classical_slices = output_dir / f"{CLASSICAL_STEM}_{split}_slices.csv"
+    references = {"vs_degraded_baseline": reference_dir / f"{BASELINE_STEM}_{split}_slices.csv"}
+    classical_slices = reference_dir / f"{CLASSICAL_STEM}_{split}_slices.csv"
     if classical_slices.exists():
         references["vs_clahe"] = classical_slices
     alignment = check_sample_alignment(slice_frame, references)

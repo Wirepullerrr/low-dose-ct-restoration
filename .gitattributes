@@ -14,3 +14,10 @@
 # are hashed but are not tracked by Git.
 configs/cnn.yaml   text eol=lf
 configs/unet.yaml  text eol=lf
+
+# Milestone 10 will freeze one config per additional statistical seed under
+# configs/multiseed/. Each is byte-hashed by its run's checkpoint provenance
+# exactly as the two above are, so the rule is added now: a per-seed config
+# is pinned from the moment it is created, not after a CRLF checkout has
+# already made a run unverifiable on someone else's machine.
+configs/multiseed/*.yaml  text eol=lf

@@ -35,6 +35,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
@@ -107,6 +108,34 @@ def _require_finite_real(label: str, value: Any) -> float:
     if not math.isfinite(number):
         raise EvaluationIntegrityError(f"{label} must be finite, got {value!r}")
     return number
+
+
+def config_training_seed(document: Mapping[str, Any]) -> int:
+    """The statistical seed a frozen config declares, strictly typed.
+
+    Independent evidence, which is the whole point: the config file's bytes
+    are already SHA-256 pinned inside the checkpoint and the run summary, so
+    a seed read from it cannot be adjusted to match a checkpoint without
+    breaking the hash. That makes it a third witness alongside the
+    checkpoint's own metadata and the run summary's, rather than a second
+    copy of one of them.
+
+    Read from the config rather than taken on the command line on purpose. A
+    ``--expected-seed`` flag would be a fourth source of truth that no hash
+    covers, and the first thing anyone would do with a mismatch is pass the
+    flag that makes it go away.
+
+    Raises:
+        EvaluationIntegrityError: no ``training.seed``, or it is not a
+            non-negative integer.
+    """
+    training = document.get("training") if isinstance(document, Mapping) else None
+    if not isinstance(training, Mapping) or "seed" not in training:
+        raise EvaluationIntegrityError(
+            "the model config declares no training.seed, so the seed this checkpoint "
+            "should carry cannot be established from provenance-hashed evidence."
+        )
+    return _require_integer("config training.seed", training["seed"], minimum=0)
 
 
 def file_sha256(path: Path) -> str:

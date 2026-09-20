@@ -85,6 +85,7 @@ from ct_restoration.evaluation import (  # noqa: E402
 from ct_restoration.evaluation_integrity import (  # noqa: E402
     EvaluationIntegrityError,
     check_sample_alignment,
+    config_training_seed,
     require_sample_alignment,
     verify_checkpoint_provenance,
 )
@@ -103,12 +104,26 @@ METHOD_NAME = "unet"
 OUTPUT_STEM = "unet"
 
 #: The mandatory reference every method is judged against.
+#: Where the frozen non-learned references live: the degraded baseline and
+#: CLAHE. Those are measured once and never per seed, so an additional
+#: statistical seed reads them from here rather than needing its own copy.
+#: Separate from ``--output-dir`` so a seed can write into
+#: ``outputs/metrics/multiseed/seed<N>/`` without the references following it.
+REFERENCE_DIR = METRICS_DIR
+
 BASELINE_STEM = "degraded_baseline"
 
 #: Every other method this one is compared against, in report order. The
 #: degraded baseline is the bar; these are context, and the CNN is the
 #: architecture comparison this milestone exists for.
 COMPARISON_STEMS = ("clahe", "cnn")
+
+#: Which directory each comparison stem is read from. CLAHE is a frozen
+#: reference measured once; the CNN is a *per-seed* learned result, so the
+#: matching CNN for seed S lives beside this U-Net run rather than in the
+#: canonical directory. Reading the seed-2026 CNN while scoring a seed-2027
+#: U-Net would silently compare two different experiments.
+SEED_LOCAL_STEMS = ("cnn",)
 
 #: Directory holding the canonical run's tracked history and summary.
 CANONICAL_RUN_DIR = Path("outputs/runs/unet_seed2026")
@@ -168,6 +183,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--degradation-config", default="degradation.yaml")
     parser.add_argument("--preprocessing-config", default="baseline.yaml")
     parser.add_argument("--output-dir", default=METRICS_DIR.as_posix())
+    parser.add_argument(
+        "--reference-dir",
+        default=REFERENCE_DIR.as_posix(),
+        help="directory holding the frozen degraded-baseline and CLAHE artifacts. "
+        "Stays canonical when --output-dir points at a per-seed directory.",
+    )
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument(
         "--limit",
@@ -178,9 +199,64 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+class MissingSeedPairError(RuntimeError):
+    """A per-seed U-Net run has no CNN from the same seed to compare against."""
+
+
+def require_same_seed_cnn(output_dir: Path, split: str) -> dict[str, object]:
+    """Outside the canonical metrics directory, the matching CNN must be there.
+
+    The canonical Milestone 9 run writes into ``outputs/metrics`` alongside
+    the Milestone 8 CNN, and is unaffected by this check.
+
+    Any other output directory is a per-seed directory, and a U-Net scored
+    there is one half of a paired seed comparison. Silently omitting the CNN
+    block would produce a U-Net summary that looks complete and quietly is
+    not - and the alternative failure, reading the canonical seed-2026 CNN
+    while scoring a seed-2027 U-Net, would pair two different experiments
+    behind a delta that looks entirely valid. Neither is acceptable, so a
+    missing same-seed CNN stops the run instead.
+
+    Raises:
+        MissingSeedPairError: this is a per-seed directory and either matching
+            CNN table is absent.
+    """
+    canonical = output_dir.resolve() == METRICS_DIR.resolve()
+    required = [f"cnn_{split}_slices.csv", f"cnn_{split}_patients.csv"]
+    present = [name for name in required if (output_dir / name).exists()]
+    if canonical:
+        return {
+            "output_dir_is_canonical": True,
+            "same_seed_cnn_required": False,
+            "present": present,
+        }
+
+    missing = [name for name in required if name not in present]
+    if missing:
+        raise MissingSeedPairError(
+            f"{output_dir.as_posix()} is not the canonical metrics directory, so this is a "
+            f"per-seed U-Net evaluation, and it is missing {', '.join(missing)}. A "
+            "multi-seed U-Net result must be paired with the CNN from the SAME statistical "
+            "seed: evaluate the CNN for this seed into this same directory first. The "
+            f"canonical CNN in {METRICS_DIR.as_posix()} is deliberately NOT used as a "
+            "fallback - pairing a U-Net from one seed against a CNN from another compares "
+            "two different experiments while looking like a valid delta."
+        )
+    return {
+        "output_dir_is_canonical": False,
+        "same_seed_cnn_required": True,
+        "present": present,
+    }
+
+
 def main() -> int:
     arguments = build_parser().parse_args()
     output_dir = Path(arguments.output_dir)
+    reference_dir = Path(arguments.reference_dir)
+
+    def comparison_dir(stem: str) -> Path:
+        """Per-seed learned results sit beside this run; references do not."""
+        return output_dir if stem in SEED_LOCAL_STEMS else reference_dir
 
     try:
         split = require_development_split(arguments.split)
@@ -191,8 +267,20 @@ def main() -> int:
         return 2
 
     root = Path(arguments.root)
+    # Before the checkpoint is loaded, before any image is read and before
+    # anything is written: a per-seed U-Net needs its own seed's CNN.
+    try:
+        seed_pairing = require_same_seed_cnn(output_dir, split)
+    except MissingSeedPairError as error:
+        print(f"error: {error}", file=sys.stderr)
+        print("no U-Net artifact was written.", file=sys.stderr)
+        return 8
+    if seed_pairing["same_seed_cnn_required"]:
+        print(f"seed pairing    : matching CNN found in {output_dir.as_posix()}")
+
     device = torch.device(arguments.device)
-    model_config = LightweightResidualUnetConfig.from_mapping(load_config(arguments.unet_config))
+    model_document = load_config(arguments.unet_config)
+    model_config = LightweightResidualUnetConfig.from_mapping(model_document)
     evaluation = EvaluationConfig.from_mapping(load_config(arguments.evaluation_config))
     degradation = DegradationConfig.from_mapping(load_config(arguments.degradation_config))
     preprocessing = load_config(arguments.preprocessing_config)["preprocessing"]
@@ -209,6 +297,7 @@ def main() -> int:
             checkpoint_path,
             resolve_config_path(arguments.unet_config),
             Path(arguments.run_dir),
+            expected_seed=config_training_seed(model_document),
             method="lightweight U-Net (Milestone 9)",
             trainer="scripts/train_unet.py",
         )
@@ -239,7 +328,7 @@ def main() -> int:
     secondary = slice_weighted_summary(slice_frame)
 
     baseline_patients = pd.read_csv(
-        output_dir / f"{BASELINE_STEM}_{split}_patients.csv", dtype={"subject_id": str}
+        reference_dir / f"{BASELINE_STEM}_{split}_patients.csv", dtype={"subject_id": str}
     )
     baseline_deltas = paired_patient_deltas(patient_frame, baseline_patients)
     baseline_paired = summarise_paired_deltas(baseline_deltas)
@@ -249,7 +338,7 @@ def main() -> int:
     other_deltas: dict[str, pd.DataFrame] = {}
     other_patients: dict[str, pd.DataFrame] = {}
     for stem in COMPARISON_STEMS:
-        path = output_dir / f"{stem}_{split}_patients.csv"
+        path = comparison_dir(stem) / f"{stem}_{split}_patients.csv"
         if path.exists():
             frame = pd.read_csv(path, dtype={"subject_id": str})
             other_patients[stem] = frame
@@ -258,9 +347,9 @@ def main() -> int:
     # The alignment gate runs BEFORE anything is written. A paired comparison
     # against the wrong slices, already on disk, is indistinguishable from a
     # correct one to every later reader.
-    references = {"vs_degraded_baseline": output_dir / f"{BASELINE_STEM}_{split}_slices.csv"}
+    references = {"vs_degraded_baseline": reference_dir / f"{BASELINE_STEM}_{split}_slices.csv"}
     for stem in COMPARISON_STEMS:
-        candidate = output_dir / f"{stem}_{split}_slices.csv"
+        candidate = comparison_dir(stem) / f"{stem}_{split}_slices.csv"
         if candidate.exists():
             references[f"vs_{stem}"] = candidate
     alignment = check_sample_alignment(slice_frame, references)

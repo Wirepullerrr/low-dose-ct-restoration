@@ -441,9 +441,79 @@ def canonical(tmp_path):
 def _verify(canonical, **overrides):
     payload = dict(canonical["payload"])
     payload.update(overrides)
+    expected_seed = payload.pop("expected_seed", None)
+    extra = {} if expected_seed is None else {"expected_seed": expected_seed}
     return evaluation_integrity.verify_checkpoint_provenance(
-        payload, canonical["checkpoint_path"], canonical["config_path"], canonical["run_dir"]
+        payload,
+        canonical["checkpoint_path"],
+        canonical["config_path"],
+        canonical["run_dir"],
+        **extra,
     )
+
+
+def _reseed_summary(canonical, seed):
+    """Rewrite the run summary's declared training seed."""
+    path = canonical["run_dir"] / "run_summary.json"
+    document = json.loads(path.read_text(encoding="utf-8"))
+    document["training"]["seed"] = seed
+    path.write_text(json.dumps(document), encoding="utf-8")
+
+
+# --------------------------------------------------------------------------
+# the expected seed comes from the provenance-hashed config, not the CLI
+# --------------------------------------------------------------------------
+
+
+def test_config_training_seed_reads_the_declared_seed():
+    assert evaluation_integrity.config_training_seed({"training": {"seed": 2027}}) == 2027
+
+
+@pytest.mark.parametrize(
+    "document",
+    [
+        {},
+        {"training": {}},
+        {"training": None},
+        {"training": {"seed": None}},
+        {"training": {"seed": "2027"}},
+        {"training": {"seed": 2027.0}},
+        {"training": {"seed": True}},
+        {"training": {"seed": -1}},
+    ],
+)
+def test_a_missing_or_malformed_config_seed_is_refused(document):
+    with pytest.raises(evaluation_integrity.EvaluationIntegrityError):
+        evaluation_integrity.config_training_seed(document)
+
+
+def test_a_run_at_a_different_seed_verifies_when_every_witness_agrees(canonical):
+    _reseed_summary(canonical, 2027)
+    report = _verify(canonical, seed=2027, expected_seed=2027)
+    assert report["verified"] is True
+
+
+def test_a_checkpoint_seed_that_disagrees_with_the_config_is_refused(canonical):
+    # Config says 2027, run summary says 2027, checkpoint still says 2026.
+    _reseed_summary(canonical, 2027)
+    with pytest.raises(evaluation_integrity.EvaluationIntegrityError):
+        _verify(canonical, seed=2026, expected_seed=2027)
+
+
+def test_a_run_summary_seed_that_disagrees_with_the_config_is_refused(canonical):
+    # Config says 2027, checkpoint says 2027, run summary still says 2026.
+    with pytest.raises(evaluation_integrity.EvaluationIntegrityError):
+        _verify(canonical, seed=2027, expected_seed=2027)
+
+
+def test_the_canonical_2026_run_still_verifies_with_the_seed_derived_explicitly(canonical):
+    report = _verify(canonical, expected_seed=2026)
+    assert report["verified"] is True
+
+
+def test_the_default_expected_seed_is_still_the_canonical_one(canonical):
+    assert evaluation_integrity.CANONICAL_SEED == 2026
+    assert _verify(canonical)["verified"] is True
 
 
 def test_a_consistent_canonical_run_verifies(canonical):

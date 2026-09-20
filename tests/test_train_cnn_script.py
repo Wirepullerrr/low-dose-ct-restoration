@@ -370,3 +370,152 @@ def test_the_config_hash_is_a_hash_of_the_committed_file() -> None:
     path = Path("configs/cnn.yaml")
 
     assert train.file_sha256(path) == hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+# --------------------------------------------------------------------------
+# both training commands resolve their config by the one shared rule
+# --------------------------------------------------------------------------
+
+
+def test_the_bare_and_prefixed_config_names_resolve_to_the_same_file():
+    # train_cnn.py used to carry its own copy of this lookup rule. A second
+    # copy is a second thing to keep in step with the loader, and the file
+    # that gets hashed for provenance must be the file that got loaded.
+    from ct_restoration.config import resolve_config_path
+
+    bare = resolve_config_path("cnn.yaml")
+    prefixed = resolve_config_path("configs/cnn.yaml")
+    assert bare.resolve() == prefixed.resolve()
+    assert bare.resolve().name == "cnn.yaml"
+    assert bare.exists()
+
+
+def test_both_training_commands_use_the_shared_resolver():
+    import ast
+
+    scripts = Path(__file__).resolve().parents[1] / "scripts"
+    for name in ("train_cnn.py", "train_unet.py"):
+        source = (scripts / name).read_text(encoding="utf-8")
+        tree = ast.parse(source)
+        code = source.replace(ast.get_docstring(tree) or "", "")
+        assert "resolve_config_path(" in code, name
+        # the hand-rolled copy of the rule must be gone
+        assert 'Path("configs") /' not in code, name
+
+
+def test_the_recorded_config_path_is_repository_relative_for_both_commands():
+    # resolve_config_path returns an absolute path; writing that into a
+    # tracked artifact would leak a local username and break byte-identical
+    # regeneration across machines.
+
+    scripts = Path(__file__).resolve().parents[1] / "scripts"
+    for name in ("train_cnn.py", "train_unet.py"):
+        code = (scripts / name).read_text(encoding="utf-8")
+        assert '"path": repository_path(config_path),' in code, name
+        assert '"path": config_path.as_posix(),' not in code, name
+        assert '"path": config_path.name,' not in code, name
+
+
+# --------------------------------------------------------------------------
+# no scientific training value can be set from the command line
+# --------------------------------------------------------------------------
+
+#: Arguments a training command may legitimately take: where to read from,
+#: where to write to, which device, and one explicit destructive override.
+#: None of these is a term in the experiment definition.
+NON_SCIENTIFIC_ARGUMENTS = {
+    "--help",
+    "--root",
+    "--manifest",
+    "--cnn-config",
+    "--unet-config",
+    "--preprocessing-config",
+    "--degradation-config",
+    "--baseline-patients",
+    "--run-dir",
+    "--checkpoint",
+    "--overwrite",
+    "--device",
+}
+
+#: Every field that defines the experiment. A CLI override for any of these
+#: would let a run carry the SHA-256 of a config describing a different
+#: experiment, and the provenance gate would still pass.
+FROZEN_SCIENTIFIC_FIELDS = (
+    "seed",
+    "epochs",
+    "batch-size",
+    "batch_size",
+    "learning-rate",
+    "learning_rate",
+    "optimizer",
+    "loss",
+    "scheduler",
+    "augmentation",
+    "betas",
+    "eps",
+    "weight-decay",
+    "weight_decay",
+    "gradient-clipping",
+    "mixed-precision",
+    "primary-metric",
+    "selection-metric",
+    "tie-breaker",
+    "sampler",
+)
+
+
+def _training_parser(name: str):
+    import importlib.util
+    import sys
+
+    scripts = Path(__file__).resolve().parents[1] / "scripts"
+    spec = importlib.util.spec_from_file_location(name, scripts / f"{name}.py")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module)
+    return module.build_parser()
+
+
+def _options(name: str) -> set[str]:
+    return {
+        option
+        for action in _training_parser(name)._actions
+        for option in action.option_strings
+        if option.startswith("--")
+    }
+
+
+@pytest.mark.parametrize("script", ["train_cnn", "train_unet"])
+def test_the_training_parser_does_not_accept_an_epochs_override(script):
+    assert "--epochs" not in _options(script)
+
+
+@pytest.mark.parametrize("script", ["train_cnn", "train_unet"])
+def test_an_epochs_override_is_rejected_by_the_parser(script):
+    parser = _training_parser(script)
+    with pytest.raises(SystemExit):
+        parser.parse_args(["--epochs", "5"])
+
+
+@pytest.mark.parametrize("script", ["train_cnn", "train_unet"])
+def test_no_frozen_scientific_field_is_exposed_on_the_command_line(script):
+    options = _options(script)
+    for field in FROZEN_SCIENTIFIC_FIELDS:
+        assert f"--{field}" not in options, f"{script} exposes --{field}"
+
+
+@pytest.mark.parametrize("script", ["train_cnn", "train_unet"])
+def test_every_training_argument_is_a_location_or_device_not_a_hyperparameter(script):
+    # An allow-list, not a deny-list: a scientific override added later fails
+    # this test even if nobody thought to forbid it by name.
+    unexpected = _options(script) - NON_SCIENTIFIC_ARGUMENTS
+    assert not unexpected, f"{script} gained non-location arguments: {sorted(unexpected)}"
+
+
+@pytest.mark.parametrize("script", ["train_cnn.py", "train_unet.py"])
+def test_the_epoch_budget_is_read_only_from_the_frozen_config(script):
+    source = (Path(__file__).resolve().parents[1] / "scripts" / script).read_text(encoding="utf-8")
+    assert 'epochs = int(training["epochs"])' in source, script
+    assert "arguments.epochs" not in source, script
+    assert "--epochs" not in source, script

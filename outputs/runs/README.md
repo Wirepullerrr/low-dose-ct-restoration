@@ -85,3 +85,45 @@ These are CHAOS-derived artifacts. Use and redistribution of CHAOS data and of
 artifacts derived from it remain subject to the applicable CHAOS dataset
 terms, recorded with the dataset provenance in
 [`data/README.md`](../../data/README.md).
+
+## Naming, and why a run cannot be overwritten
+
+Run directories and checkpoints are named from the method and the statistical
+seed:
+
+```
+outputs/runs/<method>_seed<SEED>/
+outputs/checkpoints/<method>_seed<SEED>_best.pt
+```
+
+with `<method>` one of `cnn` or `unet`. Both paths are built by
+`ct_restoration.run_layout`, not spelled out at each call site, so a trainer
+and an evaluator cannot disagree about where a run lives. That helper refuses
+a seed that is not a genuine non-negative integer: `True`, `2027.0` and
+`"2027"` are all rejected rather than coerced into a directory name the
+caller did not intend.
+
+The Milestone 8 and Milestone 9 destinations are `cnn_seed2026` and
+`unet_seed2026` and are immutable.
+
+Before a training command reads any image, builds an optimizer or takes a
+gradient step, it refuses to start if its checkpoint already exists or its
+run directory is non-empty. The default commands therefore now refuse,
+because their canonical destinations are occupied:
+
+```
+$ uv run python scripts/train_cnn.py
+error: Refusing to start training: checkpoint outputs/checkpoints/cnn_seed2026_best.pt
+already exists; and run directory outputs/runs/cnn_seed2026 already contains 2 entries
+...
+```
+
+This matters more than ordinary caution. Checkpoints are git-ignored, so an
+overwritten one cannot be recovered; and the tracked run summary pins its
+SHA-256, so a retrained replacement would fail the evaluation provenance gate
+rather than quietly substitute itself. A single forgetful command would make
+a committed result permanently unverifiable.
+
+`--overwrite` exists for a deliberate re-run of a result nothing depends on.
+Multi-seed automation must not use it: each seed has its own destination, so
+needing the flag means the destination was wrong.

@@ -123,9 +123,11 @@ definition rewrites every file byte for byte.
 ## Reading them
 
 All of these are **validation development results**, not final benchmark
-results, and the CNN's are additionally a **single-seed** result. The final
-comparison happens on the held-out test split once every method decision is
-frozen.
+results, and both learned methods - the CNN and the U-Net - are additionally
+**single-seed** results: one training seed each, which shows what those runs
+did and does not establish that either architecture reaches its figure
+reliably. The final comparison happens on the held-out test split once every
+method decision is frozen.
 
 MAE and MSE are lower-is-better; PSNR, in decibels, and SSIM are
 higher-is-better. The **primary** figure for a split is the patient-weighted
@@ -145,3 +147,34 @@ artifacts derived from it remain subject to the applicable CHAOS dataset terms,
 recorded with the dataset provenance in [`data/README.md`](../../data/README.md).
 Those dataset terms are separate from the license covering this repository's
 source code.
+
+## Where additional statistical seeds will write
+
+The tables in this directory are the canonical single-seed results. Any
+further seed writes into its own directory instead:
+
+```
+outputs/metrics/multiseed/seed<SEED>/
+    cnn_validation_slices.csv       unet_validation_slices.csv
+    cnn_validation_patients.csv     unet_validation_patients.csv
+    cnn_validation_summary.json     unet_validation_summary.json
+    cnn_vs_*_patient_deltas.csv     unet_vs_*_patient_deltas.csv
+```
+
+so no later seed can overwrite a number reported for Milestone 8 or 9.
+
+Two directories, because two kinds of reference behave differently:
+
+* `--output-dir` is where *this seed's* learned artifacts are written.
+* `--reference-dir` holds the frozen non-learned references - the degraded
+  baseline and CLAHE. Those are measured once, not per seed, so a seed reads
+  them from here and no copy is made into each seed directory.
+
+The CNN is the exception among comparisons: it is a *learned, per-seed*
+result, so when the U-Net is scored it reads the CNN from its **own**
+`--output-dir`, not from the reference directory. Pairing a seed-2027 U-Net
+against the seed-2026 CNN would compare two different experiments while
+looking exactly like a valid delta.
+
+With both options left at their defaults the layout is the canonical one and
+nothing changes.

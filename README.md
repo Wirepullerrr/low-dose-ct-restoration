@@ -24,6 +24,14 @@ built from public abdominal CT data.
 > architecture effect, because the run-to-run spread of either is unmeasured.
 > Multi-seed work is a later milestone.
 >
+> **Multi-seed infrastructure is prepared; no additional statistical seeds
+> have been trained yet.** Milestone 10 has not run. The plumbing below -
+> per-seed run, checkpoint and metric destinations, a refusal that stops a
+> training command overwriting a completed run, and a provenance gate that
+> takes its expected seed from the frozen config - exists so that work can
+> start safely. It produces no new scientific result on its own, and none is
+> reported here.
+>
 > Every measured number here is a **validation** development result. No test
 > or stress number exists, and no test or stress image content has been read
 > since the split was frozen.
@@ -2194,6 +2202,39 @@ Within that scope it was checked rather than asserted:
 
 Both gates are the same shared code the CNN's evaluation clears, in
 [src/ct_restoration/evaluation_integrity.py](src/ct_restoration/evaluation_integrity.py).
+
+### What a shared seed number will and will not mean
+
+Milestone 10 will train both architectures at each of several seeds, and the
+paired comparison only means something if "the same seed" is described
+accurately.
+
+Seed *S* for the CNN and seed *S* for the U-Net **does** mean:
+
+* the same statistical-seed label, so the two runs form a pair;
+* the same patient-balanced sampler ordering, because the sampler algorithm
+  and its base seed are shared and the sampler derives every stream from
+  `SHA-256(algorithm, seed, epoch, stream)` independently of the model;
+* a deterministic initialization within each architecture - rerunning seed
+  *S* for one architecture reproduces that architecture's weights exactly.
+
+It **does not** mean:
+
+* identical parameter values, which is impossible: the two networks have
+  different shapes and different parameter counts;
+* the same random draws assigned parameter-by-parameter - the two models
+  consume the RNG stream in different orders and amounts;
+* matched tensors of any kind across architectures.
+
+So a per-seed difference `U-Net(S) - CNN(S)` pairs two runs that saw **the
+same data in the same order**, which is what makes pairing worth doing. It
+does not pair two networks that started from "the same" weights, and no
+claim of that sort should be made from it.
+
+The per-slice degradation is unaffected by any of this. Its seed lives in
+`configs/degradation.yaml` and never reaches the training path - the Dataset
+constructor takes no seed argument at all - so every seed of every
+architecture sees pixel-identical degraded images.
 
 ### What was and was not looked at
 
