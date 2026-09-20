@@ -4,18 +4,25 @@ An engineering benchmark comparing classical and lightweight deep-learning
 restoration methods on **synthetically degraded, low-dose-like CT images**
 built from public abdominal CT data.
 
-> **Status: in progress (Milestone 8 of 15 - a small residual CNN is
-> trained and measured).**
+> **Status: in progress (Milestone 9 of 15 - all four methods are now
+> measured on validation).**
 >
-> Three methods are measured so far. **CLAHE scored worse than doing nothing
-> on every metric and every patient.** A 28,353-parameter residual CNN, one
-> training seed, **beat no restoration on all eight reported metrics and on
-> all six validation patients** - full-frame PSNR +3.18 dB, body PSNR
-> +2.80 dB. No U-Net exists yet.
+> **CLAHE scored worse than doing nothing on every metric and every
+> patient.** Both learned methods beat no restoration on all eight reported
+> metrics and on all six validation patients: the 28,353-parameter residual
+> CNN by +3.18 dB full-frame PSNR, and the 116,753-parameter lightweight
+> U-Net by +3.38 dB.
 >
-> The CNN figure is a **single-seed development result**. One seed shows what
-> that run did; it does not establish that the architecture is stable, and
-> multi-seed work is a later milestone.
+> **U-Net versus CNN:** the U-Net used 4.12x the trainable parameters and
+> scored +0.20 dB higher full-frame PSNR in this single-seed validation run.
+> It is ahead on the mean of all eight metrics, by roughly one fifteenth of
+> the distance either model travels from the baseline.
+>
+> Both learned figures are **single-seed development results**. One seed
+> shows what a run did; it does not establish that an architecture is stable.
+> A 0.20 dB gap between two single-seed runs is **not** established as an
+> architecture effect, because the run-to-run spread of either is unmeasured.
+> Multi-seed work is a later milestone.
 >
 > Every measured number here is a **validation** development result. No test
 > or stress number exists, and no test or stress image content has been read
@@ -40,11 +47,12 @@ quality, and what does each method cost in inference latency?
 | Degraded input (no restoration) | mandatory reference baseline | implemented; [measured on validation](#validation-degraded-baseline) |
 | CLAHE | classical local contrast enhancement | implemented, validation-tuned and frozen; [worse than no restoration](#validation-result-clahe-versus-no-restoration) |
 | Small residual CNN | deep learning | implemented and trained, one seed; [beat no restoration on all 8 metrics](#validation-result-cnn-versus-no-restoration) |
-| Lightweight U-Net | deep learning | not implemented; [training data layer ready](#the-learned-method-data-pipeline) |
+| Lightweight U-Net | deep learning | implemented and trained, one seed; [best of the four, narrowly](#validation-result-four-methods-side-by-side) |
 
-All four will be evaluated on identical patients, identical clean targets and
-identical degraded inputs, through the same frozen metric code, using MAE, MSE,
-PSNR, SSIM, and inference latency. No latency has been measured yet.
+All four have now been evaluated on identical patients, identical clean
+targets and identical degraded inputs, through the same frozen metric code,
+using MAE, MSE, PSNR and SSIM. **Inference latency has not been measured for
+any of them**, so the cost half of the research question is still open.
 
 The final comparison will be made on the held-out **test** split, once every
 method decision is frozen. Nothing has been evaluated on test or stress yet:
@@ -598,7 +606,7 @@ The measuring apparatus is defined and frozen in
 [src/ct_restoration/metrics.py](src/ct_restoration/metrics.py) and
 [src/ct_restoration/evaluation.py](src/ct_restoration/evaluation.py), and fixed
 **before any method exists**. CLAHE and the CNN call those same functions on
-the same slices with the same masks, and the U-Net will too, so a comparison
+the same slices with the same masks, and so does the U-Net, so a comparison
 between them reflects the methods rather than the measurement.
 
 ### The degraded baseline is "no restoration"
@@ -1045,7 +1053,7 @@ clahe:
 
 Frozen. `scripts/tune_clahe.py` refuses to overwrite it without an explicit
 `--overwrite`, so CLAHE could not be quietly retuned once the CNN result
-existed, and cannot be once a U-Net result does.
+existed, and could not be once the U-Net result did either.
 
 ### Validation result: CLAHE versus no restoration
 
@@ -1142,8 +1150,7 @@ every method decision is frozen.
 
 ## The learned-method data pipeline
 
-Everything the CNN trained on, and everything the U-Net will train on, is
-defined here and nowhere
+Everything both learned methods trained on is defined here and nowhere
 else: what one supervised sample is, how the pair is built, how patients are
 weighted during training, and how validation is traversed. No architecture, no
 optimizer, no loss, no learning rate. Implemented in
@@ -1202,7 +1209,7 @@ global NumPy or PyTorch RNG.
 The reason is a scoping decision, not a claim that the alternative is
 invalid. This benchmark defines exactly **one** degraded counterpart per clean
 slice. Holding that pair fixed makes the training inputs reproducible and lets
-the CNN and a future U-Net inherit an identical input-target mapping, so a
+the CNN and the U-Net inherit an identical input-target mapping, so a
 difference between them is attributable to the model. Re-drawing the
 corruption every epoch is a perfectly legitimate way to train a denoiser — it
 is a standard stochastic augmentation — but it is a different experiment: it
@@ -1327,8 +1334,8 @@ batch would silently discard whichever patients landed at the end of the
 shuffled epoch, so the realized per-patient counts would stop matching the
 audited ones.
 
-Batch size is a caller argument, not a benchmark parameter — the CNN and U-Net
-batch sizes belong to those milestones. **Batching changes grouping, not
+Batch size is a caller argument, not a benchmark parameter — the CNN and the
+U-Net each declare their own in their frozen config, and both chose 32. **Batching changes grouping, not
 sampling.** The audit flattens both loaders at batch sizes 1 and 17 (neither
 divides 885 or 4160, so a ragged final batch is exercised) and gets identical
 ordered sample-key sequences; validation matches the canonical manifest order
@@ -1341,7 +1348,7 @@ byte-identical tensors.
 
 ### No augmentation, no model-specific normalization
 
-Neither is used, on purpose. The CNN in the next section was trained without
+Neither is used, on purpose. Both learned methods were trained without
 either.
 
 No flips, rotations, crops, intensity jitter, extra noise, mixup or CutMix.
@@ -1411,8 +1418,8 @@ The receptive field is arithmetic, not a claim about anatomy: five stacked
 therefore a function of an 11×11 neighbourhood of the input and of nothing
 further away. That is a real constraint on what this architecture can do —
 it cannot use context beyond that window, whatever the context might be worth
-— and it is the main structural difference between this model and the U-Net
-that follows it.
+— and it is the main structural difference between this model and the
+[lightweight U-Net](#the-lightweight-u-net), whose deepest path sees 44x44.
 
 There is no activation after the final convolution. A sigmoid or tanh there
 would bound the output, but it would also bound the *correction*, place the
@@ -1815,6 +1822,403 @@ after the fact, and no scientific hyperparameter moved.
 These are validation development results for one seed. The final comparison on
 the held-out test split happens only once every method decision is frozen.
 
+## The lightweight U-Net
+
+The second learned method, and the one architectural question this benchmark
+was built to ask: does multi-scale context help? Implemented in
+[src/ct_restoration/models/unet.py](src/ct_restoration/models/unet.py),
+trained by [scripts/train_unet.py](scripts/train_unet.py) and scored by
+[scripts/evaluate_unet.py](scripts/evaluate_unet.py) through the same frozen
+benchmark every other method went through.
+
+### What the model is
+
+| | |
+| --- | --- |
+| algorithm | `lightweight_residual_unet_v1` |
+| levels | 2 downsampling steps |
+| base channels | 16, doubling per level: 16 → 32, bottleneck 64 |
+| block | 2 × `Conv2d` 3×3, ReLU after each |
+| downsampling | `MaxPool2d` 2×2 stride 2 |
+| upsampling | `ConvTranspose2d` 2×2 stride 2 |
+| skip connections | 2, **concatenation** along channels |
+| normalization | none — no batch norm, no dropout, no attention |
+| head | `Conv2d` 1×1, zero-initialized |
+| trainable parameters | **116,753** |
+| maximum deepest-path receptive field | **44 × 44 pixels** |
+| output | `clamp(degraded + correction, 0, 1)` |
+
+Eleven `Conv2d` and two `ConvTranspose2d` layers, all with bias. The shape:
+
+```
+256²×1  --conv,conv-->  256²×16  ------------------ skip 1 ------------------+
+                |                                                            |
+            maxpool 2×2                                                      |
+                v                                                            |
+128²×16 --conv,conv-->  128²×32  ------ skip 2 ------+                       |
+                |                                     |                      |
+            maxpool 2×2                                v                     v
+                v                                  concat 64             concat 32
+ 64²×32 --conv,conv-->   64²×64  --up--> 128²×32 ------+--conv,conv--> ... --+--conv,conv--> 256²×16 --1×1--> correction
+                        (bottleneck)
+```
+
+### Encoder, bottleneck, decoder
+
+The **encoder** halves the spatial resolution twice while doubling the
+channel count. That trade is the whole point of the shape: after pooling, one
+feature-map pixel summarises a larger patch of the original image, so the
+same 3×3 convolution now relates things that were further apart. The extra
+channels are the capacity to describe what those larger patches contain.
+
+The **bottleneck** is where the representation is coarsest — 64×64 at 64
+channels — and therefore where a single convolution reaches furthest across
+the image.
+
+The **decoder** brings the resolution back with transposed convolutions,
+which learn the upsampling rather than interpolating it, and which here are
+2×2 stride 2 and so exactly non-overlapping: each output pixel comes from one
+input pixel.
+
+### Skip connections, and why concatenation
+
+Pooling coarsens the representation, and fine spatial detail is what a
+restoration task most needs. The skip connections carry higher-resolution
+encoder features around that bottleneck: each encoder block's output is saved
+and joined to the matching decoder stage, so the decoder sees the coarse
+wide-context features it computed **and** features at the finer scale that
+never passed through the coarsest representation.
+
+Worth being exact about what a skip is. It is **not** the raw input pixels,
+and it does not restore the detail pooling removed. It is a feature map
+produced by that encoder block's two convolutions — already transformed,
+just not yet downsampled. So the guarantee is access to fine-scale feature
+information, not perfect preservation of anything.
+
+They are **concatenated, not summed**, and the widths are checked in the
+tests: decoder stage 1 receives 32 upsampled + 32 skip = **64 channels**,
+stage 2 receives 16 + 16 = **32 channels**. Adding them instead would force
+the network to treat a fine-detail feature and a wide-context feature as the
+same kind of quantity and would commit to a fixed one-to-one mixing.
+Concatenating hands both to the next convolution and lets it learn the
+mixing, at the cost of twice as many channels to convolve over.
+
+### The 44×44 receptive field, stated carefully
+
+Accumulated through the deepest path — a size-preserving convolution adds
+`(k−1)·jump`, a 2×2 stride-2 pool adds `jump` and doubles it, and a
+non-overlapping 2×2 stride-2 transposed convolution halves the jump and adds
+no extent:
+
+| after | field | jump |
+| --- | --- | --- |
+| encoder 1 (conv, conv) | 5 | 1 |
+| pool 1 | 6 | 2 |
+| encoder 2 (conv, conv) | 14 | 2 |
+| pool 2 | 16 | 4 |
+| bottleneck (conv, conv) | 32 | 4 |
+| up-conv 1 | 32 | 2 |
+| decoder 1 (conv, conv) | 40 | 2 |
+| up-conv 2 | 40 | 1 |
+| decoder 2 (conv, conv) | **44** | 1 |
+| 1×1 head | 44 | 1 |
+
+Three things this number is not. It is the **maximum over paths, not the only
+path**: the skip connections deliberately provide shallower routes carrying
+smaller-scale local information, and an output pixel's value mixes
+contributions from all of them. It is a statement about **pixels**, not
+anatomical coverage or clinical context. And it is not latency — no method in
+this benchmark has had its inference cost measured yet.
+
+### Residual, and identical to the CNN where it counts
+
+```
+raw_restored = degraded + UNet(degraded)
+restored     = clamp(raw_restored, 0, 1)
+```
+
+The same image-level parameterization as the residual CNN, so the two methods
+differ inside the box and nowhere else. The 1×1 head is zero-initialized, so
+before training the correction is identically zero and the untrained U-Net
+**is** the no-restoration baseline.
+
+Everything on the training side was copied from
+[configs/cnn.yaml](configs/cnn.yaml) unchanged into
+[configs/unet.yaml](configs/unet.yaml) (SHA-256 `8baba29199c516ac…`, frozen
+before the first real gradient step):
+
+| | |
+| --- | --- |
+| loss | full-frame **L1** on the **raw, unclamped** restoration |
+| optimizer | Adam, lr 1e-3, betas (0.9, 0.999), eps 1e-8, weight decay 0 |
+| schedule | none |
+| epochs | 30, all of them, no early stopping |
+| batch size | 32 |
+| sampling | `patient_balanced_v1`, 4160 draws per epoch, 25 patients |
+| validation | all 885 slices, canonical order, exactly once |
+| augmentation | none |
+| seed | 2026 |
+| checkpoint rule | lowest patient-weighted validation full-frame MAE, epochs 1..30, ties to the earlier epoch |
+
+**None of it was adjusted for this architecture**, and that is the
+methodological point: if the U-Net had also been given its own learning rate
+or its own epoch count, a difference in the result could be any of those
+rather than the model.
+
+To be precise about what that does and does not mean: **neither model's
+recipe was ever hyperparameter-tuned.** The CNN's values were one predeclared
+development configuration, chosen before any result existed and never
+searched over, and the U-Net inherits them unchanged. So the accurate
+limitation is that **the U-Net inherits the CNN benchmark's predeclared
+training recipe rather than receiving architecture-specific tuning** — it is
+measured under that recipe, not at its best. A configuration predeclared for
+a 28k-parameter CNN need not be a good one for a 117k-parameter U-Net.
+Tuning either would be a search, and no milestone so far has run one.
+
+> **Erratum, and why the frozen file still reads differently.** A comment
+> inside [configs/unet.yaml](configs/unet.yaml) describes the inherited
+> values as "a recipe tuned for a 28k-parameter CNN". That phrasing is
+> wrong: no hyperparameter search was ever run, for either model. The file
+> is **not** edited to fix it, because its SHA-256 is recorded inside the
+> checkpoint and the run summary, and the evaluation's provenance gate
+> re-hashes the file and refuses to score a checkpoint whose recorded hash
+> no longer matches. Correcting a comment would therefore invalidate the
+> Milestone 9 result unless the model were retrained. The statement above is
+> the accurate one; the config comment is a known wording defect in a frozen
+> artifact, recorded here rather than silently repaired.
+
+### The epoch-0 identity check
+
+| | |
+| --- | --- |
+| zero-initialized U-Net, patient-weighted validation full MAE | 0.016358921897 |
+| committed degraded baseline, same figure | 0.016358921877 |
+| absolute difference | **2.03e-11** |
+| tolerance | 1e-6 |
+
+Read from the committed
+[degraded_baseline_validation_patients.csv](outputs/metrics/degraded_baseline_validation_patients.csv),
+never a typed literal. The difference is **bit-identical to the CNN's**,
+which is the strongest available evidence that both architectures reduce to
+exactly the same identity path and are being scored by exactly the same code.
+
+### The training run
+
+30 epochs on one RTX 5070 Ti;
+[outputs/runs/unet_seed2026/training_history.csv](outputs/runs/unet_seed2026/training_history.csv)
+has every epoch. Beside the CNN's run, which used the same data in the same
+order:
+
+| epoch | CNN train L1 | CNN val MAE | U-Net train L1 | U-Net val MAE |
+| --- | --- | --- | --- | --- |
+| 0 | — | 0.01635892 | — | 0.01635892 |
+| 1 | 0.01614127 | 0.01225671 | 0.01397254 | 0.01089852 |
+| 5 | 0.01126369 | 0.01003056 | 0.01090295 | 0.00979053 |
+| 10 | 0.01097686 | 0.00990126 | 0.01059083 | 0.00943554 |
+| 15 | 0.01081030 | 0.00962256 | 0.01047340 | 0.00955504 |
+| 20 | 0.01069439 | 0.00966141 | 0.01037877 | 0.00931955 |
+| 25 | 0.01060133 | 0.00938976 | 0.01032570 | 0.00935770 |
+| **29** | 0.01053796 | **0.00935309** | 0.01028418 | **0.00912664** |
+| 30 | 0.01052905 | 0.00953269 | 0.01023744 | 0.00913001 |
+
+Both runs selected **epoch 29** under the same predeclared rule, independently.
+The U-Net's training loss is lower throughout, its validation curve oscillates
+by a similar ±0.0003 from epoch to epoch, and it trends downwards to the end.
+**No overfitting is visible in either run**, in the narrow sense that neither
+validation curve turned around and rose while training loss kept falling.
+That is a description of these two runs, not a general property.
+
+### Validation result: four methods side by side
+
+Same 6 patients, same 885 slices, same masks, same metric code, same frozen
+degradation. Patient-weighted, every patient equally weighted:
+
+| Region | Metric | No restoration | CLAHE | Residual CNN | **U-Net** |
+| --- | --- | --- | --- | --- | --- |
+| full | MAE | 0.016359 | 0.023570 | 0.009353 | **0.009127** |
+| full | MSE | 0.00072130 | 0.00123279 | 0.00034916 | **0.00033334** |
+| full | PSNR | 31.4813 | 29.1561 | 34.6583 | **34.8623** |
+| full | SSIM | 0.781346 | 0.620769 | 0.953860 | **0.955142** |
+| body | MAE | 0.028187 | 0.036281 | 0.019940 | **0.019410** |
+| body | MSE | 0.00141527 | 0.00229926 | 0.00074864 | **0.00071440** |
+| body | PSNR | 28.5620 | 26.4831 | 31.3631 | **31.5750** |
+| body | SSIM | 0.810430 | 0.768085 | 0.897097 | **0.899887** |
+
+**Did the U-Net beat no restoration? Yes, on all eight metrics** — full-frame
+PSNR +3.38 dB, body PSNR +3.01 dB, and all six patients improved on every
+one of the eight.
+
+Spread across the six patients, and the secondary slice-weighted figure:
+
+| Metric | patient std | min | max | slice-weighted |
+| --- | --- | --- | --- | --- |
+| full PSNR | 0.5288 | 33.9375 | 35.3368 | 34.9607 |
+| body PSNR | 0.5085 | 30.9361 | 32.0636 | 31.7223 |
+| full SSIM | 0.008233 | 0.945376 | 0.969305 | 0.955615 |
+| body SSIM | 0.013891 | 0.882629 | 0.919956 | 0.901752 |
+
+Descriptive acquisition-group breakdown, three patients each. With n = 3 per
+group there is nothing to conclude, and no significance test is run:
+
+| Group | full PSNR | body PSNR | full SSIM | body SSIM |
+| --- | --- | --- | --- | --- |
+| A | 35.1087 | 32.0088 | 0.955263 | 0.903687 |
+| B | 34.6158 | 31.1412 | 0.955021 | 0.896087 |
+
+### The architecture comparison: U-Net versus residual CNN
+
+This is what Milestone 9 exists to measure. Both are learned residual models
+trained under an identical policy, so the intended difference between them is
+the model. Paired per-patient deltas, `delta = U-Net − CNN`:
+
+| Region | Metric | mean delta | U-Net better? | patients improved |
+| --- | --- | --- | --- | --- |
+| full | MAE | −0.000227 | yes | 6 / 6 |
+| full | MSE | −0.000016 | yes | 6 / 6 |
+| full | PSNR | **+0.2039** | yes | 6 / 6 |
+| full | SSIM | +0.001282 | yes | 5 / 6 |
+| body | MAE | −0.000530 | yes | 6 / 6 |
+| body | MSE | −0.000034 | yes | 6 / 6 |
+| body | PSNR | **+0.2119** | yes | 6 / 6 |
+| body | SSIM | +0.002790 | yes | 5 / 6 |
+
+Per patient, on the two PSNR metrics:
+
+| Subject | Group | Δ full PSNR | Δ full SSIM | Δ body PSNR | Δ body SSIM |
+| --- | --- | --- | --- | --- | --- |
+| 4 | B | +0.207455 | +0.001355 | +0.204618 | +0.002815 |
+| 14 | B | +0.145474 | **−0.000028** | +0.140947 | **−0.000076** |
+| 17 | B | +0.155706 | +0.001021 | +0.173838 | +0.002778 |
+| 23 | A | +0.229841 | +0.001780 | +0.245465 | +0.003591 |
+| 24 | A | +0.267384 | +0.001977 | +0.279688 | +0.004072 |
+| 34 | A | +0.217609 | +0.001587 | +0.226896 | +0.003557 |
+| **mean** | | **+0.203912** | **+0.001282** | **+0.211908** | **+0.002790** |
+
+The U-Net is ahead on the mean of all eight metrics. The two 5/6 counts are
+subject 14, where SSIM moved against it by 0.000028 and 0.000076 — at the
+fourth and fifth decimal place, which is not a meaningful reversal in either
+direction.
+
+**How large is this, really?** Stated without implying a mechanism: **the
+U-Net used 4.12× the trainable parameters** of the CNN (116,753 against
+28,353) **and scored +0.20 dB higher full-frame PSNR in this single-seed
+validation run.** Both models are about **+3 dB** over no restoration, so the
+gap between them is roughly **one fifteenth** of the distance either travels
+from the baseline.
+
+The parameter count is reported beside the score, not as its cause. Nothing
+here isolates which change produced the difference, and no latency has been
+measured for either model, so the parameter ratio is not a statement about
+what it costs to run.
+
+**What this does not establish.** Under the same frozen corruption and the
+same training policy, the lightweight U-Net performed better on validation,
+which is consistent with the larger multi-scale context being useful. It does
+**not** show that the larger receptive field *caused* the improvement. The
+two architectures differ in pooling, in having a decoder at all, in
+concatenative skips, in parameter count and in the entire computational
+graph, and all of those changed together. Isolating any one of them would be
+a separate, declared experiment.
+
+Most importantly: **these are one seed each.** A +0.20 dB gap between two
+single-seed runs is not established as an architecture effect, because the
+run-to-run spread of either architecture is unmeasured and could be of
+comparable size. Multi-seed stability is a deliberately separate later
+milestone, and until it exists the correct reading of this table is "this
+U-Net run scored slightly better than this CNN run", not "U-Nets are better
+here".
+
+### What the clamp is doing
+
+The reported metrics come from the clamped output, so the clamp is part of
+the method. As for the CNN, two quantities are kept apart: the **predicted
+correction** `raw − degraded`, measured on the unclamped output, and the
+**post-clamp change** `restored − degraded`, which is what survived into the
+scored image.
+
+| | U-Net | CNN, for comparison |
+| --- | --- | --- |
+| raw minimum, before clamping | −0.030941 | −0.025799 |
+| raw maximum, before clamping | 1.057549 | 1.056146 |
+| fraction of pixels raw < 0 | 0.501801 | 0.508982 |
+| fraction of pixels raw > 1 | 0.005444 | 0.005719 |
+| fraction changed by the clamp | 0.507245 | 0.514702 |
+| **mean absolute predicted correction** | **0.012313** | 0.012068 |
+| per-slice, q05 / q50 / q95 | 0.010548 / 0.012111 / 0.014543 | 0.010319 / 0.011903 / 0.014088 |
+| mean absolute post-clamp change | 0.012126 | 0.011788 |
+| per-slice, q05 / q50 / q95 | 0.010311 / 0.011929 / 0.014371 | 0.009980 / 0.011617 / 0.013836 |
+| non-finite outputs | 0 | 0 |
+
+The two models behave remarkably alike here. The U-Net clamps a slightly
+smaller fraction of the frame (50.7% against 51.5%) and asks for a slightly
+larger correction. Because the degraded image always lies inside [0, 1], the
+gap between the two correction figures is exactly the overshoot the clamp
+discarded: 0.012313 − 0.012126 = **0.000187** per pixel, against the CNN's
+0.000280. So the U-Net overshoots less, and neither overshoots much.
+
+These numbers are descriptive. **None is an optimization objective**, and no
+model, loss or config decision was made from them.
+
+### Reproducibility of this run
+
+Same scope as the CNN's: **same repository, same config, same environment,
+same hardware and same seed reproduce this run.** Bitwise identity across
+different GPUs, drivers or PyTorch builds is **not** claimed.
+
+Within that scope it was checked rather than asserted:
+
+* The training run was executed **twice**, start to finish. Both runs
+  produced a byte-identical `training_history.csv` (`91834d342b7785ea…`), a
+  byte-identical `run_summary.json`, and a byte-identical checkpoint
+  (`15e430f83ade635c…`). This is a determinism check, **not** a second seed.
+* The evaluation was likewise run twice and produced byte-identical values in
+  all six output files.
+* `torch.use_deterministic_algorithms(True)` in strict mode — not
+  `warn_only` — with `cudnn.benchmark=False`, `cudnn.deterministic=True` and
+  `CUBLAS_WORKSPACE_CONFIG=:4096:8`. Max-pooling and transposed convolution
+  both have deterministic implementations available on this device, so the
+  extra layers cost nothing in rigour.
+* CUDA is required; the training command refuses to run on CPU.
+* After selection, the saved checkpoint was reloaded in-process and compared
+  against the model still in memory: **26 state-dict tensors, 0 mismatches**,
+  and **0 differing pixels** on four deterministic probe images.
+* **Checkpoint provenance** is verified before a single validation image is
+  opened — 15 conditions, each against something computed independently of
+  the checkpoint, including re-running the predeclared selection rule over
+  the tracked history to re-derive epoch 29.
+* **Sample alignment** is enforced before anything is written, now against
+  **three** reference tables: 885 rows, 885 unique keys, 0 duplicates, and 0
+  missing, 0 extra and 0 order mismatches against the degraded baseline,
+  CLAHE **and** the CNN. All four methods scored the same 885 slices in the
+  same order, which is what makes every delta in this section paired.
+
+Both gates are the same shared code the CNN's evaluation clears, in
+[src/ct_restoration/evaluation_integrity.py](src/ct_restoration/evaluation_integrity.py).
+
+### What was and was not looked at
+
+Training and validation image content was read numerically. **No test or
+stress image content was read** — `scripts/train_unet.py` and
+`scripts/evaluate_unet.py` both refuse those splits through the same hold-out
+gate, and both summaries record `test_images_read: 0` and
+`stress_images_read: 0`.
+
+**No validation image was inspected visually at any point.**
+`scripts/qc_unet.py` has no `--split` option: it reads **training** slices
+only, and it ran after both checkpoints had been selected numerically and the
+canonical metrics had been written. Its six-panel figures — clean, degraded,
+CNN restored, U-Net restored, the U-Net's correction, and its remaining error
+— go to a git-ignored directory, and nothing about either model was changed
+after looking at them.
+
+Nothing in the architecture, the loss, the optimizer, the learning rate, the
+epoch count, the batch size or the checkpoint criterion was changed after the
+first validation number existed.
+
+These are single-seed validation development results for both learned
+methods. The final comparison on the held-out test split happens only once
+every method decision is frozen.
+
 ## Setup
 
 Requires [uv](https://docs.astral.sh/uv/) and Python 3.11.
@@ -1835,16 +2239,22 @@ src/ct_restoration/   library code (importable package)
                       patient split, low-dose-like degradation, supervised
                       Dataset, patient-balanced sampler, DataLoaders
   classical/          CLAHE and its predeclared parameter search
-  models/             the residual CNN and its benchmark adapter
+  models/             the residual CNN, the lightweight U-Net, their shared
+                      input contract, the benchmark adapter and the shared
+                      raw-output diagnostics
   metrics.py          MAE / MSE / PSNR / SSIM, shared by every method
   evaluation.py       body mask, patient aggregation, paired deltas, hold-out gate
   benchmark.py        the shared run harness every method is scored through
   training.py         training loss, patient-weighted aggregation, epoch selection
+  training_loop.py    the model-agnostic epoch loop, validation pass and
+                      checkpoint handling both learned methods share
+  evaluation_integrity.py  the hard gates every canonical evaluation clears:
+                      checkpoint provenance and ordered sample alignment
   reproducibility.py  seeding and deterministic-algorithm settings
 scripts/              runnable commands (cohort audit, split generation,
                       degradation audit, body-mask audit, baseline and CLAHE
                       evaluation, CLAHE tuning, Dataset/DataLoader audit,
-                      CNN training, CNN evaluation, CNN visual QC)
+                      CNN and U-Net training, evaluation and visual QC)
 tests/                pytest suite, fully synthetic, no downloads
 configs/              YAML experiment settings
 data/README.md        dataset provenance

@@ -1,33 +1,40 @@
-"""Render train-only visual QC panels for the selected CNN checkpoint.
+"""Render train-only visual QC panels comparing the CNN and the U-Net.
 
-    uv run python scripts/qc_cnn.py --root data/raw/chaos
+    uv run python scripts/qc_unet.py --root data/raw/chaos
 
 Training slices only, by construction
 --------------------------------------
 There is no ``--split`` option. This reads the training split and nothing
-else, and it runs **after** the checkpoint has already been selected
-numerically. Looking at validation images and then changing something is how
-a held-out estimate quietly becomes a fitted one; looking at training images
-after the decision is made is just checking that the numbers describe what
-they appear to describe.
+else, and it runs **after** both checkpoints have already been selected
+numerically and the canonical metrics have already been written. Looking at
+validation images and then changing something is how a held-out estimate
+quietly becomes a fitted one; looking at training images after every decision
+is made is just checking that the numbers describe what they appear to
+describe.
 
 What each panel shows
 ---------------------
-clean | degraded | CNN restored | the predicted correction | CNN - clean (the
-remaining error). The two difference panels are what make the figure worth
-rendering: a plausible-looking restored image tells you very little, while
-the correction and the residual error show what the network is actually
-doing and where it is still wrong.
+clean | degraded | CNN restored | U-Net restored | the U-Net's predicted
+correction | U-Net - clean (the remaining error).
 
 The correction panel shows ``raw - degraded``, taken from the **unclamped**
 output - what the network asked for. That is not the same image as
 ``restored - degraded``, which is only the part that survived the clamp, and
 on this model the two differ across about half the frame. The panel label
-and the image come from one shared helper so they cannot disagree.
+and the image come from one shared helper so they cannot disagree. The MAE
+figures in the title are computed from the **clamped** restoration, which is
+what the benchmark scores.
+
+The two difference panels are what make the figure worth rendering. A
+plausible-looking restored image tells you very little; the correction and
+the residual error show what the network is actually doing and where it is
+still wrong. Putting the two models side by side is the point of this
+milestone: the numbers say which scored better, the panels say whether they
+fail in the same places.
 
 Output
 ------
-Git-ignored PNGs under ``outputs/audit/figures/cnn/``. No CT image is ever
+Git-ignored PNGs under ``outputs/audit/figures/unet/``. No CT image is ever
 committed to this repository.
 """
 
@@ -52,20 +59,25 @@ from ct_restoration.config import load_config  # noqa: E402
 from ct_restoration.data.degradation import DegradationConfig, degrade_low_dose_like  # noqa: E402
 from ct_restoration.data.preprocessing import preprocess_ct_slice  # noqa: E402
 from ct_restoration.models.adapter import restore_array  # noqa: E402
-from ct_restoration.models.cnn import ResidualCnnConfig, build_model  # noqa: E402
+from ct_restoration.models.cnn import ResidualCnnConfig  # noqa: E402
+from ct_restoration.models.cnn import build_model as build_cnn  # noqa: E402
 from ct_restoration.models.diagnostics import predicted_correction_panel  # noqa: E402
+from ct_restoration.models.unet import LightweightResidualUnetConfig  # noqa: E402
+from ct_restoration.models.unet import build_model as build_unet  # noqa: E402
 
 #: The split this command reads. Not configurable: see the module docstring.
 QC_SPLIT = "train"
 
 #: Git-ignored output directory. Rendered CT images are never committed.
-FIGURE_DIR = Path("outputs/audit/figures/cnn")
+FIGURE_DIR = Path("outputs/audit/figures/unet")
 
 #: Training subjects rendered, chosen to span both acquisition groups and
-#: both source archives. Fixed, so the panels are the same every run.
+#: both source archives. The same four the CNN QC used, so the two sets of
+#: panels show the same anatomy. Fixed, so the panels are the same every run.
 QC_SUBJECTS = ("2", "3", "21", "31")
 
 #: Symmetric colour limit for the two difference panels, in normalized units.
+#: The same limit the CNN panels used, so the two are visually comparable.
 DIFFERENCE_LIMIT = 0.08
 
 
@@ -73,7 +85,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", default="data/raw/chaos", help="extracted CHAOS directory")
     parser.add_argument("--manifest", default="data/splits/chaos_slice_manifest.csv")
-    parser.add_argument("--checkpoint", default="outputs/checkpoints/cnn_seed2026_best.pt")
+    parser.add_argument("--unet-checkpoint", default="outputs/checkpoints/unet_seed2026_best.pt")
+    parser.add_argument("--cnn-checkpoint", default="outputs/checkpoints/cnn_seed2026_best.pt")
+    parser.add_argument("--unet-config", default="unet.yaml")
     parser.add_argument("--cnn-config", default="cnn.yaml")
     parser.add_argument("--degradation-config", default="degradation.yaml")
     parser.add_argument("--preprocessing-config", default="baseline.yaml")
@@ -89,19 +103,28 @@ def main() -> int:
     output_dir = Path(arguments.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    model_config = ResidualCnnConfig.from_mapping(load_config(arguments.cnn_config))
     degradation = DegradationConfig.from_mapping(load_config(arguments.degradation_config))
     preprocessing = load_config(arguments.preprocessing_config)["preprocessing"]
 
-    payload = torch.load(Path(arguments.checkpoint), map_location="cpu", weights_only=True)
-    model = build_model(model_config, device)
-    model.load_state_dict(payload["model_state_dict"])
-    model.eval()
+    unet_payload = torch.load(
+        Path(arguments.unet_checkpoint), map_location="cpu", weights_only=True
+    )
+    unet = build_unet(
+        LightweightResidualUnetConfig.from_mapping(load_config(arguments.unet_config)), device
+    )
+    unet.load_state_dict(unet_payload["model_state_dict"])
+    unet.eval()
+
+    cnn_payload = torch.load(Path(arguments.cnn_checkpoint), map_location="cpu", weights_only=True)
+    cnn = build_cnn(ResidualCnnConfig.from_mapping(load_config(arguments.cnn_config)), device)
+    cnn.load_state_dict(cnn_payload["model_state_dict"])
+    cnn.eval()
 
     # manifest_rows applies the hold-out gate; QC_SPLIT is not configurable.
     rows = manifest_rows(Path(arguments.manifest), QC_SPLIT)
 
-    print(f"checkpoint      : epoch {payload['epoch']}, seed {payload['seed']}")
+    print(f"U-Net           : epoch {unet_payload['epoch']}, seed {unet_payload['seed']}")
+    print(f"CNN             : epoch {cnn_payload['epoch']}, seed {cnn_payload['seed']}")
     print(f"split           : {QC_SPLIT} (train slices only, after checkpoint selection)")
     print("validation, test and stress image content is NOT read by this command")
     print()
@@ -116,7 +139,7 @@ def main() -> int:
             continue
 
         # The middle slice: deterministic, and more likely to show anatomy
-        # than either end of the scan.
+        # than either end of the scan. Same rule the CNN panels used.
         row = subject_rows.iloc[len(subject_rows) // 2]
         key = str(row["relative_dicom_path"])
         group = str(row["acquisition_group"])
@@ -129,46 +152,43 @@ def main() -> int:
             interpolation=preprocessing["interpolation"],
         )
         degraded = degrade_low_dose_like(clean, key, degradation)
-        restored = restore_array(model, degraded, device)
-        correction_label, correction = predicted_correction_panel(model, degraded, device)
+        cnn_restored = restore_array(cnn, degraded, device)
+        unet_restored = restore_array(unet, degraded, device)
+        correction_label, unet_correction = predicted_correction_panel(unet, degraded, device)
 
+        grey = {"cmap": "gray", "vmin": 0.0, "vmax": 1.0}
+        diverging = {"cmap": "bwr", "vmin": -DIFFERENCE_LIMIT, "vmax": DIFFERENCE_LIMIT}
         panels = [
-            ("clean reference", clean, {"cmap": "gray", "vmin": 0.0, "vmax": 1.0}),
-            ("degraded input", degraded, {"cmap": "gray", "vmin": 0.0, "vmax": 1.0}),
-            ("CNN restored", restored, {"cmap": "gray", "vmin": 0.0, "vmax": 1.0}),
-            (
-                f"CNN {correction_label}",
-                correction,
-                {"cmap": "bwr", "vmin": -DIFFERENCE_LIMIT, "vmax": DIFFERENCE_LIMIT},
-            ),
-            (
-                "CNN - clean (error)",
-                restored - clean,
-                {"cmap": "bwr", "vmin": -DIFFERENCE_LIMIT, "vmax": DIFFERENCE_LIMIT},
-            ),
+            ("clean reference", clean, grey),
+            ("degraded input", degraded, grey),
+            ("CNN restored", cnn_restored, grey),
+            ("U-Net restored", unet_restored, grey),
+            (f"U-Net {correction_label}", unet_correction, diverging),
+            ("U-Net - clean (error)", unet_restored - clean, diverging),
         ]
 
-        figure, axes = plt.subplots(1, len(panels), figsize=(4 * len(panels), 4.6))
+        figure, axes = plt.subplots(1, len(panels), figsize=(3.6 * len(panels), 4.4))
         for axis, (title, image, style) in zip(axes, panels, strict=True):
             handle = axis.imshow(np.asarray(image, dtype=np.float64), **style)
-            axis.set_title(title, fontsize=10)
+            axis.set_title(title, fontsize=9)
             axis.axis("off")
             figure.colorbar(handle, ax=axis, fraction=0.046, pad=0.04)
 
-        error = float(np.abs(restored - clean).mean())
         before = float(np.abs(degraded - clean).mean())
+        cnn_error = float(np.abs(cnn_restored - clean).mean())
+        unet_error = float(np.abs(unet_restored - clean).mean())
         figure.suptitle(
-            f"subject {subject_id} (group {group}, train) - epoch {payload['epoch']} checkpoint"
-            f"   |   full MAE {before:.5f} -> {error:.5f}",
+            f"subject {subject_id} (group {group}, train)   |   full MAE  degraded {before:.5f}"
+            f"  ->  CNN {cnn_error:.5f}  ->  U-Net {unet_error:.5f}",
             fontsize=11,
         )
         figure.tight_layout()
 
-        path = output_dir / f"cnn_subject{subject_id}_g{group}.png"
+        path = output_dir / f"unet_subject{subject_id}_g{group}.png"
         figure.savefig(path, dpi=110)
         plt.close(figure)
         written.append(path)
-        print(f"  {path}   full MAE {before:.6f} -> {error:.6f}")
+        print(f"  {path}   full MAE {before:.6f} -> CNN {cnn_error:.6f} -> U-Net {unet_error:.6f}")
 
     print()
     print(f"{len(written)} panel(s) written to {output_dir} (git-ignored)")

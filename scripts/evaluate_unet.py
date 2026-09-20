@@ -1,23 +1,39 @@
-"""Evaluate the selected CNN checkpoint through the frozen benchmark.
+"""Evaluate the selected U-Net checkpoint through the frozen benchmark.
 
-    uv run python scripts/evaluate_cnn.py --split validation
+    uv run python scripts/evaluate_unet.py --split validation
 
 Runs the checkpoint chosen by the predeclared rule over a development split,
 through the same harness, the same clean targets, the same degraded inputs,
 the same evaluation masks and the same metric code as the no-restoration
-baseline and CLAHE. Then it compares the three, per patient.
+baseline, CLAHE and the residual CNN. Then it compares all four.
 
-The model reaches the benchmark through the harness's one-argument
-restoration contract: degraded image in, restored image out. It never sees
-the clean reference, the body mask or the patient identity. That is the same
-contract CLAHE is held to, which is what makes the comparison a comparison.
+The comparison this milestone is really about
+---------------------------------------------
+CNN versus U-Net. Both are learned residual restoration models trained under
+a deliberately identical policy - same data, same corruption, same sampler,
+same loss, same optimizer, same seed, same epochs, same batch size, same
+checkpoint criterion - so the intended difference between them is the
+architecture. The paired per-patient deltas against the CNN are reported for
+all eight metrics, with the count of patients improved for each.
+
+The bar a restoration method has to clear is still *no restoration*. Beating
+the CNN is interesting; beating the degraded baseline is the requirement.
 
 Only after selection
 --------------------
 This runs once, on the already-selected checkpoint. The checkpoint was chosen
 on patient-weighted validation full-frame MAE alone, predeclared in
-:file:`configs/cnn.yaml`. The eight full and body metrics below are reported,
-not optimized against: nothing in Milestone 8 changes after seeing them.
+:file:`configs/unet.yaml`. The eight full and body metrics below are
+reported, not optimized against: nothing in Milestone 9 changes after seeing
+them.
+
+Two hard gates
+--------------
+Checkpoint provenance is verified before a single image is opened, and
+ordered sample alignment against all three reference tables is enforced
+before anything is written. Both refuse rather than warn; both live in
+:mod:`ct_restoration.evaluation_integrity` and are the same code the CNN
+evaluation clears.
 
 Development splits only
 -----------------------
@@ -26,11 +42,12 @@ refused; their image content stays sealed until the final benchmark.
 
 Outputs
 -------
-``outputs/metrics/cnn_<split>_slices.csv``
-``outputs/metrics/cnn_<split>_patients.csv``
-``outputs/metrics/cnn_<split>_summary.json``
-``outputs/metrics/cnn_vs_degraded_baseline_<split>_patient_deltas.csv``
-``outputs/metrics/cnn_vs_clahe_<split>_patient_deltas.csv``
+``outputs/metrics/unet_<split>_slices.csv``
+``outputs/metrics/unet_<split>_patients.csv``
+``outputs/metrics/unet_<split>_summary.json``
+``outputs/metrics/unet_vs_degraded_baseline_<split>_patient_deltas.csv``
+``outputs/metrics/unet_vs_clahe_<split>_patient_deltas.csv``
+``outputs/metrics/unet_vs_cnn_<split>_patient_deltas.csv``
 """
 
 from __future__ import annotations
@@ -71,32 +88,54 @@ from ct_restoration.evaluation_integrity import (  # noqa: E402
     require_sample_alignment,
     verify_checkpoint_provenance,
 )
-from ct_restoration.models.adapter import (  # noqa: E402
-    torch_restorer,
-)
-from ct_restoration.models.cnn import ResidualCnnConfig, build_model  # noqa: E402
+from ct_restoration.models.adapter import torch_restorer  # noqa: E402
 from ct_restoration.models.diagnostics import raw_output_diagnostics  # noqa: E402
+from ct_restoration.models.unet import (  # noqa: E402
+    CANONICAL_PARAMETER_COUNT,
+    LightweightResidualUnetConfig,
+    build_model,
+)
 
 #: Identity of the method being measured.
-METHOD_NAME = "cnn"
+METHOD_NAME = "unet"
 
 #: Stem of every output file. The split is appended.
-OUTPUT_STEM = "cnn"
+OUTPUT_STEM = "unet"
 
 #: The mandatory reference every method is judged against.
 BASELINE_STEM = "degraded_baseline"
 
-#: The classical method, reported beside it for context.
-CLASSICAL_STEM = "clahe"
-
-#: Quantiles reported for the per-slice diagnostics.
-QUANTILES = (0.05, 0.5, 0.95)
+#: Every other method this one is compared against, in report order. The
+#: degraded baseline is the bar; these are context, and the CNN is the
+#: architecture comparison this milestone exists for.
+COMPARISON_STEMS = ("clahe", "cnn")
 
 #: Directory holding the canonical run's tracked history and summary.
-CANONICAL_RUN_DIR = Path("outputs/runs/cnn_seed2026")
+CANONICAL_RUN_DIR = Path("outputs/runs/unet_seed2026")
+
+#: The eight reported metrics, in report order.
+METRICS = (
+    "full_mae",
+    "full_mse",
+    "full_psnr",
+    "full_ssim",
+    "body_mae",
+    "body_mse",
+    "body_psnr",
+    "body_ssim",
+)
 
 
-def load_checkpoint(path: Path, device: torch.device, config: ResidualCnnConfig):
+def improves(metric: str, mean_delta: float) -> bool:
+    """Does a mean paired delta point the right way for this metric?
+
+    MAE and MSE are lower-is-better, so an improvement is negative; PSNR and
+    SSIM are higher-is-better, so an improvement is positive.
+    """
+    return mean_delta < 0 if metric.endswith(("mae", "mse")) else mean_delta > 0
+
+
+def load_checkpoint(path: Path, device: torch.device, config: LightweightResidualUnetConfig):
     """Rebuild the selected model from its checkpoint.
 
     Loaded with ``weights_only=True``: restoring a checkpoint must never
@@ -118,8 +157,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--root", default="data/raw/chaos", help="extracted CHAOS directory")
     parser.add_argument("--manifest", default="data/splits/chaos_slice_manifest.csv")
-    parser.add_argument("--checkpoint", default="outputs/checkpoints/cnn_seed2026_best.pt")
-    parser.add_argument("--cnn-config", default="cnn.yaml")
+    parser.add_argument("--checkpoint", default="outputs/checkpoints/unet_seed2026_best.pt")
+    parser.add_argument("--unet-config", default="unet.yaml")
     parser.add_argument(
         "--run-dir",
         default=CANONICAL_RUN_DIR.as_posix(),
@@ -153,7 +192,7 @@ def main() -> int:
 
     root = Path(arguments.root)
     device = torch.device(arguments.device)
-    model_config = ResidualCnnConfig.from_mapping(load_config(arguments.cnn_config))
+    model_config = LightweightResidualUnetConfig.from_mapping(load_config(arguments.unet_config))
     evaluation = EvaluationConfig.from_mapping(load_config(arguments.evaluation_config))
     degradation = DegradationConfig.from_mapping(load_config(arguments.degradation_config))
     preprocessing = load_config(arguments.preprocessing_config)["preprocessing"]
@@ -168,10 +207,10 @@ def main() -> int:
         provenance = verify_checkpoint_provenance(
             payload,
             checkpoint_path,
-            resolve_config_path(arguments.cnn_config),
+            resolve_config_path(arguments.unet_config),
             Path(arguments.run_dir),
-            method="residual CNN (Milestone 8)",
-            trainer="scripts/train_cnn.py",
+            method="lightweight U-Net (Milestone 9)",
+            trainer="scripts/train_unet.py",
         )
     except EvaluationIntegrityError as error:
         print(f"error: {error}", file=sys.stderr)
@@ -205,24 +244,30 @@ def main() -> int:
     baseline_deltas = paired_patient_deltas(patient_frame, baseline_patients)
     baseline_paired = summarise_paired_deltas(baseline_deltas)
 
-    classical_path = output_dir / f"{CLASSICAL_STEM}_{split}_patients.csv"
-    classical_deltas = None
-    if classical_path.exists():
-        classical_patients = pd.read_csv(classical_path, dtype={"subject_id": str})
-        classical_deltas = paired_patient_deltas(patient_frame, classical_patients)
+    # Deltas against the other measured methods, computed before any write so
+    # a failure costs nothing on disk.
+    other_deltas: dict[str, pd.DataFrame] = {}
+    other_patients: dict[str, pd.DataFrame] = {}
+    for stem in COMPARISON_STEMS:
+        path = output_dir / f"{stem}_{split}_patients.csv"
+        if path.exists():
+            frame = pd.read_csv(path, dtype={"subject_id": str})
+            other_patients[stem] = frame
+            other_deltas[stem] = paired_patient_deltas(patient_frame, frame)
 
     # The alignment gate runs BEFORE anything is written. A paired comparison
     # against the wrong slices, already on disk, is indistinguishable from a
     # correct one to every later reader.
     references = {"vs_degraded_baseline": output_dir / f"{BASELINE_STEM}_{split}_slices.csv"}
-    classical_slices = output_dir / f"{CLASSICAL_STEM}_{split}_slices.csv"
-    if classical_slices.exists():
-        references["vs_clahe"] = classical_slices
+    for stem in COMPARISON_STEMS:
+        candidate = output_dir / f"{stem}_{split}_slices.csv"
+        if candidate.exists():
+            references[f"vs_{stem}"] = candidate
     alignment = check_sample_alignment(slice_frame, references)
     alignment["enforced"] = not arguments.limit
     if alignment["enforced"]:
         try:
-            require_sample_alignment(alignment, len(rows), method="the CNN")
+            require_sample_alignment(alignment, len(rows), method="the U-Net")
         except EvaluationIntegrityError as error:
             print(f"error: {error}", file=sys.stderr)
             print("no canonical artifact was written.", file=sys.stderr)
@@ -240,40 +285,66 @@ def main() -> int:
         output_dir / f"{OUTPUT_STEM}_vs_{BASELINE_STEM}_{split}_patient_deltas.csv",
     )
 
+    descriptions = {
+        "clahe": (
+            "delta = U-Net - selected CLAHE, per patient. Descriptive context only: the "
+            "bar a restoration method has to clear is no restoration, not CLAHE."
+        ),
+        "cnn": (
+            "delta = U-Net - residual CNN, per patient. THE ARCHITECTURE COMPARISON this "
+            "milestone exists for: both are learned residual models trained under an "
+            "identical policy, so the intended difference between them is the model. Still "
+            "a single-seed validation comparison, and no significance test is run."
+        ),
+    }
     comparisons: dict[str, Any] = {}
-    if classical_deltas is not None:
-        classical_csv = write_csv(
-            classical_deltas,
-            output_dir / f"{OUTPUT_STEM}_vs_{CLASSICAL_STEM}_{split}_patient_deltas.csv",
+    for stem, deltas in other_deltas.items():
+        csv_path = write_csv(
+            deltas, output_dir / f"{OUTPUT_STEM}_vs_{stem}_{split}_patient_deltas.csv"
         )
-        comparisons["paired_comparison_vs_clahe"] = {
-            "description": (
-                "delta = CNN - selected CLAHE, per patient. Descriptive context only: the "
-                "bar a restoration method has to clear is no restoration, not CLAHE."
-            ),
-            "baseline": classical_path.name,
-            "patient_deltas_csv": classical_csv.as_posix(),
-            **summarise_paired_deltas(classical_deltas),
+        comparisons[f"paired_comparison_vs_{stem}"] = {
+            "description": descriptions[stem],
+            "baseline": f"{stem}_{split}_patients.csv",
+            "patient_deltas_csv": csv_path.as_posix(),
+            **summarise_paired_deltas(deltas),
         }
 
-    beats = {
-        metric: bool(baseline_paired[metric]["mean"] < 0)
-        if metric.endswith(("mae", "mse"))
-        else bool(baseline_paired[metric]["mean"] > 0)
-        for metric in (
-            "full_mae",
-            "full_mse",
-            "full_psnr",
-            "full_ssim",
-            "body_mae",
-            "body_mse",
-            "body_psnr",
-            "body_ssim",
-        )
+    beats_baseline = {
+        metric: bool(improves(metric, baseline_paired[metric]["mean"])) for metric in METRICS
     }
 
+    architecture_verdict: dict[str, Any] = {}
+    if "cnn" in other_deltas:
+        cnn_paired = summarise_paired_deltas(other_deltas["cnn"])
+        architecture_verdict = {
+            "question": (
+                "Does the lightweight U-Net improve over the residual CNN on each metric, "
+                "under the same frozen corruption and the same training policy?"
+            ),
+            "per_metric": {
+                metric: {
+                    "mean_delta": cnn_paired[metric]["mean"],
+                    "unet_better": bool(improves(metric, cnn_paired[metric]["mean"])),
+                    "patients_improved": cnn_paired[metric]["count_improved"],
+                    "patients_worsened": cnn_paired[metric]["count_worsened"],
+                    "patients_tied": cnn_paired[metric]["count_tied"],
+                }
+                for metric in METRICS
+            },
+            "metrics_improved": sum(
+                1 for metric in METRICS if improves(metric, cnn_paired[metric]["mean"])
+            ),
+            "metrics_total": len(METRICS),
+            "caution": (
+                "The two architectures differ in more than receptive field: pooling, a "
+                "decoder, concatenative skips, parameter count and the whole computational "
+                "graph all change together. A difference here cannot be attributed to any "
+                "one of them, and one seed each is not stability evidence."
+            ),
+        }
+
     summary = {
-        "milestone": "8 - small residual CNN, single-seed development run",
+        "milestone": "9 - lightweight residual U-Net, single-seed development run",
         "result_class": (
             "SINGLE-SEED VALIDATION DEVELOPMENT RESULT, not a final benchmark result. One "
             "training seed shows what this run did; it does not establish that the "
@@ -281,15 +352,41 @@ def main() -> int:
         ),
         "method": METHOD_NAME,
         "method_description": (
-            "A 28,353-parameter residual CNN predicting an additive correction to the frozen "
-            "degraded image, clamped to [0, 1]. It receives the degraded image only: no "
-            "clean reference, no body mask, no patient identity."
+            "A 116,753-parameter lightweight residual U-Net - two downsampling levels, 16 "
+            "base channels, concatenative skip connections, a 1x1 correction head - "
+            "predicting an additive correction to the frozen degraded image, clamped to "
+            "[0, 1]. It receives the degraded image only: no clean reference, no body "
+            "mask, no patient identity."
+        ),
+        "comparability_with_cnn": (
+            "Seed, epochs, batch size, loss, optimizer and its hyperparameters, sampler, "
+            "augmentation policy and checkpoint-selection rule are identical to the "
+            "Milestone 8 residual CNN's and were not adjusted for this architecture. "
+            "Neither recipe was ever hyperparameter-tuned: the CNN's values were one "
+            "predeclared development configuration. The U-Net therefore inherits the CNN "
+            "benchmark's predeclared training recipe rather than receiving "
+            "architecture-specific tuning, and is measured under that recipe rather than "
+            "at its best."
         ),
         "split": split,
         "patients": int(len(patient_frame)),
         "slices": int(len(slice_frame)),
         "subject_ids": subjects,
         "model_config": model_config.as_dict(),
+        "model_size": {
+            "trainable_parameters": int(model.parameter_count()),
+            "canonical_parameters": CANONICAL_PARAMETER_COUNT,
+            "cnn_parameters": 28353,
+            "parameter_ratio_vs_cnn": round(model.parameter_count() / 28353, 4),
+            "maximum_deepest_path_receptive_field_pixels": int(model.receptive_field),
+            "receptive_field_note": (
+                "Maximum over paths. Concatenative skips provide shallower routes carrying "
+                "smaller-scale local information, so not every contribution to an output "
+                "pixel arrives through a 44x44 window. A statement about pixels only, not "
+                "anatomical or clinical context. Parameter count is not latency; latency "
+                "has not been measured for any method."
+            ),
+        },
         "checkpoint": {
             "path": checkpoint_path.as_posix(),
             "epoch": int(payload["epoch"]),
@@ -299,7 +396,8 @@ def main() -> int:
             "selection_value": float(payload["selection_value"]),
             "selection_note": (
                 "Chosen on patient-weighted validation full-frame MAE alone, predeclared "
-                "before training. The metrics below are reported, not optimized against."
+                "before training and identical to the CNN's criterion. The metrics below "
+                "are reported, not optimized against."
             ),
             "provenance": provenance,
         },
@@ -322,7 +420,7 @@ def main() -> int:
         },
         "paired_comparison_vs_degraded_baseline": {
             "description": (
-                "delta = CNN - degraded baseline, per patient, same patients and same "
+                "delta = U-Net - degraded baseline, per patient, same patients and same "
                 "slices. Positive is an improvement for PSNR and SSIM; negative is an "
                 "improvement for MAE and MSE. No significance test is run: six patients is "
                 "a small descriptive sample."
@@ -333,11 +431,12 @@ def main() -> int:
         },
         **comparisons,
         "verdict": {
-            "question": "Did the selected CNN beat no restoration on each metric?",
-            "beats_degraded_baseline": beats,
-            "metrics_improved": sum(1 for value in beats.values() if value),
-            "metrics_total": len(beats),
+            "question": "Did the selected U-Net beat no restoration on each metric?",
+            "beats_degraded_baseline": beats_baseline,
+            "metrics_improved": sum(1 for value in beats_baseline.values() if value),
+            "metrics_total": len(beats_baseline),
         },
+        "architecture_comparison_vs_cnn": architecture_verdict,
         "raw_output_diagnostics": diagnostics,
         "sample_alignment": alignment,
         "acquisition_group_breakdown": {
@@ -377,32 +476,43 @@ def main() -> int:
     }
     summary_path = write_json(summary, output_dir / f"{OUTPUT_STEM}_{split}_summary.json")
 
+    others = {stem: summarise_patients(frame) for stem, frame in other_patients.items()}
     print()
-    header = f"{'region':<8}{'metric':<7}{'degraded':>13}{'CLAHE':>13}{'CNN':>13}{'delta':>13}"
-    print(f"SELECTED CNN vs DEGRADED BASELINE ({split}, patient-weighted)")
+    header = (
+        f"{'region':<8}{'metric':<7}{'degraded':>13}{'CLAHE':>13}"
+        f"{'CNN':>13}{'U-Net':>13}{'vs degraded':>14}{'vs CNN':>13}"
+    )
+    print(f"FOUR METHODS ON {split.upper()} (patient-weighted, equal patient weight)")
     print(header)
     print("-" * len(header))
-    classical = None
-    if classical_path.exists():
-        classical = summarise_patients(pd.read_csv(classical_path, dtype={"subject_id": str}))
+    cnn_paired = summarise_paired_deltas(other_deltas["cnn"]) if "cnn" in other_deltas else None
     for region in ("full", "body"):
         for metric in ("mae", "mse", "psnr", "ssim"):
             name = f"{region}_{metric}"
-            base = float(baseline_paired[name]["mean"])
-            cnn_value = float(primary[name]["mean"])
-            degraded_value = cnn_value - base
-            clahe_value = float(classical[name]["mean"]) if classical else float("nan")
+            versus_baseline = float(baseline_paired[name]["mean"])
+            unet_value = float(primary[name]["mean"])
+            degraded_value = unet_value - versus_baseline
+            clahe_value = (
+                float(others["clahe"][name]["mean"]) if "clahe" in others else float("nan")
+            )
+            cnn_value = float(others["cnn"][name]["mean"]) if "cnn" in others else float("nan")
+            versus_cnn = float(cnn_paired[name]["mean"]) if cnn_paired else float("nan")
             print(
                 f"{region:<8}{metric:<7}{degraded_value:>13.6f}{clahe_value:>13.6f}"
-                f"{cnn_value:>13.6f}{base:>+13.6f}"
+                f"{cnn_value:>13.6f}{unet_value:>13.6f}"
+                f"{versus_baseline:>+14.6f}{versus_cnn:>+13.6f}"
             )
     print("-" * len(header))
-    for metric in ("body_ssim", "body_psnr", "full_ssim", "full_psnr"):
-        block = baseline_paired[metric]
-        print(
-            f"  {metric:<10} improved {block['count_improved']}/{summary['patients']} patients, "
-            f"mean delta {block['mean']:+.6f}"
-        )
+    print(f"vs no restoration: beat it on {summary['verdict']['metrics_improved']}/8 metrics")
+    if cnn_paired:
+        print(f"vs residual CNN  : better on {architecture_verdict['metrics_improved']}/8 metrics")
+        for metric in METRICS:
+            block = architecture_verdict["per_metric"][metric]
+            verdict = "U-Net better" if block["unet_better"] else "CNN better  "
+            print(
+                f"  {metric:<10} {verdict}  mean delta {block['mean_delta']:+.6f}  "
+                f"patients improved {block['patients_improved']}/{summary['patients']}"
+            )
     print(f"\nsummary         : {summary_path}")
     return 0
 

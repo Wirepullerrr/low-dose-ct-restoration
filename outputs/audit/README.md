@@ -20,7 +20,7 @@ scripts over a fresh download regenerates all of them.
 | `degradation_train_summary.json` | technical diagnostics of the frozen degradation, computed on TRAINING slices only; no timestamp, so regenerating an unchanged definition rewrites it byte for byte |
 | `evaluation_body_mask_train_summary.json` | diagnostics of the frozen evaluation body mask, computed on TRAINING slices only; no timestamp, so regenerating an unchanged definition rewrites it byte for byte |
 | `dataset_dataloader_summary.json` | contract checks, sampling counts and sequence hashes for the Dataset / DataLoader layer, on TRAIN and VALIDATION only; no timestamp, so regenerating an unchanged definition rewrites it byte for byte |
-| `figures/` | rendered inspection panels, git-ignored - including `figures/cnn/`, the post-selection visual QC of the CNN checkpoint, rendered from TRAINING slices only |
+| `figures/` | rendered inspection panels, git-ignored - including `figures/cnn/` and `figures/unet/`, the post-selection visual QC of the two learned checkpoints, rendered from TRAINING slices only |
 
 ## What is and is not in them
 
@@ -40,10 +40,14 @@ diagnostics.
 Validation, test and stress image content was not inspected while the
 degradation was being established, and the file records that explicitly.
 
-`figures/cnn/` is the same discipline applied to the learned method.
-`scripts/qc_cnn.py` has no `--split` option: it renders **training** slices
-only, and it runs *after* the checkpoint has already been selected
-numerically. No validation, test or stress image has been looked at.
+`figures/cnn/` and `figures/unet/` are the same discipline applied to the
+learned methods. Neither `scripts/qc_cnn.py` nor `scripts/qc_unet.py` has a
+`--split` option: both render **training** slices only, and both run *after*
+the checkpoints have already been selected numerically and the canonical
+metrics written. The U-Net panels put both models side by side on the same
+slices, so the numeric comparison can be sanity-checked visually without
+looking at held-out data. No validation, test or stress image has been looked
+at.
 
 ## `dataset_dataloader_summary.json` in particular
 

@@ -1,6 +1,7 @@
 # Training runs
 
-One directory per training run, named for the method and the seed. These are
+One directory per training run, named for the method and the seed:
+`cnn_seed2026` (Milestone 8) and `unet_seed2026` (Milestone 9). These are
 **development** artifacts: they record what a run did, not what the benchmark
 concluded. The benchmark numbers live in
 [`outputs/metrics/`](../metrics/README.md).
@@ -35,6 +36,19 @@ They are reported, not optimized against.
 run did; it does not establish that the architecture is stable. Multi-seed
 work is a later milestone.
 
+**The two runs are deliberately comparable.** `unet_seed2026` uses the same
+seed, epoch budget, batch size, loss, optimizer and hyperparameters, sampler
+and checkpoint-selection rule as `cnn_seed2026`; none of them were adjusted
+for the U-Net. The intended difference between the two runs is the model.
+Both training commands call the same shared helpers in
+`ct_restoration.training_loop`, so they cannot drift apart in how they train.
+
+Neither model's recipe was ever hyperparameter-tuned: the CNN's values were
+one predeclared development configuration. The U-Net inherits the CNN
+benchmark's predeclared training recipe rather than receiving
+architecture-specific tuning, so it is measured under that recipe rather than
+at its best.
+
 ## The checkpoint binary
 
 The model weights themselves (`outputs/checkpoints/*.pt`) are **git-ignored**.
@@ -60,6 +74,10 @@ chosen.
 Each summary records the torch version, the CUDA build, the GPU name and the
 determinism settings the run used, so a mismatch is visible rather than
 assumed away.
+
+Both runs were executed twice end to end as a check, and each produced a
+byte-identical history, summary and checkpoint. That is a determinism check,
+**not** a second seed, and it is not stability evidence.
 
 ## Terms
 

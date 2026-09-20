@@ -1,8 +1,13 @@
-"""Tests for the CNN evaluation command's integrity gates.
+"""Tests for the integrity gates every learned method's evaluation must clear.
+
+These cover the shared modules - :mod:`ct_restoration.evaluation_integrity`
+and :mod:`ct_restoration.models.diagnostics` - rather than one command,
+because the residual CNN and the lightweight U-Net are both scored through
+them. One definition of "integrity verified", tested once.
 
 Fully synthetic and dataset-free: no CHAOS file is opened, no network access,
-and the "model" is a tiny CNN on small arrays. What is being protected here
-is not a number but the conditions under which a number is allowed to be
+and the "model" is a stub on small arrays. What is being protected here is
+not a number but the conditions under which a number is allowed to be
 written.
 
 Three gates, and each exists because of a way the canonical artifacts could
@@ -14,15 +19,14 @@ be wrong while looking entirely well-formed on disk:
   written, or a paired comparison can subtract one slice's metric from
   another slice's metric;
 * **checkpoint provenance** must be verified against files other than the
-  checkpoint, or the command will happily score whatever it is handed.
+  checkpoint, or a command will happily score whatever it is handed.
 """
 
 from __future__ import annotations
 
+import ast
 import hashlib
-import importlib.util
 import json
-import sys
 from pathlib import Path
 
 import numpy as np
@@ -30,22 +34,10 @@ import pandas as pd
 import pytest
 import torch
 
+from ct_restoration import evaluation_integrity
+from ct_restoration.models import diagnostics
 from ct_restoration.models.cnn import ResidualCnnConfig, build_model
 from ct_restoration.training import SELECTION_METRIC
-
-SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
-
-
-def _load(name: str):
-    spec = importlib.util.spec_from_file_location(name, SCRIPTS / f"{name}.py")
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[name] = module
-    spec.loader.exec_module(module)
-    return module
-
-
-evaluate_cnn = _load("evaluate_cnn")
-
 
 # --------------------------------------------------------------------------
 # 1. the raw predicted correction is not the post-clamp change
@@ -88,17 +80,17 @@ def _diagnostics_over(images: list[np.ndarray], correction: float) -> dict:
     def fake_degrade(clean, key, config):
         return clean
 
-    original_prepare = evaluate_cnn.prepare_evaluation_slice
-    original_degrade = evaluate_cnn.degrade_low_dose_like
-    evaluate_cnn.prepare_evaluation_slice = fake_prepare
-    evaluate_cnn.degrade_low_dose_like = fake_degrade
+    original_prepare = diagnostics.prepare_evaluation_slice
+    original_degrade = diagnostics.degrade_low_dose_like
+    diagnostics.prepare_evaluation_slice = fake_prepare
+    diagnostics.degrade_low_dose_like = fake_degrade
     try:
-        return evaluate_cnn.raw_output_diagnostics(
+        return diagnostics.raw_output_diagnostics(
             rows, Path("."), {}, None, None, model, torch.device("cpu")
         )
     finally:
-        evaluate_cnn.prepare_evaluation_slice = original_prepare
-        evaluate_cnn.degrade_low_dose_like = original_degrade
+        diagnostics.prepare_evaluation_slice = original_prepare
+        diagnostics.degrade_low_dose_like = original_degrade
 
 
 def test_the_predicted_correction_is_measured_from_the_raw_output():
@@ -187,6 +179,94 @@ def test_the_old_ambiguous_key_is_gone():
 
 
 # --------------------------------------------------------------------------
+# the QC correction panels cannot show one quantity under the other's name
+# --------------------------------------------------------------------------
+
+
+def test_the_predicted_correction_panel_uses_the_raw_output():
+    # Degraded is all zeros and the model subtracts 0.25, so the raw output
+    # is -0.25 everywhere and the clamp pulls every pixel back to 0. The
+    # predicted correction is therefore -0.25 and the post-clamp change is 0.
+    model = _ConstantCorrection(-0.25)
+    degraded = np.zeros((4, 4), dtype=np.float32)
+
+    label, image = diagnostics.predicted_correction_panel(model, degraded)
+    assert label == diagnostics.PREDICTED_CORRECTION_LABEL
+    assert np.allclose(image, -0.25)
+
+
+def test_the_post_clamp_panel_uses_the_clamped_output():
+    model = _ConstantCorrection(-0.25)
+    degraded = np.zeros((4, 4), dtype=np.float32)
+
+    label, image = diagnostics.post_clamp_change_panel(model, degraded)
+    assert label == diagnostics.POST_CLAMP_CHANGE_LABEL
+    assert np.allclose(image, 0.0)
+
+
+def test_the_two_panels_are_different_images_when_the_clamp_engages():
+    # This is the defect the pairing exists to prevent: the two look equally
+    # plausible as a figure, and only one of them is the correction.
+    model = _ConstantCorrection(-0.25)
+    degraded = np.zeros((4, 4), dtype=np.float32)
+
+    _, predicted = diagnostics.predicted_correction_panel(model, degraded)
+    _, post_clamp = diagnostics.post_clamp_change_panel(model, degraded)
+    assert not np.allclose(predicted, post_clamp)
+
+
+def test_the_two_panels_agree_when_nothing_is_clipped():
+    model = _ConstantCorrection(0.2)
+    degraded = np.full((4, 4), 0.5, dtype=np.float32)
+
+    _, predicted = diagnostics.predicted_correction_panel(model, degraded)
+    _, post_clamp = diagnostics.post_clamp_change_panel(model, degraded)
+    assert np.allclose(predicted, post_clamp)
+
+
+def test_the_two_labels_are_distinct_and_say_which_output_they_came_from():
+    predicted = diagnostics.PREDICTED_CORRECTION_LABEL
+    post_clamp = diagnostics.POST_CLAMP_CHANGE_LABEL
+    assert predicted != post_clamp
+    assert "raw" in predicted
+    assert "clamp" in post_clamp
+    # "correction" must never be the word used for the post-clamp image.
+    assert "correction" in predicted
+    assert "correction" not in post_clamp
+
+
+def test_neither_qc_command_labels_a_clamped_difference_a_correction():
+    """A source-level guard, because the figures themselves are git-ignored.
+
+    A regression here would leave no trace in any tracked file, so the check
+    has to be on the code. The module docstrings legitimately discuss both
+    quantities while explaining the difference, so they are stripped first
+    and only executable source is inspected.
+    """
+    for name in ("qc_cnn.py", "qc_unet.py"):
+        path = Path(__file__).resolve().parents[1] / "scripts" / name
+        source = path.read_text(encoding="utf-8")
+        tree = ast.parse(source)
+        prose = ast.get_docstring(tree) or ""
+        code = source.replace(prose, "")
+
+        # The correction image must come from the shared helper, which
+        # returns it bound to its own label.
+        assert "predicted_correction_panel" in code, name
+        # The old mislabel, and any hand-built clamped difference called a
+        # correction, must both be gone.
+        assert "(correction)" not in code, name
+        labels = [
+            node.value
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Constant) and isinstance(node.value, str)
+        ]
+        for label in labels:
+            if "correction" in label and label != prose:
+                assert "raw" in label, f"{name}: {label!r} names a correction without saying raw"
+
+
+# --------------------------------------------------------------------------
 # 2. sample alignment is a hard gate
 # --------------------------------------------------------------------------
 
@@ -204,14 +284,14 @@ def _frame(keys: list[str]) -> pd.DataFrame:
 
 
 def _report(tmp_path: Path, scored: list[str], reference: list[str]) -> dict:
-    return evaluate_cnn.check_sample_alignment(
+    return evaluation_integrity.check_sample_alignment(
         _frame(scored), {"vs_degraded_baseline": _reference(tmp_path, reference)}
     )
 
 
 def test_exact_ordered_keys_are_accepted(tmp_path):
     report = _report(tmp_path, KEYS, KEYS)
-    evaluate_cnn.require_sample_alignment(report, len(KEYS))  # must not raise
+    evaluation_integrity.require_sample_alignment(report, len(KEYS))  # must not raise
     assert report["vs_degraded_baseline"]["identical_order"] is True
     assert report["duplicates"] == 0
 
@@ -222,34 +302,34 @@ def test_reordered_keys_are_refused(tmp_path):
     report = _report(tmp_path, KEYS, [KEYS[1], KEYS[0], KEYS[2]])
     assert report["vs_degraded_baseline"]["missing"] == 0
     assert report["vs_degraded_baseline"]["extra"] == 0
-    with pytest.raises(evaluate_cnn.EvaluationIntegrityError, match="order"):
-        evaluate_cnn.require_sample_alignment(report, len(KEYS))
+    with pytest.raises(evaluation_integrity.EvaluationIntegrityError, match="order"):
+        evaluation_integrity.require_sample_alignment(report, len(KEYS))
 
 
 def test_a_missing_key_is_refused(tmp_path):
     report = _report(tmp_path, KEYS[:2], KEYS)
-    with pytest.raises(evaluate_cnn.EvaluationIntegrityError, match="missing"):
-        evaluate_cnn.require_sample_alignment(report, 2)
+    with pytest.raises(evaluation_integrity.EvaluationIntegrityError, match="missing"):
+        evaluation_integrity.require_sample_alignment(report, 2)
 
 
 def test_an_extra_key_is_refused(tmp_path):
     report = _report(tmp_path, [*KEYS, "c/1.dcm"], KEYS)
-    with pytest.raises(evaluate_cnn.EvaluationIntegrityError, match="extra"):
-        evaluate_cnn.require_sample_alignment(report, 4)
+    with pytest.raises(evaluation_integrity.EvaluationIntegrityError, match="extra"):
+        evaluation_integrity.require_sample_alignment(report, 4)
 
 
 def test_a_duplicate_key_is_refused(tmp_path):
     report = _report(tmp_path, [*KEYS, KEYS[0]], KEYS)
-    with pytest.raises(evaluate_cnn.EvaluationIntegrityError, match="duplicate"):
-        evaluate_cnn.require_sample_alignment(report, 4)
+    with pytest.raises(evaluation_integrity.EvaluationIntegrityError, match="duplicate"):
+        evaluation_integrity.require_sample_alignment(report, 4)
 
 
 def test_a_wrong_row_count_is_refused_even_against_a_matching_reference(tmp_path):
     # The manifest said how many slices there are; scoring a different number
     # is a failure whatever the reference table happens to contain.
     report = _report(tmp_path, KEYS, KEYS)
-    with pytest.raises(evaluate_cnn.EvaluationIntegrityError, match="expected 99"):
-        evaluate_cnn.require_sample_alignment(report, 99)
+    with pytest.raises(evaluation_integrity.EvaluationIntegrityError, match="expected 99"):
+        evaluation_integrity.require_sample_alignment(report, 99)
 
 
 def test_a_short_reference_is_counted_as_mismatched_rows(tmp_path):
@@ -257,28 +337,28 @@ def test_a_short_reference_is_counted_as_mismatched_rows(tmp_path):
     # zero order mismatches and pass.
     report = _report(tmp_path, KEYS, KEYS[:1])
     assert report["vs_degraded_baseline"]["order_mismatches"] == 2
-    with pytest.raises(evaluate_cnn.EvaluationIntegrityError):
-        evaluate_cnn.require_sample_alignment(report, len(KEYS))
+    with pytest.raises(evaluation_integrity.EvaluationIntegrityError):
+        evaluation_integrity.require_sample_alignment(report, len(KEYS))
 
 
 def test_every_declared_reference_is_checked(tmp_path):
     # A second reference that disagrees must fail the gate even when the
     # first one is perfect.
-    report = evaluate_cnn.check_sample_alignment(
+    report = evaluation_integrity.check_sample_alignment(
         _frame(KEYS),
         {
             "vs_degraded_baseline": _reference(tmp_path, KEYS, "base.csv"),
             "vs_clahe": _reference(tmp_path, [KEYS[2], KEYS[1], KEYS[0]], "clahe.csv"),
         },
     )
-    with pytest.raises(evaluate_cnn.EvaluationIntegrityError, match="vs_clahe"):
-        evaluate_cnn.require_sample_alignment(report, len(KEYS))
+    with pytest.raises(evaluation_integrity.EvaluationIntegrityError, match="vs_clahe"):
+        evaluation_integrity.require_sample_alignment(report, len(KEYS))
 
 
 def test_the_gate_reports_every_failure_rather_than_the_first(tmp_path):
     report = _report(tmp_path, [*KEYS, KEYS[0]], [*KEYS, "c/9.dcm"])
-    with pytest.raises(evaluate_cnn.EvaluationIntegrityError) as error:
-        evaluate_cnn.require_sample_alignment(report, 4)
+    with pytest.raises(evaluation_integrity.EvaluationIntegrityError) as error:
+        evaluation_integrity.require_sample_alignment(report, 4)
     message = str(error.value)
     assert "duplicate" in message
     assert "missing" in message
@@ -361,7 +441,7 @@ def canonical(tmp_path):
 def _verify(canonical, **overrides):
     payload = dict(canonical["payload"])
     payload.update(overrides)
-    return evaluate_cnn.verify_checkpoint_provenance(
+    return evaluation_integrity.verify_checkpoint_provenance(
         payload, canonical["checkpoint_path"], canonical["config_path"], canonical["run_dir"]
     )
 
@@ -374,7 +454,7 @@ def test_a_consistent_canonical_run_verifies(canonical):
 
 
 def test_a_mismatched_config_sha_is_refused(canonical):
-    with pytest.raises(evaluate_cnn.EvaluationIntegrityError, match="config_sha"):
+    with pytest.raises(evaluation_integrity.EvaluationIntegrityError, match="config_sha"):
         _verify(canonical, config_sha256="0" * 64)
 
 
@@ -384,7 +464,7 @@ def test_editing_the_frozen_config_after_training_is_refused(canonical):
     # only check that notices.
     canonical["config_path"].write_text(CONFIG_TEXT + "# edited\n", encoding="utf-8")
     with pytest.raises(
-        evaluate_cnn.EvaluationIntegrityError,
+        evaluation_integrity.EvaluationIntegrityError,
         match="checkpoint_config_sha_matches_frozen_config",
     ):
         _verify(canonical)
@@ -394,18 +474,19 @@ def test_a_mismatched_checkpoint_file_sha_is_refused(canonical):
     # A different checkpoint file carrying correct-looking metadata.
     canonical["checkpoint_path"].write_bytes(canonical["checkpoint_path"].read_bytes() + b"\x00")
     with pytest.raises(
-        evaluate_cnn.EvaluationIntegrityError, match="checkpoint_file_sha_matches_run_summary"
+        evaluation_integrity.EvaluationIntegrityError,
+        match="checkpoint_file_sha_matches_run_summary",
     ):
         _verify(canonical)
 
 
 def test_a_non_canonical_seed_is_refused(canonical):
-    with pytest.raises(evaluate_cnn.EvaluationIntegrityError, match="seed"):
+    with pytest.raises(evaluation_integrity.EvaluationIntegrityError, match="seed"):
         _verify(canonical, seed=7)
 
 
 def test_a_mismatched_epoch_is_refused(canonical):
-    with pytest.raises(evaluate_cnn.EvaluationIntegrityError, match="epoch"):
+    with pytest.raises(evaluation_integrity.EvaluationIntegrityError, match="epoch"):
         _verify(canonical, epoch=30)
 
 
@@ -418,19 +499,19 @@ def test_an_epoch_the_selection_rule_would_not_have_chosen_is_refused(canonical)
     summary["checkpoint_selection"]["best_epoch"] = 30
     summary_path.write_text(json.dumps(summary), encoding="utf-8")
     with pytest.raises(
-        evaluate_cnn.EvaluationIntegrityError,
+        evaluation_integrity.EvaluationIntegrityError,
         match="checkpoint_epoch_matches_recomputed_selection",
     ):
         _verify(canonical, epoch=30)
 
 
 def test_a_wrong_selection_metric_is_refused(canonical):
-    with pytest.raises(evaluate_cnn.EvaluationIntegrityError, match="selection_metric"):
+    with pytest.raises(evaluation_integrity.EvaluationIntegrityError, match="selection_metric"):
         _verify(canonical, selection_metric="validation_body_ssim")
 
 
 def test_a_mismatched_selection_value_is_refused(canonical):
-    with pytest.raises(evaluate_cnn.EvaluationIntegrityError, match="selection_value"):
+    with pytest.raises(evaluation_integrity.EvaluationIntegrityError, match="selection_value"):
         _verify(canonical, selection_value=VALUE + 1e-4)
 
 
@@ -447,13 +528,15 @@ def test_a_failed_round_trip_is_refused(canonical):
     summary["checkpoint"]["round_trip"]["probe_prediction_mismatches"] = 3
     summary["checkpoint"]["round_trip"]["reproduces_saved_model"] = False
     summary_path.write_text(json.dumps(summary), encoding="utf-8")
-    with pytest.raises(evaluate_cnn.EvaluationIntegrityError, match="round_trip"):
+    with pytest.raises(evaluation_integrity.EvaluationIntegrityError, match="round_trip"):
         _verify(canonical)
 
 
 def test_a_checkpoint_without_provenance_fields_is_refused(canonical):
-    with pytest.raises(evaluate_cnn.EvaluationIntegrityError, match="carries no provenance"):
-        evaluate_cnn.verify_checkpoint_provenance(
+    with pytest.raises(
+        evaluation_integrity.EvaluationIntegrityError, match="carries no provenance"
+    ):
+        evaluation_integrity.verify_checkpoint_provenance(
             {"epoch": EPOCH},
             canonical["checkpoint_path"],
             canonical["config_path"],
@@ -463,13 +546,17 @@ def test_a_checkpoint_without_provenance_fields_is_refused(canonical):
 
 def test_a_missing_run_record_is_refused(canonical):
     (canonical["run_dir"] / "run_summary.json").unlink()
-    with pytest.raises(evaluate_cnn.EvaluationIntegrityError, match="run_summary.json is missing"):
+    with pytest.raises(
+        evaluation_integrity.EvaluationIntegrityError, match="run_summary.json is missing"
+    ):
         _verify(canonical)
 
 
 def test_a_malformed_run_summary_is_refused(canonical):
     (canonical["run_dir"] / "run_summary.json").write_text("{}", encoding="utf-8")
-    with pytest.raises(evaluate_cnn.EvaluationIntegrityError, match="missing the provenance"):
+    with pytest.raises(
+        evaluation_integrity.EvaluationIntegrityError, match="missing the provenance"
+    ):
         _verify(canonical)
 
 
@@ -486,13 +573,111 @@ def test_the_report_records_independently_recomputed_values(canonical):
     assert report["verified_before_any_image_was_scored"] is True
 
 
+# --------------------------------------------------------------------------
+# provenance metadata is type-checked, not coerced
+# --------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("seed", 2026.0),
+        ("seed", "2026"),
+        ("seed", True),
+        ("seed", None),
+        ("epoch", 29.0),
+        ("epoch", "29"),
+        ("epoch", True),
+        ("epoch", None),
+    ],
+)
+def test_a_non_integer_checkpoint_seed_or_epoch_is_refused(canonical, field, value):
+    # int() would happily turn 29.0, "29" and True into 29. A gate that
+    # repairs malformed metadata is checking its own repair, not the file.
+    with pytest.raises(evaluation_integrity.EvaluationIntegrityError, match="must be an integer"):
+        _verify(canonical, **{field: value})
+
+
+def test_a_negative_checkpoint_epoch_is_refused(canonical):
+    with pytest.raises(evaluation_integrity.EvaluationIntegrityError, match="must be >= 0"):
+        _verify(canonical, epoch=-1)
+
+
+@pytest.mark.parametrize("value", ["0.0093530865", True, None, float("nan"), float("inf")])
+def test_a_non_finite_or_non_numeric_selection_value_is_refused(canonical, value):
+    # NaN matters on its own: it compares unequal to everything, so without
+    # this check it would be reported as a mismatched checkpoint rather than
+    # as corrupt metadata.
+    with pytest.raises(
+        evaluation_integrity.EvaluationIntegrityError, match="must be (a real|finite)"
+    ):
+        _verify(canonical, selection_value=value)
+
+
+def _rewrite_summary(canonical, mutate):
+    path = canonical["run_dir"] / "run_summary.json"
+    summary = json.loads(path.read_text(encoding="utf-8"))
+    mutate(summary)
+    path.write_text(json.dumps(summary), encoding="utf-8")
+
+
+@pytest.mark.parametrize("value", [2026.0, "2026", True, None])
+def test_a_non_integer_run_summary_seed_is_refused(canonical, value):
+    _rewrite_summary(canonical, lambda s: s["training"].__setitem__("seed", value))
+    with pytest.raises(
+        evaluation_integrity.EvaluationIntegrityError, match="run summary training seed"
+    ):
+        _verify(canonical)
+
+
+@pytest.mark.parametrize("value", [29.0, "29", True, None])
+def test_a_non_integer_run_summary_best_epoch_is_refused(canonical, value):
+    _rewrite_summary(
+        canonical, lambda s: s["checkpoint_selection"].__setitem__("best_epoch", value)
+    )
+    with pytest.raises(
+        evaluation_integrity.EvaluationIntegrityError, match="run summary best_epoch"
+    ):
+        _verify(canonical)
+
+
+def test_a_negative_run_summary_best_epoch_is_refused(canonical):
+    _rewrite_summary(canonical, lambda s: s["checkpoint_selection"].__setitem__("best_epoch", -3))
+    with pytest.raises(evaluation_integrity.EvaluationIntegrityError, match="must be >= 0"):
+        _verify(canonical)
+
+
+@pytest.mark.parametrize("value", ["0.009", True, None])
+def test_a_non_numeric_run_summary_selection_value_is_refused(canonical, value):
+    _rewrite_summary(
+        canonical,
+        lambda s: s["checkpoint_selection"].__setitem__(
+            evaluation_integrity.SUMMARY_BEST_VALUE_KEY, value
+        ),
+    )
+    with pytest.raises(evaluation_integrity.EvaluationIntegrityError, match="must be a real"):
+        _verify(canonical)
+
+
+def test_the_strict_helpers_accept_genuine_numpy_scalars():
+    # pandas hands back numpy scalars; those are genuine integers and reals
+    # and must not be rejected alongside the malformed values above.
+    assert evaluation_integrity._require_integer("n", np.int64(29)) == 29
+    assert evaluation_integrity._require_finite_real("x", np.float64(0.5)) == 0.5
+
+
+def test_the_canonical_metadata_still_passes_every_type_check(canonical):
+    # The whole point of the hardening is that nothing valid changed.
+    assert _verify(canonical)["verified"] is True
+
+
 def test_the_frozen_config_is_recorded_relative_to_the_repository():
     # Tracked artifacts carry no absolute filesystem path: it differs between
     # machines, so two runs of an unchanged definition would stop producing
     # byte-identical files, and it would commit a local username.
     from ct_restoration.config import PROJECT_ROOT
 
-    recorded = evaluate_cnn.repository_path(PROJECT_ROOT / "configs" / "cnn.yaml")
+    recorded = evaluation_integrity.repository_path(PROJECT_ROOT / "configs" / "cnn.yaml")
     assert recorded == "configs/cnn.yaml"
     assert "\\" not in recorded
 
@@ -502,10 +687,10 @@ def test_a_path_outside_the_repository_falls_back_to_absolute(tmp_path):
     # be identified, and there is no relative form for it.
     outside = tmp_path / "elsewhere.yaml"
     outside.write_text("{}", encoding="utf-8")
-    assert Path(evaluate_cnn.repository_path(outside)).is_absolute()
+    assert Path(evaluation_integrity.repository_path(outside)).is_absolute()
 
 
 def test_file_sha256_matches_hashlib(tmp_path):
     path = tmp_path / "blob.bin"
     path.write_bytes(b"low-dose-ct")
-    assert evaluate_cnn.file_sha256(path) == _sha256(b"low-dose-ct")
+    assert evaluation_integrity.file_sha256(path) == _sha256(b"low-dose-ct")

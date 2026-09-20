@@ -62,6 +62,15 @@ import numpy as np
 import torch
 from torch import nn
 
+from ct_restoration.models.base import (
+    RANGE_TOLERANCE,
+    ModelError,
+    validate_restoration_input,
+)
+from ct_restoration.models.base import (
+    require_positive_integer as _require_positive_integer,
+)
+
 #: The only architecture this module implements. A config naming anything else
 #: is refused rather than approximated.
 ALGORITHM_VERSION = "residual_cnn_v1"
@@ -73,25 +82,21 @@ CANONICAL_PARAMETER_COUNT = 28_353
 #: Side of the square pixel neighbourhood one output pixel depends on.
 CANONICAL_RECEPTIVE_FIELD = 11
 
-#: How far outside [0, 1] an input may stray before it is rejected. Only
-#: float32 round-trip error is tolerated.
-RANGE_TOLERANCE = 1e-6
-
-
-class ModelError(ValueError):
-    """The model configuration or an input tensor is not usable as given."""
-
-
-def _require_positive_integer(name: str, value: Any) -> int:
-    """Accept only a genuine positive integer, mirroring the config modules."""
-    if isinstance(value, bool) or not isinstance(value, int | np.integer):
-        raise ModelError(
-            f"{name} must be an integer, got {type(value).__name__} {value!r}. "
-            "It is not rounded, truncated or parsed from a string."
-        )
-    if int(value) < 1:
-        raise ModelError(f"{name} must be >= 1, got {value!r}")
-    return int(value)
+#: ``ModelError``, ``RANGE_TOLERANCE`` and the input contract are shared with
+#: the U-Net and live in :mod:`ct_restoration.models.base`. They are re-exported
+#: here because this module was their original home and callers import them
+#: from it.
+__all__ = [
+    "ALGORITHM_VERSION",
+    "CANONICAL_PARAMETER_COUNT",
+    "CANONICAL_RECEPTIVE_FIELD",
+    "RANGE_TOLERANCE",
+    "ModelError",
+    "ResidualCNN",
+    "ResidualCnnConfig",
+    "build_model",
+    "validate_model_input",
+]
 
 
 @dataclass(frozen=True)
@@ -205,40 +210,30 @@ class ResidualCnnConfig:
         """
         return 1 + self.depth * (self.kernel_size - 1)
 
+    @property
+    def spatial_multiple(self) -> int:
+        """Input height and width must be a multiple of this.
+
+        One: every convolution here is stride 1 with size-preserving padding,
+        so any spatial size works. The U-Net, which pools twice, needs 4.
+        """
+        return 1
+
 
 def validate_model_input(tensor: torch.Tensor, config: ResidualCnnConfig | None = None) -> None:
-    """Check a tensor really is the benchmark's model input, or refuse.
+    """Check a tensor really is this model's input, or refuse.
 
-    Strict and non-repairing, like every other boundary in this project. The
-    Dataset already guarantees this for training and evaluation data; the
-    check is repeated where a model is actually fed, because a silently
-    renormalized or non-finite batch would train and score perfectly happily
-    on numbers that no longer mean what the report says.
-
-    Raises:
-        ModelError: not a finite float32 ``[B, C, H, W]`` tensor in [0, 1].
+    A thin CNN-facing wrapper over the shared contract in
+    :mod:`ct_restoration.models.base`, kept because this is where callers
+    already import it from. The CNN is all stride-1 convolutions, so it
+    imposes no spatial-divisibility requirement.
     """
     config = config or ResidualCnnConfig()
-    if not isinstance(tensor, torch.Tensor):
-        raise ModelError(f"model input must be a torch.Tensor, got {type(tensor).__name__}")
-    if tensor.dim() != 4:
-        raise ModelError(f"model input must be [B, C, H, W], got shape {tuple(tensor.shape)}")
-    if tensor.shape[1] != config.input_channels:
-        raise ModelError(
-            f"model input must have {config.input_channels} channel(s), got "
-            f"{tensor.shape[1]} in shape {tuple(tensor.shape)}"
-        )
-    if tensor.dtype is not torch.float32:
-        raise ModelError(f"model input must be float32, got {tensor.dtype}")
-    if not bool(torch.isfinite(tensor).all()):
-        raise ModelError("model input must be finite; found NaN or infinite values")
-
-    minimum, maximum = float(tensor.min()), float(tensor.max())
-    if minimum < -RANGE_TOLERANCE or maximum > 1.0 + RANGE_TOLERANCE:
-        raise ModelError(
-            f"model input must lie in [0, 1], got [{minimum:.6g}, {maximum:.6g}]. "
-            "The model does not renormalize its input."
-        )
+    validate_restoration_input(
+        tensor,
+        input_channels=config.input_channels,
+        spatial_multiple=config.spatial_multiple,
+    )
 
 
 class ResidualCNN(nn.Module):

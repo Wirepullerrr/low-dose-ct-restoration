@@ -19,6 +19,12 @@ Tracked image-quality results, produced by the evaluation commands in
 | `cnn_vs_degraded_baseline_validation_patient_deltas.csv` | the six paired per-patient deltas against no restoration, with both methods' values beside each one |
 | `cnn_vs_clahe_validation_patient_deltas.csv` | the same six patients against frozen CLAHE; descriptive context, not the bar the method has to clear |
 | `cnn_validation_summary.json` | the selected CNN's patient-weighted result, both paired comparisons, clamp and correction diagnostics, the checkpoint-provenance and sample-alignment verification records, and an explicit verdict on all eight metrics |
+| `unet_validation_slices.csv` | one row per validation slice for the selected U-Net checkpoint, same schema and same canonical row order as every other method's |
+| `unet_validation_patients.csv` | one row per validation patient for the selected U-Net checkpoint |
+| `unet_vs_degraded_baseline_validation_patient_deltas.csv` | the six paired per-patient deltas against no restoration |
+| `unet_vs_clahe_validation_patient_deltas.csv` | the same six patients against frozen CLAHE; descriptive context |
+| `unet_vs_cnn_validation_patient_deltas.csv` | **the architecture comparison**: U-Net minus residual CNN, per patient, both trained under an identical policy |
+| `unet_validation_summary.json` | the selected U-Net's patient-weighted result, all three paired comparisons, the explicit CNN-versus-U-Net verdict per metric, clamp and correction diagnostics, and both verification records |
 
 ## The CLAHE files in particular
 
@@ -41,11 +47,26 @@ the same metric code. The sign convention is uniform: `delta = CLAHE -
 baseline`, so positive is an improvement for PSNR and SSIM and negative is an
 improvement for MAE and MSE.
 
-## The CNN files in particular
+## The learned-method files in particular
 
-**One seed.** These are a single training run. The number is what that run
+Everything in this section applies to both `cnn_*` and `unet_*`.
+
+**One seed each.** Each is a single training run. The number is what that run
 produced; it is not evidence that the architecture reaches it reliably.
-Multi-seed stability is a later milestone.
+Multi-seed stability is a later milestone. This matters most for
+`unet_vs_cnn_validation_patient_deltas.csv`: the two models differ there by
+about 0.2 dB, and with one seed apiece the run-to-run spread of either is
+unmeasured and could be of comparable size. Read that file as "this U-Net run
+scored slightly better than this CNN run", not as an architecture ranking.
+
+**The CNN and U-Net were trained under an identical policy** - same data,
+same corruption, same sampler, same loss, same optimizer, same seed, same
+epochs, same batch size, same checkpoint criterion - so the intended
+difference between them is the architecture. Neither model's recipe was ever
+hyperparameter-tuned - the CNN's values were one predeclared development
+configuration - so the accurate limitation is that the U-Net inherits the CNN
+benchmark's predeclared training recipe rather than receiving
+architecture-specific tuning.
 
 **The checkpoint was selected on one predeclared metric** - lowest
 patient-weighted validation full-frame MAE - declared in
@@ -72,10 +93,12 @@ be the frozen run's is not scored.
 
 *Sample alignment*, verified **before anything is written**. 885 rows, 885
 unique sample keys, 0 duplicates, and 0 missing, 0 extra and 0 order
-mismatches against both the baseline and the CLAHE slice tables. A paired
-delta is only paired if both sides ran on the same slice in the same
+mismatches against every earlier method's slice table - the baseline and
+CLAHE for the CNN, and the baseline, CLAHE **and** the CNN for the U-Net. A
+paired delta is only paired if both sides ran on the same slice in the same
 position; reordered keys pass every set-based check and are still wrong row
-by row, so order is checked explicitly.
+by row, so order is checked explicitly. All four methods scored the same 885
+slices in the same order.
 
 Both verification records are written into the summary, so a reader can see
 what was checked rather than take it on trust.

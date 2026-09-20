@@ -1,0 +1,16 @@
+# Experiment configs are hashed byte-for-byte by checkpoint provenance.
+# Pin checkout EOL so their SHA-256 values do not depend on core.autocrlf.
+#
+# Both files below are canonically LF. Their SHA-256 values are recorded
+# inside the trained checkpoints and the run summaries, and the evaluation
+# gate in src/ct_restoration/evaluation_integrity.py re-hashes the working
+# file and refuses to score a checkpoint whose recorded hash no longer
+# matches. Without these rules a CRLF checkout would fail provenance on a
+# scientifically identical config.
+#
+# Deliberately narrow: only raw-byte-hashed experiment configs are pinned.
+# The run summaries and training histories are read as JSON/CSV, never
+# re-hashed, so their line endings cannot affect any gate. The checkpoints
+# are hashed but are not tracked by Git.
+configs/cnn.yaml   text eol=lf
+configs/unet.yaml  text eol=lf

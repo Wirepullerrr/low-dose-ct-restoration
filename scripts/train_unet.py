@@ -1,15 +1,39 @@
-"""Train the predeclared residual CNN and select one checkpoint on validation.
+"""Train the predeclared lightweight U-Net and select one checkpoint on validation.
 
-    uv run python scripts/train_cnn.py --root data/raw/chaos
+    uv run python scripts/train_unet.py --root data/raw/chaos
+
+The same experiment as Milestone 8, with one thing changed
+-----------------------------------------------------------
+This command is deliberately the residual CNN's training command with a
+different model in it. The seed, the epoch budget, the batch size, the loss,
+the optimizer and its hyperparameters, the patient-balanced sampler, the
+absence of augmentation and scheduling, and the checkpoint-selection rule are
+all identical, and all of them come from :file:`configs/unet.yaml`, which was
+frozen before the first real-data gradient step.
+
+None of them were adjusted for this architecture. That is the point: if the
+U-Net were also given its own learning rate or its own epoch count, a
+difference in the measured result could be any of those rather than the
+architecture.
+
+Neither model's recipe was hyperparameter-tuned. The CNN's values were one
+predeclared development configuration, never searched over, and this run
+inherits them unchanged. So the accurate limitation is that the U-Net
+inherits the CNN benchmark's predeclared training recipe rather than
+receiving architecture-specific tuning - it is measured under that recipe,
+not at its best.
+
+Every helper that does the actual work - the epoch loop, the validation pass,
+the checkpoint format, the round-trip check - is shared with the CNN in
+:mod:`ct_restoration.training_loop`, so the two runs cannot drift apart in
+how they train, only in what they train.
 
 One configuration, one seed
 ---------------------------
-Everything scientific is frozen in :file:`configs/cnn.yaml` before this ever
-runs, and its SHA-256 is recorded in the run summary. There is no learning
-rate to sweep here, no depth to try, no loss to compare. A first CNN that
-turns out mediocre is still an experiment; changing the configuration after
-seeing the validation curve would turn the development estimate into a
-fitted one.
+There is no learning rate to sweep here, no depth to try, no loss to compare.
+A U-Net that turns out no better than the CNN is still a result; changing the
+configuration after seeing the validation curve would turn a development
+estimate into a fitted one.
 
 This is a single-seed development result. One seed says what this run did,
 not that the architecture is stable.
@@ -22,17 +46,17 @@ stress. Test and stress image content stays sealed.
 
 Checkpoint selection
 --------------------
-One predeclared criterion: the lowest patient-weighted validation full-frame
-MAE over epochs 1..30, computed from the clamped prediction, ties broken
-towards the earlier epoch. Epoch 0 is evaluated as an identity sanity check -
-the zero-initialized network must reproduce the frozen degraded baseline -
-but it is not eligible to be chosen.
+One predeclared criterion, the same one the CNN was chosen by: the lowest
+patient-weighted validation full-frame MAE over epochs 1..30, computed from
+the clamped prediction, ties broken towards the earlier epoch. Epoch 0 is
+evaluated as an identity sanity check - the zero-initialized network must
+reproduce the frozen degraded baseline - but is never eligible.
 
 Outputs
 -------
-``outputs/runs/cnn_seed2026/training_history.csv``
-``outputs/runs/cnn_seed2026/run_summary.json``
-``outputs/checkpoints/cnn_seed2026_best.pt`` (git-ignored; its SHA-256 is
+``outputs/runs/unet_seed2026/training_history.csv``
+``outputs/runs/unet_seed2026/run_summary.json``
+``outputs/checkpoints/unet_seed2026_best.pt`` (git-ignored; its SHA-256 is
 tracked in the summary)
 """
 
@@ -49,7 +73,7 @@ import pandas as pd  # noqa: E402
 import torch  # noqa: E402
 
 from ct_restoration.benchmark import write_csv, write_json  # noqa: E402
-from ct_restoration.config import load_config  # noqa: E402
+from ct_restoration.config import load_config, resolve_config_path  # noqa: E402
 from ct_restoration.data.dataset import development_dataset  # noqa: E402
 from ct_restoration.data.degradation import DegradationConfig  # noqa: E402
 from ct_restoration.data.loaders import (  # noqa: E402
@@ -61,9 +85,10 @@ from ct_restoration.data.loaders import (  # noqa: E402
 # reads it when its handle is created, which happens at the first CUDA operation, not
 # at import, so import order among these modules is not load-bearing - but no CUDA work
 # may happen before main() calls into that module.
-from ct_restoration.models.cnn import (  # noqa: E402
+from ct_restoration.models.unet import (  # noqa: E402
     CANONICAL_PARAMETER_COUNT,
-    ResidualCnnConfig,
+    CANONICAL_RECEPTIVE_FIELD,
+    LightweightResidualUnetConfig,
     build_model,
 )
 from ct_restoration.reproducibility import (  # noqa: E402
@@ -87,24 +112,32 @@ from ct_restoration.training_loop import (  # noqa: E402
 )
 
 #: Where this run's tracked artifacts go.
-RUN_DIR = Path("outputs/runs/cnn_seed2026")
+RUN_DIR = Path("outputs/runs/unet_seed2026")
 
 #: Where the checkpoint binary goes. Git-ignored; its SHA-256 is tracked.
-CHECKPOINT_PATH = Path("outputs/checkpoints/cnn_seed2026_best.pt")
+CHECKPOINT_PATH = Path("outputs/checkpoints/unet_seed2026_best.pt")
 
 #: Tolerance for the epoch-0 identity check against the committed baseline.
 #: The two numbers are computed by different code paths - the benchmark's
 #: NumPy metric formulas against this script's torch reduction - so exact
 #: float equality is not the right bar. A genuine plumbing mismatch would be
-#: orders of magnitude larger than this.
+#: orders of magnitude larger than this. Identical to the CNN's tolerance.
 IDENTITY_TOLERANCE = 1e-6
+
+#: How the receptive field should be described wherever it is reported.
+RECEPTIVE_FIELD_NOTE = (
+    "Maximum theoretical receptive field through the deepest encoder-decoder path: "
+    "44x44 pixels. Skip paths are shallower and retain smaller-scale local information, "
+    "so this is the maximum over paths, not the window every contribution comes through. "
+    "A statement about pixels only, not about anatomical or clinical context."
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", default="data/raw/chaos", help="extracted CHAOS directory")
     parser.add_argument("--manifest", default="data/splits/chaos_slice_manifest.csv")
-    parser.add_argument("--cnn-config", default="cnn.yaml")
+    parser.add_argument("--unet-config", default="unet.yaml")
     parser.add_argument("--preprocessing-config", default="baseline.yaml")
     parser.add_argument("--degradation-config", default="degradation.yaml")
     parser.add_argument(
@@ -130,12 +163,10 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> int:
     arguments = build_parser().parse_args()
     run_dir = Path(arguments.run_dir)
-    config_path = Path("configs") / arguments.cnn_config
-    if not config_path.exists():
-        config_path = Path(arguments.cnn_config)
+    config_path = resolve_config_path(arguments.unet_config)
 
-    document = load_config(arguments.cnn_config)
-    model_config = ResidualCnnConfig.from_mapping(document)
+    document = load_config(arguments.unet_config)
+    model_config = LightweightResidualUnetConfig.from_mapping(document)
     training = document["training"]
     data_policy = document["data"]
     selection = document["checkpoint_selection"]
@@ -173,7 +204,8 @@ def main() -> int:
     degradation = DegradationConfig.from_mapping(load_config(arguments.degradation_config))
 
     # development_dataset refuses test and stress; the split names come from
-    # the frozen config, not from the command line.
+    # the frozen config, not from the command line. Identical data to the
+    # CNN's run, including the fixed per-slice corruption.
     train_dataset = development_dataset(
         str(data_policy["train_split"]),
         arguments.manifest,
@@ -206,7 +238,12 @@ def main() -> int:
     print("MODEL AND DATA")
     print(f"  algorithm                {model_config.algorithm}")
     print(f"  trainable parameters     {parameters:,}")
-    print(f"  receptive field          {model.receptive_field} x {model.receptive_field} px")
+    print(
+        f"  deepest-path field       {model.receptive_field} x {model.receptive_field} px "
+        "(maximum over paths; skips are shallower)"
+    )
+    print(f"  encoder widths           {model_config.channels_per_level}")
+    print(f"  bottleneck               {model_config.bottleneck_channels} channels")
     print(
         f"  train                    {len(train_dataset.patients)} patients, "
         f"{len(train_dataset)} slices"
@@ -240,16 +277,16 @@ def main() -> int:
     identity_ok = difference <= IDENTITY_TOLERANCE
 
     print("EPOCH 0 IDENTITY CHECK")
-    print(f"  zero-initialized CNN     {epoch_zero['patient_weighted_full_mae']:.12f}")
+    print(f"  zero-initialized U-Net   {epoch_zero['patient_weighted_full_mae']:.12f}")
     print(f"  committed degraded base  {baseline_mae:.12f}")
     print(f"  absolute difference      {difference:.3e}  (tolerance {IDENTITY_TOLERANCE:.0e})")
     print(f"  identity reproduced      {'YES' if identity_ok else 'NO'}")
     print()
     if not identity_ok:
         print(
-            "error: the zero-initialized CNN does not reproduce the frozen degraded baseline. "
-            "The learned-method evaluation path is not aligned with the benchmark; stopping "
-            "before training rather than reporting a number built on it.",
+            "error: the zero-initialized U-Net does not reproduce the frozen degraded "
+            "baseline. The learned-method evaluation path is not aligned with the "
+            "benchmark; stopping before training rather than reporting a number built on it.",
             file=sys.stderr,
         )
         return 3
@@ -350,23 +387,35 @@ def main() -> int:
     final_value = float(frame[SELECTION_METRIC].iloc[-1])
 
     summary = {
-        "milestone": "8 - small residual CNN, single-seed development run",
+        "milestone": "9 - lightweight residual U-Net, single-seed development run",
         "result_class": (
             "SINGLE-SEED VALIDATION DEVELOPMENT RESULT. One seed shows what this run did; "
             "it does not establish that the architecture is stable. Multi-seed work is a "
             "later milestone, and the test split remains sealed."
         ),
+        "comparability": (
+            "Seed, epochs, batch size, loss, optimizer and its hyperparameters, sampler, "
+            "augmentation policy and checkpoint-selection rule are identical to the "
+            "Milestone 8 residual CNN's and were not adjusted for this architecture. The "
+            "intended difference between the two runs is the model. Neither recipe was ever "
+            "hyperparameter-tuned: the CNN's values were one predeclared development "
+            "configuration. The U-Net therefore inherits the CNN benchmark's predeclared "
+            "training recipe rather than receiving architecture-specific tuning, and is "
+            "measured under that recipe rather than at its best."
+        ),
         "model": {
             **model_config.as_dict(),
             "trainable_parameters": int(parameters),
+            "encoder_channels_per_level": list(model_config.channels_per_level),
+            "bottleneck_channels": int(model_config.bottleneck_channels),
+            "downsampling_steps": int(model_config.levels),
+            "skip_connections": int(model_config.levels),
             "receptive_field_pixels": int(model.receptive_field),
-            "receptive_field_note": (
-                "Five stacked 3x3 stride-1 convolutions: 1 + 5 * 2 = 11 pixels. A statement "
-                "about pixels only, not about anatomical context."
-            ),
+            "receptive_field_note": RECEPTIVE_FIELD_NOTE,
+            "canonical_receptive_field": CANONICAL_RECEPTIVE_FIELD,
         },
         "config": {
-            "path": config_path.as_posix(),
+            "path": config_path.name,
             "sha256": config_sha,
             "frozen_before_training": True,
         },
@@ -398,18 +447,18 @@ def main() -> int:
         },
         "epoch_zero_identity_check": {
             "description": (
-                "The zero-initialized network outputs a correction of exactly 0, so its "
-                "clamped restoration is the degraded image. Its validation MAE must match "
-                "the committed degraded baseline, or the learned-method evaluation path "
-                "disagrees with the frozen benchmark."
+                "The zero-initialized network's 1x1 head outputs a correction of exactly 0, "
+                "so its clamped restoration is the degraded image. Its validation MAE must "
+                "match the committed degraded baseline, or the learned-method evaluation "
+                "path disagrees with the frozen benchmark."
             ),
-            "zero_initialized_cnn_patient_weighted_full_mae": epoch_zero[
+            "zero_initialized_unet_patient_weighted_full_mae": epoch_zero[
                 "patient_weighted_full_mae"
             ],
             "committed_degraded_baseline_patient_weighted_full_mae": baseline_mae,
             "baseline_source": Path(arguments.baseline_patients).as_posix(),
             # The tracked summary rounds floats to 10 places, which would print
-            # a genuine 2e-11 difference as a flat 0.0 and read as exact
+            # a genuine 1e-11 difference as a flat 0.0 and read as exact
             # equality. It is not exact: the two numbers come from different
             # reduction orders in different code paths. The string keeps the
             # real magnitude visible.
@@ -431,6 +480,7 @@ def main() -> int:
             "tie_breaker": str(selection["tie_breaker"]),
             "epoch_zero_eligible": bool(selection["epoch_zero_eligible"]),
             "predeclared": True,
+            "identical_to_cnn_criterion": True,
             "best_epoch": int(selected_epoch),
             "best_validation_patient_weighted_full_mae": selected_value,
             "final_epoch_validation_patient_weighted_full_mae": final_value,
