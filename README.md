@@ -4,13 +4,12 @@ An engineering benchmark comparing classical and lightweight deep-learning
 restoration methods on **synthetically degraded, low-dose-like CT images**
 built from public abdominal CT data.
 
-> **Status: in progress (Milestone 11 of 15 complete; the Milestone 12
-> latency protocol is frozen and its measurement is pending). The held-out
-> test split has been evaluated exactly once, under a protocol committed
-> before it was opened, and the result has been independently audited. The
-> stress set remains sealed. No inference latency has been measured yet;
-> the protocol that will measure it is
-> [Milestone 12A](#milestone-12a-the-latency-protocol-frozen-before-any-latency-is-measured).**
+> **Status: in progress (Milestone 12 of 15 complete). The held-out test
+> split was evaluated exactly once, under a protocol committed before it was
+> opened; that result was independently audited, remains unchanged, and the
+> test split is now spent. Inference latency was then measured exactly
+> once, under a protocol frozen before any latency was measured, and that
+> result was independently audited too. The stress set remains sealed.**
 >
 > **Held-out test result (Milestone 11)** - six held-out CHAOS patients (941
 > slices) under the synthetic low-dose-like degradation, every one of the ten
@@ -34,6 +33,24 @@ built from public abdominal CT data.
 > none of this is a claim about real low-dose CT, dose reduction, clinical
 > use, other scanners or institutions, or a causal effect of the
 > architecture. [Full held-out results](#milestone-11b-the-held-out-test-result).
+>
+> **Latency result (Milestone 12)** - isolated batch-1 GPU model inference,
+> measured with CUDA events on an NVIDIA GeForce RTX 5070 Ti through
+> PyTorch/CUDA, on a synthetic [1, 1, 256, 256] float32 input already
+> resident on the GPU; 100 warm-up and 1000 measured iterations per model:
+>
+> * The median (p50, the predeclared primary statistic) was **0.3315 ms**
+>   for the residual CNN and **0.5907 ms** for the lightweight U-Net: the
+>   U-Net required **1.78x** the CNN's latency (ratio of means 1.77x, of
+>   p95s 1.87x).
+> * Relative to the residual CNN, the U-Net gained +0.244 dB held-out
+>   full-frame PSNR across five predeclared training seeds while requiring
+>   1.78x the isolated batch-1 GPU inference latency on an RTX 5070 Ti.
+>
+> This is GPU model inference on one machine, not end-to-end CT processing,
+> and 1.78x is a latency ratio, not a compute ratio. CLAHE was timed
+> separately on the CPU and is not compared with the GPU numbers as a speed
+> ratio. [Full latency results](#milestone-12b-the-latency-result).
 >
 > **Validation development results (Milestones 5-10)**, kept separate from
 > the held-out result above:
@@ -81,17 +98,30 @@ built from public abdominal CT data.
 > audit found the result valid. **The test split is now spent:** it cannot be
 > used to tune, select or compare any future model change.
 >
-> Apart from the held-out result, every measured number here is a
-> **validation** development result. Test image content has been read
-> exactly once, by the Milestone 11 run. No stress number exists, and no
-> stress image content has been read since the split was frozen.
+> **Milestone 12 was frozen first and measured once.**
+> [configs/latency/benchmark_plan.yaml](configs/latency/benchmark_plan.yaml)
+> fixed the methods, the two timing checkpoints, the input, the device, the
+> timers, the iteration counts, the timing boundary and the primary
+> statistic before any latency was measured.
+> [scripts/benchmark_latency.py](scripts/benchmark_latency.py) executed it
+> exactly once, on 2026-09-25 under commit `3ef6503`, and an independent
+> audit found the result valid.
+>
+> Apart from the held-out result and the Milestone 12 latency measurement,
+> every measured number here is a **validation** development result. Test
+> image content has been read exactly once, by the Milestone 11 run; the
+> latency benchmark read no image of any split. No stress number exists,
+> and no stress image content has been read since the split was frozen.
 >
 > Every number reported here is read from a tracked file under `outputs/`.
 > The validation degraded-baseline and CLAHE numbers are re-derivable from
 > the committed configs and the imaging data alone. The held-out numbers are
 > not re-derived at all: regenerating them would reopen the test split, which
 > the protocol forbids, so they stand as the one recorded measurement,
-> checked against their own per-slice tables and execution receipt. Every
+> checked against their own per-slice tables and execution receipt. The
+> latency numbers are likewise one recorded measurement, on one machine:
+> running the benchmark again would produce a new measurement rather than
+> reproduce these, and the protocol forbids repeating it. Every
 > validation learned-method number - the CNN
 > and U-Net at seed 2026 and all eight Milestone 10 runs - additionally
 > requires re-running a training command, because every checkpoint is
@@ -119,16 +149,18 @@ quality, and what does each method cost in inference latency?
 
 All four have now been evaluated on identical patients, identical clean
 targets and identical degraded inputs, through the same frozen metric code,
-using MAE, MSE, PSNR and SSIM. **Inference latency has not been measured for
-any of them**, so the cost half of the research question is still open. The
-protocol that will measure it was frozen first, in
-[Milestone 12A](#milestone-12a-the-latency-protocol-frozen-before-any-latency-is-measured).
+using MAE, MSE, PSNR and SSIM. Inference latency was measured once, for
+CLAHE on the CPU and for the two learned models on the GPU, under a protocol
+frozen first in [Milestone 12A](#milestone-12a-the-latency-protocol-frozen-before-any-latency-was-measured); its result is
+[Milestone 12B](#milestone-12b-the-latency-result). The degraded input is the
+identity and has no latency to measure.
 
 The final comparison was made once, on the held-out **test** split, under
 the protocol frozen in [Milestone 11A](#milestone-11a-the-held-out-test-protocol-frozen-before-the-test-split-was-opened);
-its result is [Milestone 11B](#milestone-11b-the-held-out-test-result). Every other figure in this document
-is a validation number, used to develop and sanity-check the measurement and
-to select among candidates. Nothing has been evaluated on stress.
+its result is [Milestone 11B](#milestone-11b-the-held-out-test-result). Every other image-quality figure in
+this document is a validation number, used to develop and sanity-check the
+measurement and to select among candidates. The latency figures are a
+separate one-shot measurement. Nothing has been evaluated on stress.
 
 ## Planned pipeline
 
@@ -1881,8 +1913,9 @@ not diagnostic-quality improvements, a PSNR difference is in decibels and
 never a percentage, and no reader study, no lesion-detection task and no
 clinical evaluation of any kind has been performed.
 
-**No latency has been measured.** The research question asks about inference
-cost and that part is unanswered for every method.
+**No latency had been measured at this point.** The research question asks
+about inference cost; that part was answered later, once, in
+[Milestone 12B](#milestone-12b-the-latency-result).
 
 ### What was and was not looked at
 
@@ -2018,8 +2051,8 @@ Three things this number is not. It is the **maximum over paths, not the only
 path**: the skip connections deliberately provide shallower routes carrying
 smaller-scale local information, and an output pixel's value mixes
 contributions from all of them. It is a statement about **pixels**, not
-anatomical coverage or clinical context. And it is not latency — no method in
-this benchmark has had its inference cost measured yet.
+anatomical coverage or clinical context. And it is not latency, which was
+measured separately, in [Milestone 12B](#milestone-12b-the-latency-result).
 
 ### Residual, and identical to the CNN where it counts
 
@@ -2200,9 +2233,10 @@ averaged **+0.228 dB**; see
 [Milestone 10](#milestone-10-the-multi-seed-result).
 
 The parameter count is reported beside the score, not as its cause. Nothing
-here isolates which change produced the difference, and no latency has been
-measured for either model, so the parameter ratio is not a statement about
-what it costs to run.
+here isolates which change produced the difference, and the parameter ratio
+is not a statement about what it costs to run: latency, measured later in
+[Milestone 12B](#milestone-12b-the-latency-result), is a separate quantity that
+the parameter ratio does not predict.
 
 **What this does not establish.** Under the same frozen corruption and the
 same training policy, the lightweight U-Net performed better on validation,
@@ -2898,18 +2932,19 @@ tenth-decimal rounding of the JSON summaries. It also found:
 * The metrics measure fidelity to a windowed 256x256 reference, the body
   region is a crude silhouette, and there is no reader study or
   diagnostic-task evaluation.
-* No latency has been measured, so the cost half of the research question
-  stays open until Milestone 12B measures it under the protocol frozen in
-  [Milestone 12A](#milestone-12a-the-latency-protocol-frozen-before-any-latency-is-measured).
+* Latency was not part of Milestone 11. It was measured once, separately,
+  in [Milestone 12B](#milestone-12b-the-latency-result).
 
-## Milestone 12A: the latency protocol, frozen before any latency is measured
+## Milestone 12A: the latency protocol, frozen before any latency was measured
 
 Milestone 12 measures the cost half of the research question: how long each
-method takes to restore one image. **No latency has been measured yet.** This
-step removed one known source of bias from the timed path, proved that
-removing it changed no model output, and froze the measurement protocol in
+method takes to restore one image. This step, completed and committed before
+any latency was measured, removed one known source of bias from the timed
+path, proved that removing it changed no model output, and froze the
+measurement protocol in
 [configs/latency/benchmark_plan.yaml](configs/latency/benchmark_plan.yaml)
-before a single timed iteration ran. Milestone 12B runs it, once.
+before a single timed iteration ran. Milestone 12B then ran it exactly once;
+its result is [Milestone 12B](#milestone-12b-the-latency-result).
 
 The image-quality results are not part of this. They are the Milestone 11
 numbers, fixed permanently: nothing here recomputes a metric, retrains a
@@ -3090,29 +3125,31 @@ express.
 The U-Net has 116,753 trainable parameters to the CNN's 28,353, 4.12 times as
 many. That ratio describes model size. It does not predict the latency
 ratio, which depends on depth, feature-map sizes, the number of kernel
-launches and how the GPU schedules them, and is known only once it has been
-measured.
+launches and how the GPU schedules them, and can only be measured. It was,
+in [Milestone 12B](#milestone-12b-the-latency-result).
 
-### The trade-off Milestone 12B will report
+### The trade-off, as frozen
 
-The learned-model trade-off combines the frozen held-out quality difference
-with the measured latency ratio. The primary ratio is of p50 latencies, and
-the secondary ratio is of means:
+The learned-model trade-off was frozen as the held-out quality difference set
+beside the measured latency ratio, with the ratio of p50 latencies primary
+and the ratio of means secondary, in this wording, with the ratio left
+unfilled until it had been measured:
 
 > Relative to the lightweight residual CNN, the U-Net gained +0.244 dB
 > held-out full-frame PSNR across five predeclared seeds, while requiring
 > **X**x the batch-1 GPU inference latency on an RTX 5070 Ti.
 
-X is unknown and is not estimated here. When it is measured, it will
-describe one machine, not a universal architecture trade-off.
+The measured value, X = 1.78, is reported in
+[Milestone 12B](#milestone-12b-the-latency-result). It describes one machine, not
+a universal architecture trade-off.
 
-### What a latency number will describe
+### What a latency number describes
 
 This machine and nothing else:
 
 * an NVIDIA GeForce RTX 5070 Ti with driver 616.92;
 * an AMD Ryzen 7 9800X3D;
-* Windows 11;
+* Windows 11 (build 26200);
 * Python 3.11.16, PyTorch 2.14.0 with CUDA 13.0 and cuDNN 9.24, and
   OpenCV 5.0.0.
 
@@ -3158,7 +3195,264 @@ In Milestone 12A the runner was run only with `--preflight-only`, on the
 uncommitted tree. It refused the dirty working tree, passed every other
 check it reached, opened nothing under the imaging root and wrote nothing.
 The synthetic test suite covers every refusal, the output schema and the
-timer structure without a GPU and without producing a latency number.
+timer structure without a GPU and without producing a latency number. The
+real run followed once, on the committed tree, in
+[Milestone 12B](#milestone-12b-the-latency-result).
+
+## Milestone 12B: the latency result
+
+The protocol frozen in
+[Milestone 12A](#milestone-12a-the-latency-protocol-frozen-before-any-latency-was-measured) was
+executed exactly once: `uv run python scripts/benchmark_latency.py`, on
+2026-09-25 from 08:49:40 to 08:49:42 UTC, under commit `3ef6503` with a
+clean working tree. All 26 preflight checks passed first. The run wrote
+exactly the three frozen files to `outputs/latency/`, left no staging
+directory and no failure record, and opened no file under the imaging root.
+A read-only audit afterwards recomputed every statistic from the raw samples
+and found the result valid. Nothing was rerun, reordered or trimmed.
+
+The image-quality results are untouched. The Milestone 11 held-out numbers
+are fixed, the test split is spent and was not reopened, and the stress set
+remains sealed.
+
+### Learned models: isolated batch-1 GPU model inference latency
+
+Each learned number is isolated batch-1 GPU model inference latency,
+measured with CUDA events on an NVIDIA GeForce RTX 5070 Ti through
+PyTorch/CUDA. The input is a synthetic [1, 1, 256, 256] float32 tensor
+already resident on the GPU, the timed call is `model.restore` (the
+structural input check, the forward pass, the residual addition and the
+clamp), and there were 100 warm-up and 1000 measured iterations, every
+sample kept. Each sample is a device-side interval, not CPU wall-clock time.
+It is **not** end-to-end CT processing latency: no DICOM reading, HU
+conversion, windowing, resizing, degradation, host-device transfer or metric
+is inside it.
+
+| Latency, ms | mean | SD | **p50** | p95 | min | max |
+| --- | --- | --- | --- | --- | --- | --- |
+| Residual CNN, seed 2026 | 0.3921 | 0.2109 | **0.3315** | 0.6226 | 0.3249 | 2.8902 |
+| Lightweight U-Net, seed 2026 | 0.6925 | 0.4025 | **0.5907** | 1.1668 | 0.5287 | 4.3699 |
+
+The p50, the median, is the primary statistic. It was predeclared in the
+plan before anything was measured; the mean and p95 are secondary. The SD is
+the sample SD over the 1000 samples.
+
+### The U-Net required 1.78x the CNN's latency
+
+| U-Net / CNN latency | ratio |
+| --- | --- |
+| **p50 (primary)** | **1.7820** |
+| mean (secondary) | 1.7662 |
+| p95 (secondary) | 1.8739 |
+
+At the median, one U-Net inference took 0.259 ms longer than one CNN
+inference. All three statistics point the same way. The ratio describes
+this one session on this one machine; no significance test was applied, and
+none of these numbers is a statement about other hardware.
+
+### Quality against latency
+
+Setting the frozen held-out quality result beside the measured latency:
+
+> Relative to the residual CNN, the U-Net gained +0.244 dB held-out
+> full-frame PSNR across five predeclared training seeds while requiring
+> 1.78x the isolated batch-1 GPU inference latency on an RTX 5070 Ti.
+
+The quality side is the Milestone 11 paired result, read from
+[holdout_test_summary.json](outputs/metrics/holdout/test/holdout_test_summary.json)
+and not recomputed:
+
+* the U-Net-minus-CNN full-frame PSNR difference averaged +0.2435 dB
+  (sample SD 0.0458 dB; range +0.2166 to +0.3239 dB), with all five
+  predeclared seeds favouring the U-Net;
+* against no restoration, the U-Net gained +3.3154 dB and the CNN
+  +3.0719 dB.
+
+The latency side is one seed-2026 checkpoint per architecture. The five
+checkpoints of an architecture share one graph, so latency was not averaged
+across seeds.
+
+In compact form, and on the RTX 5070 Ti with PyTorch/CUDA described above:
+the U-Net gained +0.244 dB held-out PSNR over the CNN at 1.78x batch-1 GPU
+inference latency.
+
+### What the 1.78x is not
+
+It is a latency ratio, not a compute ratio. Two size measures are set beside
+it, and neither predicts it:
+
+* **Trainable parameters:** 116,753 for the U-Net against 28,353 for the
+  CNN, a ratio of 4.1178x.
+* **Convolution multiply-accumulates:** an analytic count at 256x256,
+  computed from the two frozen architectures rather than measured, gives
+  1.850 G for the CNN and 1.588 G for the U-Net, so the U-Net needs 0.86x as
+  many.
+
+So the U-Net has more parameters, fewer convolution multiply-accumulates and
+a higher latency, and none of the three ratios can be derived from another.
+The U-Net runs 13 convolutional layers, with pooling and concatenation
+between them, where the CNN runs 5. At batch size 1, how many steps run one
+after another may matter as much as how much arithmetic each does. That is
+an interpretation; this benchmark did not measure it.
+
+### CLAHE, on the CPU
+
+CLAHE was timed separately, with `time.perf_counter_ns`, on the CPU (an AMD
+Ryzen 7 9800X3D; OpenCV 5.0.0 with 16 threads), on the same pixels as a 2-D
+float32 image. The timed call was the exact canonical method, `apply_clahe`:
+its own input check, the 8-bit quantization, the OpenCV operator with clip
+limit 0.5 and 4x4 tiles, and the conversion back.
+
+| CLAHE, CPU/OpenCV, ms | mean | SD | **p50** | p95 | min | max |
+| --- | --- | --- | --- | --- | --- | --- |
+| CLAHE | 0.2296 | 0.0913 | **0.2058** | 0.3349 | 0.1680 | 2.0569 |
+
+This is a CPU wall-clock measurement of a different backend, on different
+hardware, from the learned models' GPU device-side intervals. It is reported
+beside them and is **not** divided into them: no CLAHE-versus-GPU speed
+ratio is computed or implied. CLAHE was also worse than no restoration on
+every held-out metric, so its latency is context, not one side of a
+trade-off.
+
+### Distribution and stability
+
+Every latency distribution has a tight core and a heavy right tail:
+
+* **CNN:** 767 of the 1000 samples lie between 0.325 and 0.350 ms. The
+  coefficient of variation is 0.54, p95/p50 is 1.88, and the slowest sample
+  is 8.7 times the median.
+* **U-Net:** coefficient of variation 0.58, p95/p50 1.98, slowest sample 7.4
+  times the median.
+* **CLAHE:** coefficient of variation 0.40, p95/p50 1.63.
+
+The tails hold a few small, separate clusters of slower samples rather than
+a smooth decline. That is consistent with host or driver scheduling delays
+appearing inside the device interval while the GPU waits for work, but it is
+an interpretation that the benchmark does not measure. The tails are why the
+mean exceeds the median for every method, and why the predeclared primary
+statistic is the median.
+
+Across the run the CNN was stable: its median over each block of 100
+samples stayed within -0.1% to +0.4% of its overall median. The U-Net
+drifted mildly, with block medians from 0.568 to 0.622 ms. Dividing each
+U-Net block median by the CNN median gives 1.71 to 1.88. That describes the
+spread within one session; it is not a confidence interval. Timer
+resolution, about 32 ns for the CUDA events and 100 ns for the CPU timer, is
+negligible at these magnitudes.
+
+**Fixed order and heavy tails.** The methods ran in the frozen order CLAHE,
+CNN, U-Net, in one session. The CNN's first 100 samples held about twice as
+many slow samples as its later blocks, plausibly a short transient after
+the CPU-only CLAHE phase; it raised the CNN's mean, not its median. The
+audit found that the fixed order could plausibly shift the latency ratio by
+a few percent. No rerun or reordering was performed: the protocol forbids
+repeating the measurement to obtain a different number.
+
+### The one-shot record
+
+* [configs/latency/benchmark_plan.yaml](configs/latency/benchmark_plan.yaml)
+  is byte-frozen, SHA-256
+  `793956222087e602b878087c6cd7fec2dd66cb2d206144f0d737485b0f6423a2`. Its
+  `stage` field still reads `protocol_frozen_measurement_pending`. That
+  records the state before any latency existed, and editing it would change
+  the hash the receipt recorded. `benchmark_receipt.json` records the
+  completion.
+* The receipt records:
+  * commit `3ef6503` with a clean working tree, and the plan's SHA-256;
+  * the GPU and driver 616.92, the CPU, and the Python, PyTorch, CUDA and
+    cuDNN versions;
+  * the verified CUDA backend settings;
+  * the input and its SHA-256 witness, and both checkpoint SHA-256s;
+  * the 100 warm-up and 1000 measured iterations;
+  * the timing boundary, with host-to-device and device-to-host transfers,
+    preprocessing, checkpoint loading and input value validation all
+    excluded;
+  * all 26 preflight checks, and the digests of the other two files;
+  * zero file opens under the imaging root.
+
+  It holds no latency value and no test or stress identifier. Its platform
+  field reads `Windows-10`, which is how Python 3.11 reports this Windows 11
+  machine.
+* Each learned sample was `start.record()`, `model.restore(x)`,
+  `end.record()`, then a wait for the GPU before the next iteration. Each
+  measured inference is isolated by waiting for its end event before the
+  next iteration begins. The wait occurs outside the CUDA-event timing
+  interval and is therefore not included in reported latency.
+* The measured code is the code audited in Milestone 12A. The committed
+  timing loop and models are unchanged, neither model's timed call contains
+  a host readback, and the run's own preflight confirmed that neither makes
+  a synchronizing CUDA call.
+
+### The latency files
+
+`outputs/latency/` holds three files, written once by the Milestone 12 run
+and never regenerated. The runner refuses to write into an existing
+directory, and running it again would be a new measurement, not a
+regeneration of this one. They are tables and JSON only, with no image.
+
+| File | Contents |
+| --- | --- |
+| `latency_samples.csv` | 3000 rows, one per measured sample: `method`, `backend`, `device`, `iteration` (0-999), `latency_ms` |
+| `latency_summary.json` | For each method: the backend, device, timer, timed call, warm-up and iteration counts, the mean, SD, p50, p95, minimum and maximum, and the parameter count. For the learned methods it adds the model name and the checkpoint path, SHA-256 and seed. It also holds the U-Net/CNN p50 and mean ratios, the parameter ratio and the held-out quality reference, and records the CLAHE-to-GPU ratio as not computed. |
+| `benchmark_receipt.json` | The execution record described above |
+
+| File | SHA-256 |
+| --- | --- |
+| `latency_samples.csv` | `13f8aad194d9a4161e6b0067ca83c37c954818b40664f41c1e8fa1be88b87172` |
+| `latency_summary.json` | `10261d3f29ee68c93635437a257d4cfac78b20204b5f591a545942d465abbb00` |
+| `benchmark_receipt.json` | `a7e53ec5f4674a04f9751a465a9c0b51080b1fa63468e87a71f8210c32fdcce0` |
+
+### The post-measurement audit
+
+A read-only audit ran after the measurement without repeating it. It:
+
+* confirmed one output root, no staging directory, no failure record, and a
+  receipt matching the frozen plan;
+* confirmed 1000 samples per method, iterations 0-999 each, with no gap,
+  duplicate, non-finite or non-positive value, and correct backend and
+  device labels;
+* recomputed each method's mean, sample SD, p50, p95, minimum and maximum,
+  and both ratios, with code independent of the benchmark's: 20 values, 0
+  disagreements, largest difference 4.4e-11, within the summary's 10-decimal
+  rounding;
+* confirmed all 72 held-out artifacts and every Milestone 10 artifact
+  unchanged.
+
+### What the result may and may not be used to say
+
+Supported:
+
+* "Relative to the residual CNN, the U-Net gained +0.244 dB held-out
+  full-frame PSNR across five predeclared training seeds while requiring
+  1.78x the isolated batch-1 GPU inference latency on an RTX 5070 Ti."
+* The compact form, "The U-Net gained +0.244 dB held-out PSNR over the CNN
+  at 1.78x batch-1 GPU inference latency", with the RTX 5070 Ti and
+  PyTorch/CUDA benchmark context stated nearby.
+* A median difference of 0.259 ms per inference, stated with the same
+  context.
+
+Not supported, and not claimed:
+
+* that the U-Net needs 1.78x the compute; by convolution arithmetic it needs
+  fewer multiply-accumulates;
+* that the U-Net is 1.78x slower in general, on other hardware or at other
+  batch sizes;
+* anything about end-to-end CT processing time, throughput, real-time use or
+  clinical use;
+* a speed comparison between CLAHE on the CPU and the learned models on the
+  GPU;
+* a significance result, since no test was run.
+
+### Limitations that remain
+
+* One machine and one session. The RTX 5070 Ti also drives the desktop
+  display, its clocks are not locked, and background load was not
+  controlled.
+* One fixed method order, which the audit found could plausibly shift the
+  ratio by a few percent. No reordering or rerun was performed.
+* Batch size 1 and a synthetic 256x256 input only: no throughput, no other
+  batch size, and no end-to-end pipeline was measured.
+* One checkpoint per architecture, by design.
 
 ## Setup
 
@@ -3220,7 +3514,7 @@ outputs/metrics/multiseed/  one directory per additional training seed, plus
 outputs/metrics/holdout/    the one-shot held-out test tables and execution
                       record, written once by the Milestone 11 run (tracked)
 outputs/latency/      the latency samples, summary and receipt, written once
-                      by Milestone 12B (not yet present)
+                      by the Milestone 12 run (tracked)
 outputs/runs/         per-epoch training histories and run summaries for all
                       ten runs (tracked)
 outputs/checkpoints/  model weights (git-ignored; only their SHA-256 is tracked)

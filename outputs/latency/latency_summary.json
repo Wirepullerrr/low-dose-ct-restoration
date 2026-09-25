@@ -1,0 +1,107 @@
+{
+  "milestone": 12,
+  "result_class": "inference_latency",
+  "benchmark_plan": {
+    "path": "configs/latency/benchmark_plan.yaml",
+    "sha256": "793956222087e602b878087c6cd7fec2dd66cb2d206144f0d737485b0f6423a2"
+  },
+  "commit": "3ef6503d8f56245bf29c7c2b271744ef6e65c792",
+  "gpu": "NVIDIA GeForce RTX 5070 Ti",
+  "input": {
+    "shape": [
+      1,
+      1,
+      256,
+      256
+    ],
+    "dtype": "float32",
+    "seed": 12,
+    "sha256": "007f7d94ab363d216a282148dd2d37b4e2c07688f5d4e635cb45d437bfa7ed55"
+  },
+  "methods": {
+    "clahe": {
+      "method": "clahe",
+      "backend": "opencv_cpu",
+      "device": "cpu",
+      "timer": "perf_counter_ns",
+      "timed_call": "ct_restoration.classical.clahe.apply_clahe",
+      "warmup": 100,
+      "iterations": 1000,
+      "mean_ms": 0.2296036,
+      "sd_ms": 0.0913275382,
+      "p50_ms": 0.20575,
+      "p95_ms": 0.3349,
+      "min_ms": 0.168,
+      "max_ms": 2.0569,
+      "parameter_count": 0
+    },
+    "cnn": {
+      "method": "cnn",
+      "backend": "pytorch_cuda",
+      "device": "cuda",
+      "timer": "cuda_event",
+      "timed_call": "model.restore",
+      "warmup": 100,
+      "iterations": 1000,
+      "mean_ms": 0.3920844478,
+      "sd_ms": 0.2108899711,
+      "p50_ms": 0.3314880133,
+      "p95_ms": 0.622620824,
+      "min_ms": 0.3248640001,
+      "max_ms": 2.8901760578,
+      "parameter_count": 28353,
+      "model_name": "residual_cnn_v1",
+      "checkpoint": "outputs/checkpoints/cnn_seed2026_best.pt",
+      "checkpoint_sha256": "fe3cdc42c72dea163fd9b603023da76e64ebb9433f451744b4430b81291838fb",
+      "checkpoint_seed": 2026
+    },
+    "unet": {
+      "method": "unet",
+      "backend": "pytorch_cuda",
+      "device": "cuda",
+      "timer": "cuda_event",
+      "timed_call": "model.restore",
+      "warmup": 100,
+      "iterations": 1000,
+      "mean_ms": 0.6924904965,
+      "sd_ms": 0.4024943404,
+      "p50_ms": 0.590703994,
+      "p95_ms": 1.166758424,
+      "min_ms": 0.5287039876,
+      "max_ms": 4.3698878288,
+      "parameter_count": 116753,
+      "model_name": "lightweight_residual_unet_v1",
+      "checkpoint": "outputs/checkpoints/unet_seed2026_best.pt",
+      "checkpoint_sha256": "15e430f83ade635ccfc516b6db1bc04359d59dbd61ef19009abf90976df2a3a1",
+      "checkpoint_seed": 2026
+    }
+  },
+  "learned_comparison": {
+    "result_label": "gpu_model_inference_latency",
+    "unet_over_cnn_latency_ratio_p50": 1.7819769355,
+    "unet_over_cnn_latency_ratio_mean": 1.7661769047,
+    "primary_statistic": "p50",
+    "parameter_counts": {
+      "cnn": 28353,
+      "unet": 116753
+    },
+    "unet_over_cnn_parameter_ratio": 4.1178358551,
+    "parameter_ratio_is_not_a_latency_ratio": true,
+    "held_out_full_psnr_unet_minus_cnn_db": 0.2435097969,
+    "held_out_quality_source": "outputs/metrics/holdout/test/holdout_test_summary.json"
+  },
+  "clahe_to_gpu_speed_ratio": null,
+  "clahe_to_gpu_speed_ratio_reason": "not computed: CLAHE is a CPU/OpenCV path and the learned models a GPU/PyTorch path, timed differently on different hardware. No hardware-controlled comparison exists between them.",
+  "not_end_to_end_ct_processing_latency": true,
+  "claim_rules": {
+    "forbidden": [
+      "a universal or hardware-independent architecture trade-off",
+      "end-to-end CT processing latency",
+      "a CLAHE versus GPU speed ratio or speed-up",
+      "real-time or clinical deployment readiness",
+      "latency on any other GPU, CPU, driver or software stack",
+      "a latency ratio inferred from the parameter ratio",
+      "a latency number from a checkpoint other than the two frozen here"
+    ]
+  }
+}

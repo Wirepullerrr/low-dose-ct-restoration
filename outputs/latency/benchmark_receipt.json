@@ -1,0 +1,323 @@
+{
+  "receipt_schema": "m12_latency_receipt_v1",
+  "status": "complete",
+  "protocol_version": "m12_latency_v1",
+  "git": {
+    "commit": "3ef6503d8f56245bf29c7c2b271744ef6e65c792",
+    "working_tree_clean": true,
+    "branch": "main",
+    "head_in_origin_main": true,
+    "quality_result_commit": "639a79880cc12eae1e0c99e2309e02165e9ea23e"
+  },
+  "benchmark_plan": {
+    "path": "configs/latency/benchmark_plan.yaml",
+    "sha256": "793956222087e602b878087c6cd7fec2dd66cb2d206144f0d737485b0f6423a2"
+  },
+  "holdout_test_plan": {
+    "path": "configs/holdout/test_plan.yaml",
+    "sha256": "bbad8d1f738393b0712cc3e0ed04cbe5ad5e3aa71523d51afdd7ad4853cb4544"
+  },
+  "held_out_quality_reference": {
+    "source": "outputs/metrics/holdout/test/holdout_test_summary.json",
+    "sha256": "2f8ce07f6e06350dc9f8933fda57089a603fb07925cf2e34c168d4d28030896b",
+    "key": [
+      "unet_vs_cnn",
+      "per_metric",
+      "full_psnr",
+      "raw_delta",
+      "mean"
+    ],
+    "meaning": "five-seed mean of the paired same-seed U-Net minus CNN held-out full-frame PSNR, dB",
+    "value": 0.2435097969
+  },
+  "environment": {
+    "python": "3.11.16",
+    "platform": "Windows-10",
+    "numpy": "2.4.6",
+    "pandas": "3.0.5",
+    "opencv": "5.0.0",
+    "opencv_threads": 16,
+    "torch_cpu_threads": 8,
+    "torch": {
+      "torch_version": "2.14.0+cu130",
+      "cuda_build_version": "13.0",
+      "cudnn_version": 92400,
+      "cuda_available": true,
+      "device": "cuda",
+      "gpu_name": "NVIDIA GeForce RTX 5070 Ti",
+      "gpu_total_memory_bytes": 17066033152,
+      "gpu_capability": "12.0"
+    },
+    "gpu_driver": "616.92",
+    "cpu": "AMD Ryzen 7 9800X3D 8-Core Processor"
+  },
+  "cuda_backend": {
+    "cudnn_benchmark": false,
+    "cudnn_deterministic": false,
+    "cudnn_allow_tf32": true,
+    "matmul_allow_tf32": false,
+    "float32_matmul_precision": "highest",
+    "deterministic_algorithms": false
+  },
+  "timing_method": {
+    "learned": {
+      "timer": "torch.cuda.Event(enable_timing=True)",
+      "eval_mode": true,
+      "inference_mode": true,
+      "events_created_before_timing": true,
+      "synchronize_after_warmup": true,
+      "synchronize_between_samples_outside_timed_interval": true,
+      "synchronizing_calls_inside_timed_interval": 0
+    },
+    "clahe": {
+      "timer": "time.perf_counter_ns",
+      "synchronous": true
+    },
+    "warmup_iterations": 100,
+    "measured_iterations": 1000
+  },
+  "input": {
+    "generator": "torch_cpu_generator_manual_seed_then_torch_rand",
+    "seed": 12,
+    "batch_size": 1,
+    "channels": 1,
+    "height": 256,
+    "width": 256,
+    "dtype": "float32",
+    "value_range": [
+      0.0,
+      1.0
+    ],
+    "sha256": "007f7d94ab363d216a282148dd2d37b4e2c07688f5d4e635cb45d437bfa7ed55",
+    "clahe_view": "batch_0_channel_0_as_numpy_float32",
+    "clahe_view_sha256": "0e5985c8f3b264979c5d61def441dbacacd6f4d4bfb87ab910f2bb205e6adb8f",
+    "content_validated_once_before_timing": true
+  },
+  "checkpoints": {
+    "cnn": {
+      "path": "outputs/checkpoints/cnn_seed2026_best.pt",
+      "sha256": "fe3cdc42c72dea163fd9b603023da76e64ebb9433f451744b4430b81291838fb"
+    },
+    "unet": {
+      "path": "outputs/checkpoints/unet_seed2026_best.pt",
+      "sha256": "15e430f83ade635ccfc516b6db1bc04359d59dbd61ef19009abf90976df2a3a1"
+    }
+  },
+  "timing_boundary": {
+    "result_label": "gpu_model_inference_latency",
+    "not_end_to_end_ct_processing_latency": true,
+    "learned_included": [
+      "model_forward_structural_input_check",
+      "model_forward",
+      "residual_addition",
+      "clamp_to_unit_interval"
+    ],
+    "learned_excluded": [
+      "dicom_loading",
+      "pydicom",
+      "hu_conversion",
+      "ct_windowing",
+      "resize",
+      "synthetic_degradation",
+      "dataloader",
+      "host_to_device_transfer",
+      "checkpoint_loading",
+      "model_construction",
+      "input_content_validation",
+      "device_to_host_transfer",
+      "metric_calculation"
+    ],
+    "clahe_included": [
+      "input_validation_inside_apply_clahe",
+      "float_to_uint8_quantization",
+      "clahe_operator_construction",
+      "clahe_apply",
+      "uint8_to_float_conversion"
+    ],
+    "clahe_excluded": [
+      "dicom_loading",
+      "hu_conversion",
+      "ct_windowing",
+      "resize",
+      "synthetic_degradation",
+      "metric_calculation"
+    ],
+    "host_to_device_excluded": true,
+    "device_to_host_excluded": true,
+    "preprocessing_excluded": true,
+    "input_content_validation_excluded": true
+  },
+  "measurement_started_utc": "2026-09-25T08:49:40+00:00",
+  "completed_utc": "2026-09-25T08:49:42+00:00",
+  "image_reads": {
+    "measured_by": "sys.addaudithook 'open' events under the imaging root",
+    "readable_splits": [],
+    "file_opens_by_split": {
+      "train": 0,
+      "validation": 0,
+      "test": 0,
+      "stress": 0,
+      "outside_manifest": 0
+    },
+    "distinct_files_opened_by_split": {
+      "train": 0,
+      "validation": 0,
+      "test": 0,
+      "stress": 0,
+      "outside_manifest": 0
+    },
+    "refused_opens_by_split": {
+      "train": 0,
+      "validation": 0,
+      "test": 0,
+      "stress": 0,
+      "outside_manifest": 0
+    }
+  },
+  "test_or_stress_identifiers_recorded": false,
+  "preflight": {
+    "checks": [
+      {
+        "name": "git commit recorded",
+        "passed": true,
+        "detail": "3ef6503d8f56245bf29c7c2b271744ef6e65c792"
+      },
+      {
+        "name": "git working tree clean",
+        "passed": true,
+        "detail": "clean"
+      },
+      {
+        "name": "quality result commit is an ancestor of HEAD",
+        "passed": true,
+        "detail": "639a79880cc12eae1e0c99e2309e02165e9ea23e"
+      },
+      {
+        "name": "held-out test plan unchanged",
+        "passed": true,
+        "detail": "configs/holdout/test_plan.yaml SHA-256 verified"
+      },
+      {
+        "name": "timing checkpoints are the held-out seed-2026 entries",
+        "passed": true,
+        "detail": "both timing checkpoints are the seed-2026 entries scored on the test split"
+      },
+      {
+        "name": "held-out quality reference unchanged",
+        "passed": true,
+        "detail": "held-out U-Net minus CNN full PSNR verified"
+      },
+      {
+        "name": "config bytes cnn",
+        "passed": true,
+        "detail": "configs/cnn.yaml SHA-256 verified"
+      },
+      {
+        "name": "checkpoint bytes cnn",
+        "passed": true,
+        "detail": "outputs/checkpoints/cnn_seed2026_best.pt SHA-256 verified"
+      },
+      {
+        "name": "config bytes unet",
+        "passed": true,
+        "detail": "configs/unet.yaml SHA-256 verified"
+      },
+      {
+        "name": "checkpoint bytes unet",
+        "passed": true,
+        "detail": "outputs/checkpoints/unet_seed2026_best.pt SHA-256 verified"
+      },
+      {
+        "name": "CLAHE config unchanged",
+        "passed": true,
+        "detail": "CLAHE settings verified"
+      },
+      {
+        "name": "CUDA available for the frozen device",
+        "passed": true,
+        "detail": "cuda"
+      },
+      {
+        "name": "benchmark GPU is the frozen GPU",
+        "passed": true,
+        "detail": "'NVIDIA GeForce RTX 5070 Ti', expected 'NVIDIA GeForce RTX 5070 Ti'"
+      },
+      {
+        "name": "CUDA backend settings are the frozen settings",
+        "passed": true,
+        "detail": "{'cudnn_benchmark': False, 'cudnn_deterministic': False, 'cudnn_allow_tf32': True, 'matmul_allow_tf32': False, 'float32_matmul_precision': 'highest', 'deterministic_algorithms': False}"
+      },
+      {
+        "name": "benchmark input reproduces its digests",
+        "passed": true,
+        "detail": "input and CLAHE view digests reproduced"
+      },
+      {
+        "name": "output root absent",
+        "passed": true,
+        "detail": "outputs/latency absent"
+      },
+      {
+        "name": "output staging absent",
+        "passed": true,
+        "detail": "outputs/latency.incomplete absent"
+      },
+      {
+        "name": "exactly the frozen learned methods loaded",
+        "passed": true,
+        "detail": "['cnn', 'unet']"
+      },
+      {
+        "name": "cnn parameter count",
+        "passed": true,
+        "detail": "28353, expected 28353"
+      },
+      {
+        "name": "cnn runs on the frozen device",
+        "passed": true,
+        "detail": "'cuda'; a learned model is never timed on the CPU"
+      },
+      {
+        "name": "cnn in eval mode",
+        "passed": true,
+        "detail": "eval"
+      },
+      {
+        "name": "cnn timed call makes no synchronizing CUDA call",
+        "passed": true,
+        "detail": "no synchronization detected"
+      },
+      {
+        "name": "unet parameter count",
+        "passed": true,
+        "detail": "116753, expected 116753"
+      },
+      {
+        "name": "unet runs on the frozen device",
+        "passed": true,
+        "detail": "'cuda'; a learned model is never timed on the CPU"
+      },
+      {
+        "name": "unet in eval mode",
+        "passed": true,
+        "detail": "eval"
+      },
+      {
+        "name": "unet timed call makes no synchronizing CUDA call",
+        "passed": true,
+        "detail": "no synchronization detected"
+      }
+    ],
+    "passed": 26,
+    "failed": 0
+  },
+  "outputs": {
+    "latency_samples.csv": {
+      "sha256": "13f8aad194d9a4161e6b0067ca83c37c954818b40664f41c1e8fa1be88b87172"
+    },
+    "latency_summary.json": {
+      "sha256": "10261d3f29ee68c93635437a257d4cfac78b20204b5f591a545942d465abbb00"
+    }
+  },
+  "latency_values_in_receipt": false
+}
