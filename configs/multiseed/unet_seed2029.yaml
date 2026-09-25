@@ -1,0 +1,130 @@
+# Lightweight residual U-Net - Milestone 9
+#
+# FROZEN BEFORE THE FIRST REAL-DATA GRADIENT STEP.
+#
+# This file is the whole experiment definition, and it was written before any
+# validation number for this architecture existed. Nothing in it was chosen by
+# looking at a result, and nothing in it may be edited now that results do
+# exist: a later architecture-tuning experiment would have to be declared
+# separately, with its own config and its own record.
+#
+# WHAT THIS MILESTONE IS TESTING
+# ------------------------------
+# Does a lightweight U-Net with multi-scale context and skip connections
+# improve restoration relative to the small 11x11-context residual CNN of
+# Milestone 8, under the same frozen corruption and nearly identical training
+# recipe?
+#
+# It is not assumed that it will. A U-Net that loses is a result.
+#
+# WHY ALMOST EVERYTHING HERE IS COPIED FROM configs/cnn.yaml
+# ----------------------------------------------------------
+# Every training-side value below - the seed, the epoch count, the batch size,
+# the loss, the optimizer and all its hyperparameters, the sampler, the
+# absence of augmentation and scheduling, and the checkpoint-selection rule -
+# is deliberately identical to the residual CNN's. They were NOT re-tuned for
+# this architecture.
+#
+# That is the entire methodological point. If the U-Net were also given a
+# different learning rate, or more epochs, or a scheduler, then a difference
+# in the measured result could be any of those things. Holding them fixed
+# means the comparison isolates architecture as far as is practical.
+#
+# The cost is real and should be stated: a recipe tuned for a 28k-parameter
+# CNN is not necessarily a good recipe for a 117k-parameter U-Net, so this
+# measures "the U-Net under the CNN's recipe", not "the U-Net at its best".
+# Tuning it would be a search, and this milestone deliberately runs none.
+#
+# SINGLE SEED
+# -----------
+# One training seed. It shows what this run did. It does not establish that
+# the architecture reaches this result reliably, and the run-to-run spread is
+# unmeasured. Multi-seed stability is a separate, later milestone.
+#
+# HOLD-OUT
+# --------
+# Train and validation only. The test and stress splits stay sealed.
+
+model:
+  # 116,753 trainable parameters, 44x44 maximum receptive field through the
+  # deepest path. Both numbers follow from the architecture below; neither
+  # was targeted. Channels were not adjusted to reach a parameter count.
+  algorithm: lightweight_residual_unet_v1
+  input_channels: 1
+  output_channels: 1
+  base_channels: 16
+  levels: 2
+  convolutions_per_block: 2
+  kernel_size: 3
+  padding: 1
+  activation: relu
+  downsampling: max_pool_2x2
+  upsampling: conv_transpose_2x2_stride2
+  # Concatenation, not summation: a fine-detail encoder feature and a
+  # wide-context decoder feature are not the same kind of quantity, and
+  # adding them would commit to a fixed one-to-one mixing instead of letting
+  # the following convolution learn it.
+  skip_connection: concatenate
+  batch_norm: false
+  dropout: 0.0
+  # The model predicts a CORRECTION to the degraded image, exactly as the CNN
+  # does, so the two share the same image-level parameterization:
+  #     raw      = degraded + UNet(degraded)
+  #     restored = clamp(raw, 0, 1)
+  residual_correction: true
+  # The 1x1 head starts at exactly zero, so before training the correction is
+  # identically zero and the untrained model IS the no-restoration baseline.
+  # That makes epoch 0 a real check on the evaluation path.
+  zero_initialize_final_layer: true
+  final_kernel_size: 1
+
+training:
+  seed: 2029
+  epochs: 30
+  batch_size: 32
+  # Full-frame L1 on the RAW, unclamped restoration. Clamping first would
+  # zero the gradient wherever the prediction had left [0, 1] - exactly where
+  # the model is most wrong. Identical to the CNN's loss, including its known
+  # limitation: it weights the clipped background as heavily as tissue, and
+  # is not claimed to be clinically optimal.
+  loss: l1
+  optimizer: adam
+  learning_rate: 0.001
+  betas: [0.9, 0.999]
+  eps: 1.0e-8
+  weight_decay: 0.0
+  scheduler: none
+  gradient_clipping: none
+  mixed_precision: false
+  augmentation: none
+
+data:
+  # The frozen Milestone 7 Dataset and sampler, unchanged. No U-Net-specific
+  # sampler exists, and the per-slice corruption is fixed, so both learned
+  # methods see the same degraded images.
+  sampler: patient_balanced_v1
+  train_split: train
+  validation_split: validation
+  num_workers: 2
+  drop_last: false
+
+checkpoint_selection:
+  # ONE predeclared criterion, identical to the CNN's. Scanning across PSNR,
+  # SSIM, body and full metrics afterwards would be eight chances to find a
+  # flattering epoch with no way to say which one the method committed to.
+  # The other seven metrics are computed once, later, for the already-chosen
+  # checkpoint, and are reported rather than optimized against.
+  split: validation
+  primary_metric: patient_weighted_full_mae
+  direction: minimize
+  tie_breaker: earlier_epoch
+  # Epoch 0 is the zero-initialized identity check. It is recorded and never
+  # eligible: a rule that could return it would be able to conclude "do
+  # nothing" by accident.
+  epoch_zero_eligible: false
+
+evaluation:
+  # The benchmark output is the clamped image, as for every other method, so
+  # all four methods are held to the same [0, 1] representation and the same
+  # data_range = 1.0 metric assumption.
+  inference_output: clamp_0_1

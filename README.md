@@ -4,8 +4,9 @@ An engineering benchmark comparing classical and lightweight deep-learning
 restoration methods on **synthetically degraded, low-dose-like CT images**
 built from public abdominal CT data.
 
-> **Status: in progress (Milestone 9 of 15 - all four methods are now
-> measured on validation).**
+> **Status: in progress (Milestone 9 of 15 complete - all four methods are
+> now measured on validation. Milestone 10's multi-seed design is frozen;
+> its execution is pending).**
 >
 > **CLAHE scored worse than doing nothing on every metric and every
 > patient.** Both learned methods beat no restoration on all eight reported
@@ -24,13 +25,13 @@ built from public abdominal CT data.
 > architecture effect, because the run-to-run spread of either is unmeasured.
 > Multi-seed work is a later milestone.
 >
-> **Multi-seed infrastructure is prepared; no additional statistical seeds
-> have been trained yet.** Milestone 10 has not run. The plumbing below -
-> per-seed run, checkpoint and metric destinations, a refusal that stops a
-> training command overwriting a completed run, and a provenance gate that
-> takes its expected seed from the frozen config - exists so that work can
-> start safely. It produces no new scientific result on its own, and none is
-> reported here.
+> **Milestone 10 design frozen / execution pending.** The multi-seed
+> experiment is pre-registered in
+> [configs/multiseed/plan.yaml](configs/multiseed/plan.yaml): five training
+> seeds per architecture (2026, 2027, 2028, 2029, 2030), with seed 2026
+> reused from Milestones 8 and 9 rather than retrained, leaving **eight new
+> training runs** still to do. **No additional seed has been trained, and no
+> multi-seed result exists or is reported here.**
 >
 > Every measured number here is a **validation** development result. No test
 > or stress number exists, and no test or stress image content has been read
@@ -2202,6 +2203,137 @@ Within that scope it was checked rather than asserted:
 
 Both gates are the same shared code the CNN's evaluation clears, in
 [src/ct_restoration/evaluation_integrity.py](src/ct_restoration/evaluation_integrity.py).
+
+## Milestone 10: the multi-seed design, frozen before it runs
+
+Milestone 9 measured one CNN run against one U-Net run and found the U-Net
+ahead by +0.20 dB full-frame PSNR. With one seed each, that gap could not be
+separated from ordinary run-to-run variation, because the run-to-run spread
+of either architecture was unmeasured. Milestone 10 measures that spread.
+
+The design below was written and committed **before any of the eight new runs
+existed**, so none of it could have been chosen to suit a number. It lives in
+[configs/multiseed/plan.yaml](configs/multiseed/plan.yaml), whose SHA-256 is
+recorded in the final multi-seed summary. To be precise about the scope of
+that: the aggregate `multiseed_summary.json` records the hash of the plan
+file the summarizer actually read. Individual training run summaries record
+their own config's hash, not the plan's.
+
+### The seed set
+
+| | |
+| --- | --- |
+| statistical seeds | **2026, 2027, 2028, 2029, 2030** |
+| architectures | residual CNN, lightweight U-Net |
+| total runs | 10 |
+| already trained | 2 - the Milestone 8 CNN and Milestone 9 U-Net, both at seed 2026 |
+| **new runs still to do** | **8** |
+
+Seed 2026 is **reused, not retrained**. Its checkpoint, history and run
+summary are the committed ones, and it keeps the checkpoint it already
+selected.
+
+The seed list is part of the experiment definition. No seed may be added
+later because a result looks unusual, and none may be dropped because a
+result looks poor - either would turn the reported spread into the spread of
+whichever seeds survived inspection.
+
+### What varies, and what cannot
+
+Within each architecture, the only thing that differs across its five
+training-seed runs is **training randomness**: weight initialization and
+patient-balanced sampler ordering, both driven by that run's seed. Each of
+the eight new runs has its own frozen config under `configs/multiseed/`,
+identical to the canonical one except for a single line, and each config's
+SHA-256 is pinned in the plan.
+
+Between the matched CNN and U-Net runs at a given seed label, **architecture
+differs by design**, while the data, degradation, sampler algorithm and
+statistical-seed label are aligned.
+
+**The degradation does not vary.** Its seed lives in
+[configs/degradation.yaml](configs/degradation.yaml) and cannot reach the
+training path - the Dataset constructor takes no seed argument at all - so
+every seed of every architecture sees pixel-identical degraded images for the
+same slice. If the corruption also varied by seed, a difference between seeds
+could be either cause and the design could not tell them apart.
+
+### The unit of analysis
+
+Each run collapses slice to patient to equal-weight patient mean first,
+exactly as Milestones 5-9 do. Only then are seeds compared.
+
+**Six patients times five seeds is not thirty observations.** The six patient
+values inside one run are not independent repetitions of training, and the
+five seed values are not independent patients. The two levels stay separate.
+
+And five seeds are not five patients: they are five repetitions of one
+training procedure on **fixed data**. The spread measured is the spread of
+that procedure on this dataset, and says nothing about variation across
+patients, scanners or institutions.
+
+### Two comparison quantities, kept distinct
+
+For each seed *S* and each of the eight metrics:
+
+| quantity | definition | sign |
+| --- | --- | --- |
+| **raw delta** | `U-Net(S) - CNN(S)` | metric's own sign: positive favours the U-Net for PSNR/SSIM, **negative** favours it for MAE/MSE |
+| **oriented improvement** | `U-Net - CNN` for PSNR/SSIM, `CNN - U-Net` for MAE/MSE | **positive always means the U-Net did better** |
+
+Both are reported. The raw delta is arithmetic a reader can check by
+subtracting two table entries; the oriented improvement is what summary
+sentences are built from, so "the mean improvement is positive" never has to
+be read alongside "except for the four lower-is-better metrics, where it is
+the other way round".
+
+### What gets reported
+
+Per architecture and metric: all five seed values, their mean, their **sample
+standard deviation (ddof = 1)**, min and max. The five values are printed
+beside the summary because at n=5 the list is the more honest report - a mean
+and a standard deviation hide whether the spread came from one outlying run
+or four evenly scattered ones.
+
+Paired, per metric: all five raw deltas, all five oriented improvements, the
+mean and standard deviation of each, and how many of the five seeds favour
+each architecture, with ties counted separately.
+
+Forbidden, and refused in code: choosing the best seed, averaging or
+ensembling checkpoints, discarding outliers, weighting seeds unequally,
+ranking seeds, building a composite score, or reporting only the favourable
+seeds.
+
+### The words the result is allowed to use
+
+No p-values, no significance claims, no confidence intervals. At n=5 those
+would add ceremony rather than evidence.
+
+One metric may be called **"directionally consistent across training seeds"**
+only when *both* hold: the mean oriented improvement points that way, **and**
+at least **4 of 5** seeds favour that architecture. A 5/5 result may be
+stated as "all five seeds favoured ...". **A 3/2 split is never called
+consistent**, and there is deliberately no permitted phrase for it - the
+split has to be described.
+
+An overall statement that one architecture is directionally better requires
+**all eight metrics** to pass that rule. Otherwise the pattern is reported
+metric by metric. No architecture is called "generally better" on the
+strength of one metric, and the four headline quality figures do not override
+contradictory MAE/MSE evidence.
+
+### Checkpoint selection stays per run
+
+Each of the ten runs trains 30 epochs and independently selects the epoch
+with the lowest patient-weighted validation full-frame MAE, ties to the
+earlier epoch, epoch 0 never eligible. No common epoch across seeds, no seed
+chosen by its validation score, no architecture chosen by its best seed.
+
+### Hold-out
+
+Validation only. Test and stress stay sealed, and the plan records
+`test_allowed: false` and `stress_allowed: false` - the summarizer refuses a
+plan that says otherwise.
 
 ### What a shared seed number will and will not mean
 

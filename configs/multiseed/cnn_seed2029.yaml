@@ -1,0 +1,84 @@
+# Milestone 8: the small residual CNN, as a development experiment.
+#
+# FROZEN BEFORE THE FIRST REAL-DATA TRAINING RUN. Every value below was fixed
+# before any training loss or validation number had been seen, and none of it
+# was adjusted afterwards. That matters more than whether the result is good:
+# a hyperparameter chosen after looking at validation is a hyperparameter
+# fitted to validation, and the honest development estimate is spent.
+#
+# There is exactly ONE canonical Milestone 8 configuration. No learning-rate
+# grid, no depth grid, no channel grid, no loss comparison, no batch-size
+# sweep, no optimizer comparison, no epoch-budget comparison. A first CNN that
+# turns out mediocre is still an experiment; the answer to a disappointing
+# result is a separately declared later experiment, not a quiet edit here.
+#
+# This is a SINGLE-SEED DEVELOPMENT RESULT. One seed cannot establish that the
+# architecture is stable, only that this particular run did what it did.
+# Multi-seed work is deliberately a later milestone.
+#
+# The eventual reproducibility claim is scoped: same repository, same config,
+# same environment, same hardware and same seed reproduce the run. Bitwise
+# identity across different GPUs or driver versions is NOT claimed.
+
+model:
+  algorithm: residual_cnn_v1
+  input_channels: 1
+  output_channels: 1
+  hidden_channels: 32
+  depth: 5 # five 3x3 convolutions -> an 11x11 receptive field
+  kernel_size: 3
+  padding: 1 # preserves 256x256 at every layer
+  activation: relu
+  batch_norm: false
+  dropout: 0.0
+
+  # The network predicts a correction, not the image:
+  #   restored_raw = degraded + CNN(degraded)
+  # The identity is then reachable by outputting zero, which is a far easier
+  # starting point than reconstructing every pixel of the anatomy.
+  residual_correction: true
+
+  # With the final convolution zeroed, the correction is exactly 0 at
+  # initialization, so the untrained network IS the no-restoration baseline.
+  zero_initialize_final_layer: true
+
+training:
+  seed: 2029
+  epochs: 30
+  batch_size: 32
+  loss: l1
+  optimizer: adam
+  learning_rate: 0.001
+  betas: [0.9, 0.999]
+  eps: 1.0e-8
+  weight_decay: 0.0
+  scheduler: none
+  gradient_clipping: none
+  mixed_precision: false
+  augmentation: none
+
+data:
+  sampler: patient_balanced_v1
+  train_split: train
+  validation_split: validation
+  num_workers: 2
+  drop_last: false
+
+# ONE predeclared criterion. Not a scan across PSNR, SSIM, body and full:
+# picking the checkpoint on whichever metric happens to look best is the same
+# error as picking the metric after seeing the table.
+#
+# It is deliberately aligned with the L1 training objective and deliberately
+# patient-weighted, which is the project's unit of analysis everywhere else.
+checkpoint_selection:
+  split: validation
+  primary_metric: patient_weighted_full_mae
+  direction: minimize
+  tie_breaker: earlier_epoch
+  epoch_zero_eligible: false # epoch 0 is the identity sanity check, not a model
+
+evaluation:
+  # Training loss is computed on the raw sum, so gradients still exist outside
+  # [0,1]; the benchmark output is clamped, because every other method in this
+  # benchmark produces an image in [0,1].
+  inference_output: clamp_0_1

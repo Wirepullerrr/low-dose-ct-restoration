@@ -1,0 +1,297 @@
+# Milestone 10 - multi-seed stability, pre-registered experiment definition
+#
+# FROZEN BEFORE ANY NEW TRAINING RUN EXISTS.
+#
+# This file is the whole Milestone 10 experiment: which seeds, which methods,
+# which config drives each run, how the results will be aggregated, and what
+# language the conclusion may use. It was written before a single new gradient
+# step, and nothing in it may be edited once results exist.
+#
+# WHAT THIS MILESTONE IS TESTING
+# ------------------------------
+# Milestone 9 measured one CNN run against one U-Net run and found the U-Net
+# ahead by +0.20 dB full-frame PSNR. With one seed each, that gap could not be
+# separated from ordinary run-to-run variation, because the run-to-run spread
+# of either architecture was unmeasured.
+#
+# Milestone 10 measures that spread: five training seeds per architecture,
+# with everything else held fixed, so the architecture difference can be read
+# against the variation of the thing it is being compared through.
+#
+# It is not assumed that the U-Net will win, or that it will win consistently.
+# A result where the seeds disagree is a result, and the reporting rules below
+# were fixed in advance precisely so that outcome cannot be quietly reframed.
+#
+# WHAT FIVE SEEDS ARE AND ARE NOT
+# -------------------------------
+# Five seeds are five repetitions of the same training procedure under
+# different training randomness. They are NOT five patients, not a sample from
+# any population, and not an independent replication of the data. Every seed
+# reuses the same 25 training patients, the same 6 validation patients and the
+# same frozen per-slice degradation. The only thing that varies is training
+# randomness: weight initialization and patient-balanced sampler ordering.
+#
+# So the spread measured here is the spread of the training procedure on this
+# fixed data. It says nothing about variation across patients, scanners or
+# institutions.
+
+milestone: 10
+milestone_stage: 10A - design frozen, execution pending
+frozen_before_any_new_training_run: true
+
+# ---------------------------------------------------------------------------
+# The seed set. Part of the experiment definition, not a runtime choice.
+# ---------------------------------------------------------------------------
+#
+# No seed may be added later because a result looks unusual, and no seed may
+# be dropped because a result looks poor. Either would turn the reported
+# spread into a spread of the seeds that survived inspection.
+statistical_seeds:
+  - 2026
+  - 2027
+  - 2028
+  - 2029
+  - 2030
+
+methods:
+  - cnn
+  - unet
+
+# Seed 2026 already exists: the Milestone 8 CNN and the Milestone 9 U-Net.
+# Both are reused exactly as committed. Retraining them would replace two
+# reviewed, published results with new ones for no scientific reason.
+canonical_existing_seed: 2026
+retrain_seed_2026: false
+
+new_training_seeds:
+  - 2027
+  - 2028
+  - 2029
+  - 2030
+
+# 2 methods x 4 new seeds. The other two runs of the ten already exist.
+new_training_runs: 8
+total_runs: 10
+
+# ---------------------------------------------------------------------------
+# Hold-out
+# ---------------------------------------------------------------------------
+development_split: validation
+test_allowed: false
+stress_allowed: false
+
+# ---------------------------------------------------------------------------
+# What must NOT vary across seeds
+# ---------------------------------------------------------------------------
+#
+# The experimental factor in this milestone is training randomness. If the
+# corruption also varied by seed, a difference between seeds could be either
+# one, and the design could not tell them apart.
+degradation_policy:
+  frozen_across_all_training_seeds: true
+  config: configs/degradation.yaml
+  per_training_seed_degradation_seed: false
+  stochastic_by_epoch: false
+  note: >-
+    The degradation seed lives in its own config and never reaches the
+    training path. The Dataset constructor takes no seed argument at all, so
+    every seed of every architecture sees pixel-identical degraded images for
+    the same sample key.
+
+frozen_across_all_seeds:
+  - architecture
+  - epochs
+  - batch_size
+  - loss
+  - optimizer
+  - learning_rate
+  - betas
+  - eps
+  - weight_decay
+  - scheduler
+  - gradient_clipping
+  - mixed_precision
+  - augmentation
+  - sampler
+  - train_split
+  - validation_split
+  - checkpoint_selection_rule
+  - evaluation_metrics
+  - degradation
+
+# ---------------------------------------------------------------------------
+# Checkpoint selection - per run, never across runs
+# ---------------------------------------------------------------------------
+checkpoint_selection:
+  independently_per_method_per_seed: true
+  metric: patient_weighted_full_mae
+  direction: minimize
+  epoch_zero_eligible: false
+  tie_breaker: earlier_epoch
+  epochs_trained: 30
+  select_common_epoch_across_seeds: false
+  select_seed_by_validation_score: false
+  select_architecture_by_best_seed: false
+  select_by_psnr_or_ssim: false
+  seed_2026_retains_existing_checkpoint: true
+
+# ---------------------------------------------------------------------------
+# The unit of analysis
+# ---------------------------------------------------------------------------
+#
+# Each run first collapses slice -> patient -> equal-weight patient mean,
+# exactly as Milestones 5-9 already do. Only then are seeds compared. The
+# 6 patients and the 5 seeds are never pooled into 30 observations: the six
+# patient values within one run are not independent repetitions of the
+# training procedure, and the five seed values are not independent patients.
+seed_level_analysis:
+  unit: statistical_training_seed
+  n_seeds_per_architecture: 5
+  patient_aggregation_first: true
+  pool_patients_and_seeds: false
+  paired_architecture_comparison: true
+  raw_delta_definition: unet_minus_cnn
+  sample_std_ddof: 1
+  significance_testing: false
+  confidence_intervals: false
+  best_seed_selection: false
+  seed_exclusion_after_results: false
+  checkpoint_averaging: false
+  seed_ensembling: false
+  outlier_discarding: false
+  seed_weighting: equal
+  composite_score: false
+  seed_ranking: false
+
+# The eight metrics are all mandatory. The four headline quality figures are
+# reported first because the project has emphasised them since Milestone 5,
+# but they do not override contradictory MAE/MSE evidence.
+metrics:
+  - full_mae
+  - full_mse
+  - full_psnr
+  - full_ssim
+  - body_mae
+  - body_mse
+  - body_psnr
+  - body_ssim
+
+headline_metrics:
+  - full_psnr
+  - full_ssim
+  - body_psnr
+  - body_ssim
+
+# ---------------------------------------------------------------------------
+# Interpretation language, fixed before the results exist
+# ---------------------------------------------------------------------------
+interpretation_rules:
+  p_values: false
+  significance_claims: false
+  per_metric_directionally_consistent:
+    requires_mean_oriented_improvement_same_direction: true
+    requires_minimum_seeds_favouring: 4
+    of_seeds: 5
+    phrase: directionally consistent across training seeds
+  all_five_phrase: all five seeds favoured
+  forbidden_phrases_at_three_of_five:
+    - consistent
+    - consistently better
+  overall_directional_claim:
+    requires_all_metrics: 8
+    requires_mean_oriented_improvement_positive: true
+    requires_minimum_seeds_favouring: 4
+    otherwise: report the pattern metric by metric
+  generally_better_from_one_metric: false
+
+# ---------------------------------------------------------------------------
+# What a shared seed number means
+# ---------------------------------------------------------------------------
+seed_pair_semantics:
+  means:
+    - same statistical-seed label
+    - same patient-balanced sampler ordering
+    - deterministic initialization inside each architecture
+  does_not_mean:
+    - identical initial weights
+    - parameter-by-parameter matched random draws
+    - identical tensors across architectures
+  note: >-
+    The two architectures have different shapes and consume the RNG stream
+    differently. The paired seed comparison is useful because the data and
+    sampler randomness are aligned, not because the model initializations are
+    numerically matched.
+
+# ---------------------------------------------------------------------------
+# (method, seed) -> config path -> config SHA-256
+# ---------------------------------------------------------------------------
+#
+# Every run is pinned to the exact bytes of the config that defines it. The
+# evaluation provenance gate re-hashes the file and refuses to score a
+# checkpoint whose recorded hash no longer matches, so an edited config
+# invalidates its run rather than silently redefining it.
+#
+# Seed 2026 points at the canonical Milestone 8 and 9 configs, unchanged.
+runs:
+  cnn:
+    2026:
+      config: configs/cnn.yaml
+      sha256: ac4bf06c3957b79990d3721d81bc7596c308042a12105d50e08226be0473bb08
+      status: existing - Milestone 8 canonical run
+    2027:
+      config: configs/multiseed/cnn_seed2027.yaml
+      sha256: 80a2835bddb15f32a821745dc521874960c11685a010c78c2267255c9358d891
+      status: planned
+    2028:
+      config: configs/multiseed/cnn_seed2028.yaml
+      sha256: 2080fe230c0a6c1d52a0727e3802e4f4c72a350e11de9ad39d297b898152de3d
+      status: planned
+    2029:
+      config: configs/multiseed/cnn_seed2029.yaml
+      sha256: a295ad4d83b81be7e1e193375f3727aaee41244fdd4050b0bb73c304c8abec85
+      status: planned
+    2030:
+      config: configs/multiseed/cnn_seed2030.yaml
+      sha256: 05faaae5d9d0500d298bcfe2f0c7f347444138e8488d53280cf7038a9dce76f4
+      status: planned
+  unet:
+    2026:
+      config: configs/unet.yaml
+      sha256: 8baba29199c516ac4309dc432eeae6c91a36f0d553d567cc8268aae29066ac3a
+      status: existing - Milestone 9 canonical run
+    2027:
+      config: configs/multiseed/unet_seed2027.yaml
+      sha256: cbabc1e8993fa418b92c7673c6545b425695d6270c728badc42c0ad6d2fe8056
+      status: planned
+    2028:
+      config: configs/multiseed/unet_seed2028.yaml
+      sha256: ff255765efc589bcece4b080b64fc7320273dd26b3e19799eb932ec90a2ae8a2
+      status: planned
+    2029:
+      config: configs/multiseed/unet_seed2029.yaml
+      sha256: a58649cdde9d9155bd375537171b4506f50ca2392d606bbfa028c9ab9acfe610
+      status: planned
+    2030:
+      config: configs/multiseed/unet_seed2030.yaml
+      sha256: 906ee3ac5e95bff221d979e9c4734a70aed2329bb0326968401428a113849f41
+      status: planned
+
+# ---------------------------------------------------------------------------
+# Planned outputs. None of these exists yet.
+# ---------------------------------------------------------------------------
+planned_outputs:
+  primary:
+    - outputs/metrics/multiseed/seed_level_metrics.csv
+    - outputs/metrics/multiseed/paired_seed_deltas.csv
+    - outputs/metrics/multiseed/multiseed_summary.json
+  secondary_descriptive_only:
+    - outputs/metrics/multiseed/patient_seed_deltas.csv
+  secondary_note: >-
+    If the per-patient file is produced it is descriptive material only. Its
+    6 patients x 5 seeds are not 30 independent observations; the seed-level
+    paired analysis remains the primary evidence about training-randomness
+    stability.
+
+per_seed_metric_directory: outputs/metrics/multiseed/seed{seed}
+per_seed_run_directory: outputs/runs/{method}_seed{seed}
+per_seed_checkpoint: outputs/checkpoints/{method}_seed{seed}_best.pt
