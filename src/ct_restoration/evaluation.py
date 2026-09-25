@@ -51,6 +51,15 @@ Hold-out discipline
 :func:`require_development_split` is the gate: test and stress are not
 reachable from the development commands at all.
 
+Two further layers since Milestone 11A. :func:`require_rows_split_access`
+repeats the gate at the point pixels are read, on the ``split`` label every
+manifest row carries, so a function handed test rows directly - rather than
+through a split-name gate - refuses before opening a file, and a row with no
+label is refused rather than assumed to be development data. And
+:class:`HoldoutAccess` is the only way through to the test split: it is issued
+by the frozen Milestone 11 protocol's preflight in :mod:`ct_restoration.holdout`
+and by nothing else. Stress is never opened, with or without it.
+
 Stated precisely, because the honest claim is narrower than "never read".
 Before the patient split was frozen, the Milestone 2 cohort audit
 characterized all 40 subjects, which was dataset-level technical QC rather
@@ -270,6 +279,109 @@ def require_development_split(split: str) -> str:
             f"Unknown split {split!r}; this command accepts {list(DEVELOPMENT_SPLITS)}"
         )
     return split
+
+
+#: The one sealed split a :class:`HoldoutAccess` can open. Stress is never
+#: opened: no protocol for it exists.
+HOLDOUT_SPLIT = "test"
+
+#: Held by this module and passed only by :func:`_issue_holdout_access`.
+_HOLDOUT_ISSUER = object()
+
+
+class HoldoutAccess:
+    """Permission to read image content from the held-out test split, only.
+
+    Issued by :func:`ct_restoration.holdout.run_preflight` after every check of
+    the frozen Milestone 11 protocol has passed - clean tree, split and
+    manifest hashes, every config and checkpoint hash, absent output
+    destinations - and by nothing else. No development command asks for one.
+
+    Not unforgeable; nothing in Python is. What it prevents is the accident:
+    the constructor refuses any caller without the issuer token, so test
+    image content cannot be reached by passing a split name to a development
+    helper, only by going through the protocol that records that it did.
+    """
+
+    __slots__ = ("commit", "plan_sha256")
+
+    def __init__(self, plan_sha256: str, commit: str, *, issuer: object = None) -> None:
+        if issuer is not _HOLDOUT_ISSUER:
+            raise HeldOutSplitError(
+                "A HoldoutAccess is issued only by the frozen Milestone 11 protocol's "
+                "preflight (ct_restoration.holdout.run_preflight), after every one of its "
+                "checks has passed. It cannot be constructed directly."
+            )
+        self.plan_sha256 = str(plan_sha256)
+        self.commit = str(commit)
+
+    def __repr__(self) -> str:
+        return f"HoldoutAccess(plan_sha256={self.plan_sha256[:12]}..., commit={self.commit[:12]})"
+
+
+def _issue_holdout_access(plan_sha256: str, commit: str) -> HoldoutAccess:
+    """For :mod:`ct_restoration.holdout` only, once its preflight has passed."""
+    return HoldoutAccess(plan_sha256, commit, issuer=_HOLDOUT_ISSUER)
+
+
+def require_split_access(split: str, access: HoldoutAccess | None = None) -> str:
+    """The split gate, with the one authorized route to the test split.
+
+    Without ``access`` this is exactly :func:`require_development_split`. With
+    one, it opens the test split and nothing else: not stress, which no
+    protocol authorizes, and not a development split either, because the
+    held-out protocol reads test only and a development row inside a test run
+    would be a mistake to refuse rather than to score.
+
+    Raises:
+        HeldOutSplitError: the split is not open to this caller.
+        EvaluationError: the split is not a partition of this benchmark.
+    """
+    if access is None:
+        return require_development_split(split)
+    if not isinstance(access, HoldoutAccess):
+        raise HeldOutSplitError(
+            f"access must be a HoldoutAccess issued by the Milestone 11 protocol, got "
+            f"{type(access).__name__}"
+        )
+    if split == HOLDOUT_SPLIT:
+        return split
+    if split in SEALED_SPLITS:
+        raise HeldOutSplitError(
+            f"Refusing to read image content from the {split!r} split. It stays sealed: the "
+            "Milestone 11 protocol authorizes the test split only, and no protocol for "
+            f"{split!r} exists."
+        )
+    raise HeldOutSplitError(
+        f"A HoldoutAccess opens the {HOLDOUT_SPLIT!r} split only, not {split!r}. "
+        "Development splits are read by the development commands, without one."
+    )
+
+
+def require_rows_split_access(rows: pd.DataFrame, access: HoldoutAccess | None = None) -> None:
+    """Fail-closed split gate at the point image content is read.
+
+    The split-name gates above guard the functions that *select* rows. This
+    one guards the functions that *read pixels*, on the ``split`` label every
+    manifest row carries, so rows that reached a reader by any other route -
+    filtered by hand, concatenated, copied from a test table - are refused
+    before a file is opened.
+
+    A row without a ``split`` label is refused rather than assumed to be
+    development data: the one assumption this gate exists not to make.
+
+    Raises:
+        HeldOutSplitError: a row is not open to this caller, or carries no label.
+        EvaluationError: a row names a split that is not a partition.
+    """
+    if "split" not in rows.columns:
+        raise HeldOutSplitError(
+            "These rows carry no 'split' column, so which partition their images belong "
+            "to cannot be established. Refusing to read them rather than assuming they are "
+            "development data; pass manifest rows, which keep their split label."
+        )
+    for label in sorted(set(rows["split"].astype(str))):
+        require_split_access(label, access)
 
 
 def body_mask_from_hu(

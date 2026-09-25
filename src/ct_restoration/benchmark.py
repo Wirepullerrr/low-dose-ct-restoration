@@ -41,8 +41,10 @@ from ct_restoration.data.degradation import DegradationConfig, degrade_low_dose_
 from ct_restoration.evaluation import (
     METRIC_COLUMNS,
     EvaluationConfig,
+    HoldoutAccess,
     prepare_evaluation_slice,
-    require_development_split,
+    require_rows_split_access,
+    require_split_access,
 )
 from ct_restoration.metrics import slice_metrics
 
@@ -110,18 +112,25 @@ def write_json(payload: dict[str, Any], path: Path) -> Path:
     return path
 
 
-def manifest_rows(manifest_path: Path, split: str) -> pd.DataFrame:
+def manifest_rows(
+    manifest_path: Path, split: str, access: HoldoutAccess | None = None
+) -> pd.DataFrame:
     """Rows of one development split, sorted deterministically.
 
     The sort - numeric subject, then geometric slice index - is what makes two
     methods' per-slice tables line up row for row, so a paired comparison can
     be audited by reading the two files side by side.
 
+    ``access`` is for the Milestone 11 held-out protocol alone: with a
+    :class:`~ct_restoration.evaluation.HoldoutAccess` it returns the test rows,
+    in the same order, and nothing else. Every development command calls this
+    without one, which is exactly the Milestone 5-10 behaviour.
+
     Raises:
-        HeldOutSplitError: the split is sealed.
+        HeldOutSplitError: the split is sealed to this caller.
         ValueError: the manifest holds no rows for that split.
     """
-    require_development_split(split)
+    require_split_access(split, access)
     manifest = pd.read_csv(manifest_path, dtype={"subject_id": str})
     rows = manifest[manifest["split"] == split].copy()
     if rows.empty:
@@ -149,7 +158,13 @@ def evaluate_slices(
         evaluation: the frozen Milestone 5 policy.
         degradation: the frozen Milestone 4 corruption.
         restore: the method under test. Defaults to no restoration.
+
+    Raises:
+        HeldOutSplitError: any row is labelled test or stress, or carries no
+            split label. This loop is for development splits only, however
+            the rows reached it; the held-out protocol has its own.
     """
+    require_rows_split_access(rows)
     records: list[dict[str, Any]] = []
     for position, row in enumerate(rows.itertuples(), start=1):
         key = row.relative_dicom_path

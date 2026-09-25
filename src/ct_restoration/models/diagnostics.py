@@ -30,7 +30,11 @@ import pandas as pd
 import torch
 
 from ct_restoration.data.degradation import DegradationConfig, degrade_low_dose_like
-from ct_restoration.evaluation import EvaluationConfig, prepare_evaluation_slice
+from ct_restoration.evaluation import (
+    EvaluationConfig,
+    prepare_evaluation_slice,
+    require_rows_split_access,
+)
 from ct_restoration.models.adapter import raw_restore_array, restore_array
 
 #: Quantiles reported for the per-slice diagnostics.
@@ -97,7 +101,11 @@ def raw_output_diagnostics(
     Descriptive only. None of this becomes an objective: the point is to know
     whether clamping is a rare safety boundary or a structural part of the
     method, which changes how the reported metrics should be read.
+
+    Development splits only: rows labelled test or stress, or unlabelled, are
+    refused before any image is read.
     """
+    require_rows_split_access(rows)
     pixels = 0
     below = above = clamp_changed = 0
     predicted_sum = 0.0

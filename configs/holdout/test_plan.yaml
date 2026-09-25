@@ -1,0 +1,503 @@
+# Milestone 11 - the one-shot held-out test protocol
+#
+# FROZEN BEFORE ANY HELD-OUT TEST IMAGE IS READ.
+#
+# This file is the whole final measurement: which patients, which methods,
+# which ten learned checkpoints, which metrics, how they are aggregated, how
+# the methods are compared, what a conclusion may say, and what happens if
+# anything goes wrong. It was written and committed before the test split was
+# opened, and nothing in it may change afterwards.
+#
+# scripts/run_holdout_test.py executes it, once. src/ct_restoration/holdout.py
+# refuses to run unless this file agrees with that module's frozen constants,
+# with the committed split and manifest, with every tracked Milestone 5-10
+# artifact cited below, and with the bytes of every checkpoint.
+#
+# WHAT THE TEST RESULT IS
+# -----------------------
+# A measurement of decisions already made, on six patients no development
+# step has read since the split was frozen. It is not a new model-selection
+# round. A disappointing result is the project's result: it triggers no
+# retraining, no new seed, no changed checkpoint and no changed parameter.
+#
+# WHAT IT IS NOT
+# --------------
+# Six held-out CHAOS patients under a SYNTHETIC low-dose-like image-domain
+# degradation. Not real low-dose CT, not a dose-reduction figure, not a
+# clinical evaluation, and not evidence about other scanners or institutions.
+# No significance test and no confidence interval is computed.
+
+milestone: 11
+stage: protocol_frozen_execution_pending
+protocol_version: m11_holdout_test_v1
+
+# The Milestone 10 commit: every method decision was final there. The code
+# that executes this plan is recorded separately, at execution, in the
+# receipt, and must descend from this commit with a clean working tree.
+development_frozen_commit: f1fc6dd6714e8e818d27b9c4e52dc3aadbd4318e
+frozen_before_any_test_image_is_read: true
+
+# ---------------------------------------------------------------------------
+# The held-out test cohort, taken from committed metadata only
+# ---------------------------------------------------------------------------
+split: test
+expected_subjects: ["11", "13", "19", "25", "29", "32"]
+expected_patients: 6
+expected_slices: 941
+expected_slices_by_subject:
+  "11": 83
+  "13": 89
+  "19": 90
+  "25": 235
+  "29": 214
+  "32": 230
+
+# Stress stays sealed. It is not part of this milestone and cannot influence
+# any test conclusion; the runner refuses to open a single stress file.
+stress_subjects_sealed: ["1", "6", "39"]
+
+data_root: data/raw/chaos
+split_file:
+  path: data/splits/chaos_patient_split.csv
+  sha256: 4a11d080c80e4096c052436751ba948eb450539e5f83470b5ab2cf49722b3866
+manifest_file:
+  path: data/splits/chaos_slice_manifest.csv
+  sha256: 4e5c69af38b0f919782e10749fc72108af79bbef8a29af7731c20187de4f1ba8
+multiseed_plan:
+  path: configs/multiseed/plan.yaml
+  sha256: 199e4dd55fd9747b7c868e4adc2c84025decdd3d4db13c12693808a452107b26
+
+# ---------------------------------------------------------------------------
+# What is forbidden. Each must be the boolean false.
+# ---------------------------------------------------------------------------
+stress_allowed: false
+visual_inspection_allowed: false
+image_outputs_allowed: false
+retraining_allowed: false
+fine_tuning_allowed: false
+hyperparameter_change_allowed: false
+checkpoint_selection_after_test: false
+best_seed: false
+representative_seed: false
+checkpoint_averaging: false
+model_ensembling: false
+calibration_on_test: false
+per_patient_method_selection: false
+overwrite_allowed: false
+automatic_retry_allowed: false
+significance_testing: false
+confidence_intervals: false
+p_values: false
+composite_score: false
+seed_ranking: false
+seed_exclusion: false
+
+# ---------------------------------------------------------------------------
+# Methods entering test: exactly these four
+# ---------------------------------------------------------------------------
+methods:
+  - degraded
+  - clahe
+  - cnn
+  - unet
+
+# The learned checkpoints are evaluated on the device their validation
+# numbers were measured on. The runner refuses if CUDA is unavailable rather
+# than silently falling back to CPU.
+device: cuda
+
+# ---------------------------------------------------------------------------
+# The Milestone 1-6 definitions, unchanged
+# ---------------------------------------------------------------------------
+#
+# sha256_lf is the SHA-256 of the file with CRLF read as LF. These four
+# configs are not line-ending pinned in .gitattributes, so their bytes differ
+# between checkouts while their content does not. The parsed settings below
+# must equal both the file and the policy each tracked validation summary
+# records it was measured under.
+frozen_policies:
+  preprocessing:
+    config: configs/baseline.yaml
+    sha256_lf: e69e6ae64506f6d45e92bf3a10119a834d04ae30e6f710d9380fa45ae0939cd5
+    settings:
+      window_center: 40
+      window_width: 400
+      image_size: [256, 256]
+      interpolation: area
+  degradation:
+    config: configs/degradation.yaml
+    sha256_lf: 1b2dccb9cfd84f797ef554687493431aba6cae36389c8c212fbc216e7977e98d
+    settings:
+      algorithm: correlated_heteroscedastic_gaussian_v1
+      global_seed: 2026
+      sigma_floor: 0.015
+      sigma_signal: 0.035
+      correlation_sigma_px: 0.6
+      clip_min: 0.0
+      clip_max: 1.0
+    # One realization per test slice, generated once and handed to every
+    # method. The degradation seed never depends on a training seed.
+    one_realization_per_slice_shared_by_every_method: true
+    depends_on_training_seed: false
+  evaluation:
+    config: configs/evaluation.yaml
+    sha256_lf: 84a227625d5ccaa187b7207e17a7131226d6669316472ca44aec0f269f3f313c
+    settings:
+      data_range: 1.0
+      ssim:
+        win_size: 11
+        gaussian_weights: true
+        sigma: 1.5
+        use_sample_covariance: false
+        data_range: 1.0
+      body_mask:
+        threshold_hu: -500.0
+        connectivity: 8
+        keep_largest_component: true
+        fill_holes: true
+        resize_interpolation: nearest
+      aggregation:
+        slice_to_patient: arithmetic_mean
+        patient_to_split: arithmetic_mean
+        primary_unit: patient
+  clahe:
+    config: configs/clahe.yaml
+    sha256_lf: 491573a15c476b30b7789244cf6c6d4de0d429cdb3d7c08860042d6b5cd3737f
+    # Selected on validation in Milestone 6. Not retuned on test.
+    settings:
+      algorithm: opencv_clahe_v1
+      input_quantization_bits: 8
+      clip_limit: 0.5
+      tile_grid_size: [4, 4]
+    retuning_allowed: false
+
+# ---------------------------------------------------------------------------
+# The ten learned checkpoints: every one enters test, exactly once
+# ---------------------------------------------------------------------------
+#
+# The EXISTING checkpoint binaries, re-hashed before this plan was written and
+# found identical to the SHA-256 in each tracked run summary. Each was chosen
+# by its own run's predeclared validation rule; none is chosen here. No best
+# seed, no representative seed, no averaging, no ensembling. No checkpoint may
+# be replaced after this freeze.
+statistical_seeds: [2026, 2027, 2028, 2029, 2030]
+learned_checkpoints:
+  cnn:
+    2026:
+      config: configs/cnn.yaml
+      config_sha256: ac4bf06c3957b79990d3721d81bc7596c308042a12105d50e08226be0473bb08
+      checkpoint: outputs/checkpoints/cnn_seed2026_best.pt
+      checkpoint_sha256: fe3cdc42c72dea163fd9b603023da76e64ebb9433f451744b4430b81291838fb
+      run_summary: outputs/runs/cnn_seed2026/run_summary.json
+      training_history: outputs/runs/cnn_seed2026/training_history.csv
+      selected_epoch: 29
+    2027:
+      config: configs/multiseed/cnn_seed2027.yaml
+      config_sha256: 80a2835bddb15f32a821745dc521874960c11685a010c78c2267255c9358d891
+      checkpoint: outputs/checkpoints/cnn_seed2027_best.pt
+      checkpoint_sha256: 3da511b736e8db60cc6253a505a88200a81e41abeac24f3955a782cda08d704a
+      run_summary: outputs/runs/cnn_seed2027/run_summary.json
+      training_history: outputs/runs/cnn_seed2027/training_history.csv
+      selected_epoch: 29
+    2028:
+      config: configs/multiseed/cnn_seed2028.yaml
+      config_sha256: 2080fe230c0a6c1d52a0727e3802e4f4c72a350e11de9ad39d297b898152de3d
+      checkpoint: outputs/checkpoints/cnn_seed2028_best.pt
+      checkpoint_sha256: 531ad67dbbd2afb6ac0e063db59e847496e8f6023ec97391882fdd0f97898183
+      run_summary: outputs/runs/cnn_seed2028/run_summary.json
+      training_history: outputs/runs/cnn_seed2028/training_history.csv
+      selected_epoch: 29
+    2029:
+      config: configs/multiseed/cnn_seed2029.yaml
+      config_sha256: a295ad4d83b81be7e1e193375f3727aaee41244fdd4050b0bb73c304c8abec85
+      checkpoint: outputs/checkpoints/cnn_seed2029_best.pt
+      checkpoint_sha256: abc24d93ba6963b6e304bb09e1f349f24d1de6056b8bb8b20a1781ac5a2d94a7
+      run_summary: outputs/runs/cnn_seed2029/run_summary.json
+      training_history: outputs/runs/cnn_seed2029/training_history.csv
+      selected_epoch: 30
+    2030:
+      config: configs/multiseed/cnn_seed2030.yaml
+      config_sha256: 05faaae5d9d0500d298bcfe2f0c7f347444138e8488d53280cf7038a9dce76f4
+      checkpoint: outputs/checkpoints/cnn_seed2030_best.pt
+      checkpoint_sha256: 503c63cac31126f59f18ba2d6d3f222b85664d310fd860da0233b9dccf6be30d
+      run_summary: outputs/runs/cnn_seed2030/run_summary.json
+      training_history: outputs/runs/cnn_seed2030/training_history.csv
+      selected_epoch: 28
+  unet:
+    2026:
+      config: configs/unet.yaml
+      config_sha256: 8baba29199c516ac4309dc432eeae6c91a36f0d553d567cc8268aae29066ac3a
+      checkpoint: outputs/checkpoints/unet_seed2026_best.pt
+      checkpoint_sha256: 15e430f83ade635ccfc516b6db1bc04359d59dbd61ef19009abf90976df2a3a1
+      run_summary: outputs/runs/unet_seed2026/run_summary.json
+      training_history: outputs/runs/unet_seed2026/training_history.csv
+      selected_epoch: 29
+    2027:
+      config: configs/multiseed/unet_seed2027.yaml
+      config_sha256: cbabc1e8993fa418b92c7673c6545b425695d6270c728badc42c0ad6d2fe8056
+      checkpoint: outputs/checkpoints/unet_seed2027_best.pt
+      checkpoint_sha256: c1f05aeadf2ee81bf7b5e206acb85f22be9c3e295fe806169ec52d801b42ae8a
+      run_summary: outputs/runs/unet_seed2027/run_summary.json
+      training_history: outputs/runs/unet_seed2027/training_history.csv
+      selected_epoch: 30
+    2028:
+      config: configs/multiseed/unet_seed2028.yaml
+      config_sha256: ff255765efc589bcece4b080b64fc7320273dd26b3e19799eb932ec90a2ae8a2
+      checkpoint: outputs/checkpoints/unet_seed2028_best.pt
+      checkpoint_sha256: 0cb67b92e320e3c3ce8ee96851b1f6aa322b5b7f1a4a1014322133f00c4c25fe
+      run_summary: outputs/runs/unet_seed2028/run_summary.json
+      training_history: outputs/runs/unet_seed2028/training_history.csv
+      selected_epoch: 29
+    2029:
+      config: configs/multiseed/unet_seed2029.yaml
+      config_sha256: a58649cdde9d9155bd375537171b4506f50ca2392d606bbfa028c9ab9acfe610
+      checkpoint: outputs/checkpoints/unet_seed2029_best.pt
+      checkpoint_sha256: a15e3ba734034f7f4078344affea4f305d99d38e794b73653229b143e5ca5b3e
+      run_summary: outputs/runs/unet_seed2029/run_summary.json
+      training_history: outputs/runs/unet_seed2029/training_history.csv
+      selected_epoch: 29
+    2030:
+      config: configs/multiseed/unet_seed2030.yaml
+      config_sha256: 906ee3ac5e95bff221d979e9c4734a70aed2329bb0326968401428a113849f41
+      checkpoint: outputs/checkpoints/unet_seed2030_best.pt
+      checkpoint_sha256: 7b83e4c36804541d988f12dac2f4bc97d56cf61b24124196ff7cf644752d6e44
+      run_summary: outputs/runs/unet_seed2030/run_summary.json
+      training_history: outputs/runs/unet_seed2030/training_history.csv
+      selected_epoch: 27
+
+# ---------------------------------------------------------------------------
+# Metrics and aggregation: exactly Milestones 5-10
+# ---------------------------------------------------------------------------
+metrics:
+  - full_mae
+  - full_mse
+  - full_psnr
+  - full_ssim
+  - body_mae
+  - body_mse
+  - body_psnr
+  - body_ssim
+
+# slice -> patient mean -> equal-weight mean over the six patients. The 941
+# slices are not 941 experimental units, and the 6 patients x 5 seeds are
+# never pooled into 30 observations: patient variability and training-seed
+# variability stay separate levels.
+aggregation:
+  slice_to_patient: arithmetic_mean
+  patient_to_split: equal_patient_arithmetic_mean
+  primary_unit: patient
+  slice_weighted_summary: secondary_descriptive_only
+  pool_patients_and_seeds: false
+  seed_summary_statistics: [values, mean, sample_std, min, max]
+  sample_std_ddof: 1
+
+# ---------------------------------------------------------------------------
+# Comparisons
+# ---------------------------------------------------------------------------
+#
+# Oriented improvement: for PSNR and SSIM, candidate - reference; for MAE and
+# MSE, reference - candidate. Positive always means the candidate did better.
+# The raw delta keeps each metric's natural sign so it can be checked by
+# subtraction. The degraded baseline and CLAHE are deterministic, measured
+# once; no seed variability is manufactured for them.
+comparisons:
+  unet_vs_cnn:
+    pairing: same_statistical_seed
+    raw_delta: unet_minus_cnn
+    oriented_improvement: positive_means_unet_better
+  learned_vs_degraded:
+    reference: one_deterministic_degraded_benchmark_shared_by_every_seed
+    raw_delta: learned_minus_degraded
+    oriented_improvement: positive_means_learned_better
+  learned_vs_clahe:
+    reference: one_deterministic_validation_selected_clahe_shared_by_every_seed
+    raw_delta: learned_minus_clahe
+    oriented_improvement: positive_means_learned_better
+  clahe_vs_degraded:
+    raw_delta: clahe_minus_degraded
+    oriented_improvement: positive_means_clahe_better
+    training_seed_variability: not_applicable_deterministic_methods
+  validation_to_test:
+    secondary_descriptive_only: true
+    raw_change: test_minus_validation
+    oriented_change: positive_means_test_numerically_better
+    learned_basis: five_seed_architecture_mean_on_both_splits
+    forbidden_terms:
+      - generalization error estimate
+      - significant degradation
+      - domain shift
+
+# The tracked validation summaries the secondary validation-to-test
+# comparison reads, each pinned. The runner also checks every one records the
+# same evaluation and degradation policy as above, and that each learned
+# summary scored the very checkpoint that enters test.
+validation_reference:
+  degraded:
+    summary: outputs/metrics/degraded_baseline_validation_summary.json
+    sha256_lf: db8f603e96c2a4b4c7863b5031fd3feba4f0fcd65d6735f107a0e0b7fd59deaf
+  clahe:
+    summary: outputs/metrics/clahe_validation_summary.json
+    sha256_lf: 8a868c09eb443a726317836bdb708b9f217553737f0d9b8ec7c21857cb6d761c
+  cnn:
+    2026:
+      summary: outputs/metrics/cnn_validation_summary.json
+      sha256_lf: a61dce7a25fb43a4ae35262a545918073c40e2a0c415cc9c530c7d1e43ded46a
+    2027:
+      summary: outputs/metrics/multiseed/seed2027/cnn_validation_summary.json
+      sha256_lf: ed200a1a77509e80f94619d38627aeecb973d039c6eb9084536db7c5ed127eac
+    2028:
+      summary: outputs/metrics/multiseed/seed2028/cnn_validation_summary.json
+      sha256_lf: de2fdd12e3cf8123e9642e739086360d93307cf3d3d641999d339417a9bf3615
+    2029:
+      summary: outputs/metrics/multiseed/seed2029/cnn_validation_summary.json
+      sha256_lf: 2717bb2520670f8a786c09b5f95683485986502381c7c5a5962435e35624b8ca
+    2030:
+      summary: outputs/metrics/multiseed/seed2030/cnn_validation_summary.json
+      sha256_lf: 0a7e07569ef47693f7d75abb02019c4145d14e9cd34945e3e9e557c64443869c
+  unet:
+    2026:
+      summary: outputs/metrics/unet_validation_summary.json
+      sha256_lf: 7a0142dc7b672efbbf194c457a8e8f768ae84597770dfa58206d73a06a3ea5cb
+    2027:
+      summary: outputs/metrics/multiseed/seed2027/unet_validation_summary.json
+      sha256_lf: 84ed543430383d2d54b99f07d6016958c2f979182989125296ba47e49a3dca8f
+    2028:
+      summary: outputs/metrics/multiseed/seed2028/unet_validation_summary.json
+      sha256_lf: ae57fa14abe757364b8afb779b8fb03dc0aed8652017835a5a40634093620076
+    2029:
+      summary: outputs/metrics/multiseed/seed2029/unet_validation_summary.json
+      sha256_lf: 95280331a30f68d8272df2f8ad3c9cbba2f93236ffed68a40378d036cdb5f57f
+    2030:
+      summary: outputs/metrics/multiseed/seed2030/unet_validation_summary.json
+      sha256_lf: bda84ecf75a66346a8e570aeec4fb5a7223c8e11e633cb735f8661f63c69f93b
+
+# ---------------------------------------------------------------------------
+# What a conclusion may say, fixed before the result exists
+# ---------------------------------------------------------------------------
+interpretation_rules:
+  directionally_consistent:
+    requires_mean_oriented_improvement_same_direction: true
+    requires_minimum_seeds_favouring: 4
+    of_seeds: 5
+    phrase: directionally consistent across training seeds
+  all_five_phrase: all five seeds favoured
+  three_of_five_may_be_called_consistent: false
+  overall_architecture_statement:
+    requires_all_metrics: 8
+    requires_same_architecture_on_every_metric: true
+    otherwise: report the pattern metric by metric
+  causal_claims: false
+  note: >-
+    Descriptive, not causal. The U-Net and the CNN differ in parameter count,
+    receptive field, pooling, decoder and skip connections all at once, so no
+    difference is attributed to any one of them.
+
+claim_rules:
+  requires_computed_from_frozen_test_outputs: true
+  requires_positive_architecture_mean_improvement: true
+  required_context:
+    - held-out
+    - six patients
+    - synthetic low-dose-like degradation
+    - five predeclared training seeds
+  template: >-
+    On six held-out CHAOS patients with synthetic low-dose-like degradation,
+    the <architecture> improved <metric> by X over the degraded input,
+    averaged across five predeclared training seeds.
+  all_five_seeds_phrase: all five seeds improved
+  all_five_seeds_phrase_requires: every one of the five seeds improved that metric over degraded
+  forbidden:
+    - clinically meaningful
+    - real low-dose performance
+    - dose reduction
+    - caused by the U-Net architecture
+    - statistically significant
+    - generalizes to other scanners or institutions
+    - production-ready
+
+# ---------------------------------------------------------------------------
+# Failure, interruption and software bugs
+# ---------------------------------------------------------------------------
+failure_policy:
+  # Nothing a test result shows may change anything. The list is empty.
+  test_result_may_trigger: []
+  on_software_bug: >-
+    Stop. Document the exact bug, whether any held-out result was exposed,
+    whether it affects a scientific decision, and what repair would be
+    needed. Do not decide alone that a rerun is harmless.
+  on_interruption: >-
+    Preserve the staging directory, its log and its failure record. Do not
+    read partial tables for results, delete evidence, or alter code or
+    parameters and retry.
+  silent_patch_and_rerun: false
+  restart_requires_integrity_review: true
+
+# ---------------------------------------------------------------------------
+# Outputs: tables only, assembled in staging, moved into place when complete
+# ---------------------------------------------------------------------------
+outputs:
+  root: outputs/metrics/holdout/test
+  staging: outputs/metrics/holdout/test.incomplete
+  files:
+    - degraded_test_slices.csv
+    - degraded_test_patients.csv
+    - degraded_test_summary.json
+    - clahe_test_slices.csv
+    - clahe_test_patients.csv
+    - clahe_test_summary.json
+    - clahe_vs_degraded_test_patient_deltas.csv
+    - deterministic_methods.csv
+    - seed_level_metrics.csv
+    - paired_seed_deltas.csv
+    - learned_vs_degraded.csv
+    - learned_vs_clahe.csv
+    - validation_to_test.csv
+    - holdout_test_summary.json
+    - opening_record.json
+    - execution_log.txt
+    - execution_receipt.json
+  per_seed_directory: "seed{seed}"
+  per_seed_files:
+    - cnn_test_slices.csv
+    - cnn_test_patients.csv
+    - cnn_test_summary.json
+    - unet_test_slices.csv
+    - unet_test_patients.csv
+    - unet_test_summary.json
+    - cnn_vs_degraded_test_patient_deltas.csv
+    - cnn_vs_clahe_test_patient_deltas.csv
+    - unet_vs_degraded_test_patient_deltas.csv
+    - unet_vs_clahe_test_patient_deltas.csv
+    - unet_vs_cnn_test_patient_deltas.csv
+  # No figure, no image, no array, no model output of any kind.
+  image_outputs: []
+
+execution_receipt:
+  path: outputs/metrics/holdout/test/execution_receipt.json
+  required_fields:
+    - receipt_schema
+    - status
+    - git
+    - test_plan
+    - split_sha256
+    - manifest_sha256
+    - environment
+    - learned_checkpoints
+    - shared_configs
+    - test_subjects
+    - expected_patients
+    - expected_slices
+    - actual_patients
+    - actual_slices
+    - test_opening_started_utc
+    - completed_utc
+    - image_reads
+    - visual_outputs_created
+    - overwrite_occurred
+    - retry_occurred
+    - prior_attempt_detected
+    - outputs
+    - metric_values_in_receipt
+  # The receipt records what ran and what was read. It holds no metric value
+  # and no decision based on one.
+  metric_values: false

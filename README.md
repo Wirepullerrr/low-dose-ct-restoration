@@ -4,9 +4,10 @@ An engineering benchmark comparing classical and lightweight deep-learning
 restoration methods on **synthetically degraded, low-dose-like CT images**
 built from public abdominal CT data.
 
-> **Status: in progress (Milestone 10 of 15 complete - all four methods are
-> measured on validation, and both learned methods are measured across five
-> training seeds).**
+> **Status: in progress (Milestone 10 of 15 complete; the Milestone 11
+> held-out test protocol is frozen, and test execution is pending). All four
+> methods are measured on validation, and both learned methods across five
+> training seeds. No held-out test result exists yet.**
 >
 > **CLAHE scored worse than doing nothing on every metric and every
 > patient.** Both learned methods beat no restoration on all eight reported
@@ -38,6 +39,15 @@ built from public abdominal CT data.
 > 2029, 2030), seed 2026 reused from Milestones 8 and 9 rather than
 > retrained. No seed was added, dropped, rerun or selected, and every run
 > kept the checkpoint its own frozen rule chose.
+>
+> **Milestone 11A froze the one-shot held-out test protocol before a single
+> test image was read.** [configs/holdout/test_plan.yaml](configs/holdout/test_plan.yaml)
+> fixes the six test patients (941 slices), the four methods, the ten learned
+> checkpoints that enter test - all five seeds of each architecture, no best
+> seed - the eight metrics, the patient-weighted aggregation, every
+> comparison and the words a result may use, and
+> [scripts/run_holdout_test.py](scripts/run_holdout_test.py) executes it
+> once. It has not been run. The stress set stays sealed.
 >
 > Every measured number here is a **validation** development result. No test
 > or stress number exists, and no test or stress image content has been read
@@ -75,8 +85,10 @@ targets and identical degraded inputs, through the same frozen metric code,
 using MAE, MSE, PSNR and SSIM. **Inference latency has not been measured for
 any of them**, so the cost half of the research question is still open.
 
-The final comparison will be made on the held-out **test** split, once every
-method decision is frozen. Nothing has been evaluated on test or stress yet:
+The final comparison will be made once, on the held-out **test** split,
+under the protocol frozen in
+[Milestone 11A](#milestone-11a-the-held-out-test-protocol-frozen-before-the-test-split-is-opened).
+Nothing has been evaluated on test or stress yet:
 every figure in this document is a validation number, used to develop and
 sanity-check the measurement and to select among candidates, not a final
 result.
@@ -1396,8 +1408,11 @@ declare it as part of that model.
 The Dataset construction helper accepts **train** and **validation** and
 refuses **test** and **stress** with the same hold-out error the evaluation
 commands use; tests assert the refusal, including before any file is opened.
-PyTorch existing is not a reason to loosen the gate — the final benchmark will
-build its held-out datasets explicitly, in the milestone that runs it.
+PyTorch existing is not a reason to loosen the gate. The held-out protocol
+frozen in Milestone 11A does not use the Dataset at all: it reads test slices
+through its own gated scoring loop. Since Milestone 11A the Dataset
+constructor also checks the split label of every row it is given, and refuses
+test, stress and unlabelled rows however they reached it.
 
 `scripts/audit_dataset.py` has no `--split` option. It opened all 4160
 training and 885 validation slices and wrote
@@ -2507,7 +2522,7 @@ runs; they are not a claim that either architecture trains more stably.
 
 | check | result |
 | --- | --- |
-| scientific code changed during execution | none observed - the design commit precedes the first run, and `git diff` against it was empty across `src/`, `scripts/`, `configs/` after the last; the run artifacts do not themselves record a commit ([see below](#before-milestones-11-and-12-requirements-recorded-in-advance)) |
+| scientific code changed during execution | none observed - the design commit precedes the first run, and `git diff` against it was empty across `src/`, `scripts/`, `configs/` after the last; the run artifacts do not themselves record a commit ([see below](#how-the-milestone-11-requirements-are-enforced)) |
 | seed witnesses per run | 5 agree (plan key, frozen config, checkpoint payload, run summary, metric summary) |
 | config SHA-256 witnesses per run | 5 agree, against the hash pinned in the plan before the run |
 | checkpoints per run | exactly 1 - no run produced candidates to choose between |
@@ -2542,39 +2557,132 @@ eight configs was changed after the first Milestone 10 run began.
 
 These are **five-seed** validation development results for both learned
 methods, and validation development results are all they are. The final
-comparison on the held-out test split happens only once every method
-decision is frozen.
+comparison on the held-out test split happens once, under the protocol
+[Milestone 11A](#milestone-11a-the-held-out-test-protocol-frozen-before-the-test-split-is-opened)
+froze.
 
-## Before Milestones 11 and 12: requirements recorded in advance
+## Milestone 11A: the held-out test protocol, frozen before the test split is opened
+
+**No held-out result exists yet.** This milestone wrote down and tested the
+one-shot final measurement *before* any test image is read, so that opening
+the test split in Milestone 11B decides nothing, and the runner refuses to
+open it from anything but a clean, committed tree. The protocol is
+[configs/holdout/test_plan.yaml](configs/holdout/test_plan.yaml), the one
+command that executes it is
+[scripts/run_holdout_test.py](scripts/run_holdout_test.py), and the machinery
+is [src/ct_restoration/holdout.py](src/ct_restoration/holdout.py).
+
+### What the protocol fixes
+
+| | frozen as |
+| --- | --- |
+| test cohort | 6 patients - subjects 11, 13, 19, 25, 29 and 32 - and 941 slices, read from the committed split and manifest, metadata only |
+| methods | exactly four: no restoration; CLAHE at clip limit 0.5 with 4×4 tiles, the Milestone 6 validation selection, not retuned; the residual CNN; the lightweight U-Net |
+| learned checkpoints | all ten - seeds 2026 to 2030 of each architecture - each the checkpoint its own run's predeclared validation rule selected, each pinned by SHA-256. No best seed, no representative seed, no averaging, no ensembling, no retraining, no fine-tuning |
+| inputs | the Milestone 1 preprocessing, the Milestone 4 degradation with global seed 2026 and the Milestone 5 evaluation policy, unchanged. Each test slice is degraded once, and that one realization is shared by the degraded baseline, CLAHE and all ten checkpoints |
+| metrics | the same eight: MAE, MSE, PSNR and SSIM, full frame and body region |
+| aggregation | slice → patient mean → equal-weight mean over the six patients. Slice-weighted figures are secondary; the six patients and five seeds are never pooled into thirty observations |
+| learned summary | per architecture and metric: all five seed values, the mean, the sample SD (ddof = 1), the minimum and the maximum |
+| comparisons | U-Net versus CNN, paired by seed; every learned seed against the one deterministic degraded baseline and the one CLAHE result; CLAHE against the degraded baseline; and, secondary and descriptive only, test minus validation |
+| wording | the Milestone 10 rule: "directionally consistent across training seeds" needs the mean *and* at least 4 of 5 seeds; 3 of 5 is never called consistent; an overall architecture statement needs all eight metrics |
+| forbidden | significance tests, p-values, confidence intervals, composite scores, seed ranking, test images or figures of any kind, and the stress set |
+
+Positive oriented improvement always means the candidate did better: for
+PSNR and SSIM it is candidate minus reference, for MAE and MSE reference
+minus candidate. The raw delta keeps each metric's natural sign, so it can be
+checked by subtraction. The degraded baseline and CLAHE are deterministic and
+measured once; no seed spread is invented for them.
+
+### The test result is a measurement, not a new selection round
+
+Nothing the test split shows may trigger new training, a new or changed seed,
+or a changed architecture, CLAHE parameter, preprocessing, degradation, mask,
+metric, checkpoint, selection rule or aggregation. A disappointing result is
+the project's result. If a software bug invalidates the evaluation, the run
+stops, and the bug, any exposure of held-out results and the repair it would
+need are documented; nothing is silently patched and rerun. A summary
+sentence about the result is permitted only with every qualifier kept -
+held-out, six patients, synthetic low-dose-like degradation, five
+predeclared training seeds - and never as a clinical, dose-reduction,
+causal or significance claim.
+
+### How the Milestone 11 requirements are enforced
+
+These requirements were recorded here before this milestone began. The
+Milestone 8-10 run artifacts record each run's config and checkpoint SHA-256
+but not the git commit they were produced under; the held-out run records
+the commit of the code that scores the test split. The runner has no
+scientific option at all - no flag for a seed, method, metric, split, CLAHE
+parameter, degradation, checkpoint, device or output location - and before
+it opens a single test file it refuses unless:
+
+* the plan agrees with the frozen constants in `holdout.py`, every
+  prohibition in it is the boolean `false`, and it carries no unrecognised
+  key;
+* the working tree is clean, untracked files included, and HEAD descends
+  from the Milestone 10 commit `f1fc6dd`;
+* the split and manifest hash to their frozen SHA-256 values, and the test
+  cohort read from them is exactly the frozen one;
+* every shared config parses to the frozen settings, and every tracked
+  validation summary records that it was measured under those settings;
+* every learned config, run summary and training history agrees with the
+  plan and with the Milestone 10 plan, the selected epoch re-derives from the
+  history, and every checkpoint's bytes hash to the frozen SHA-256 and clear
+  the provenance gate the validation evaluations cleared;
+* neither `outputs/metrics/holdout/test/` nor its staging directory exists,
+  so nothing is overwritten and no earlier attempt is resumed.
+
+Only then is a `HoldoutAccess`
+([src/ct_restoration/evaluation.py](src/ct_restoration/evaluation.py))
+issued, the one way any code in this repository can read test-split image
+content. The commit, the clean-tree state, the plan's own SHA-256, every
+checkpoint and config SHA-256, the selected epochs, the environment and the
+measured file reads go into an execution receipt, which holds no metric
+value. The results are assembled in a staging directory and moved into place
+only when complete; an interrupted run leaves its staging directory, log and
+failure record untouched, and blocks any rerun until an integrity review.
+
+### Three guards between a caller and a test pixel
+
+1. **Split-name gates.** Every development command still refuses test and
+   stress. Test opens only with a `HoldoutAccess`, which the protocol's
+   preflight issues and nothing else can construct; stress never opens. The
+   one command that reads every subject is the Milestone 2 cohort audit,
+   `scripts/audit_chaos.py`: it computes no restoration metric, and it and
+   its tracked output were last committed before the split was frozen.
+2. **Row-label gates.** The benchmark loop, the Dataset and the raw-output
+   diagnostics check the `split` label of every row they are handed, and
+   refuse test, stress or unlabelled rows before opening a file, however the
+   rows reached them.
+3. **A file-system monitor.** During execution an audit hook sees every file
+   the process opens under the imaging root and refuses any that is not a
+   test slice; during preflight it refuses them all. Its counts are the
+   receipt's record of what was read, measured where files are opened.
+
+### What Milestone 11A verified, and what it did not read
+
+* `--preflight-only` against the real repository: 48 of 49 checks passed,
+  and 0 files under the imaging root were opened or attempted. The one
+  failure was the clean-tree check, correctly: Milestone 11A was not yet
+  committed.
+* The held-out scoring loop, run over the **validation** split with the ten
+  real checkpoints loaded through the real provenance gate, reproduced all
+  twelve tracked validation slice tables and patient tables byte for byte.
+  The monitor measured 885 validation files opened, each once, and no test,
+  stress or training file.
+* The held-out analysis, run on the tracked validation tables, reproduced the
+  Milestone 10 win counts on all eight metrics, and its statistics to within
+  the tenth-decimal rounding of the tracked summaries.
+
+**No test or stress image content was read, rendered or scored in Milestone
+11A, and no test or stress metric exists.** The stress set remains sealed
+and is not part of Milestone 11.
+
+## Before Milestone 12: requirements recorded in advance
 
 Nothing in this section has been implemented or run. It records, before the
-held-out test split is opened, what Milestones 11 and 12 must satisfy, so the
+held-out test split is opened, what Milestone 12 must satisfy, so the
 requirements cannot be shaped by the results they govern.
-
-### Milestone 11: the one-time held-out test evaluation
-
-The run artifacts of Milestones 8-10 record each run's config SHA-256 and
-checkpoint SHA-256, but **not** the git commit they were produced under. The
-statement that all eight Milestone 10 runs used one frozen commit rests on the
-design commit preceding the first run and on `git diff` being empty across
-`src/`, `scripts/` and `configs/` after the last. Milestone 11 closes that gap
-before it reads a single test image. It must record, and refuse to proceed
-without:
-
-* the exact git commit of the evaluating code;
-* a clean working tree - no modified or untracked file under `src/`,
-  `scripts/`, `configs/` or `data/splits/`;
-* the SHA-256 of every checkpoint scored, checked against the one recorded in
-  its tracked run summary;
-* the SHA-256 of every config those checkpoints were trained from;
-* the test protocol itself - which methods, which checkpoints, which metrics,
-  which aggregation and which comparisons - written down and committed before
-  the test split is read;
-* an explicit record that every method decision was frozen before the test
-  split was opened.
-
-The test split is evaluated **once**. A result that looks wrong is reported,
-not re-run under a changed protocol.
 
 ### Milestone 12: latency, after one known fix
 
@@ -2627,15 +2735,19 @@ src/ct_restoration/   library code (importable package)
   evaluation_integrity.py  the hard gates every canonical evaluation clears:
                       checkpoint provenance and ordered sample alignment
   reproducibility.py  seeding and deterministic-algorithm settings
+  holdout.py          the frozen Milestone 11 held-out protocol: plan checks,
+                      preflight, the file-open monitor, the shared-input
+                      scoring loop and the predeclared analysis
 scripts/              runnable commands (cohort audit, split generation,
                       degradation audit, body-mask audit, baseline and CLAHE
                       evaluation, CLAHE tuning, Dataset/DataLoader audit,
                       CNN and U-Net training, evaluation and visual QC,
-                      multi-seed aggregation)
+                      multi-seed aggregation, the one-shot held-out runner)
 tests/                pytest suite, fully synthetic, no downloads
 configs/              YAML experiment settings
 configs/multiseed/    the pre-registered multi-seed plan and one frozen
                       config per training seed, each SHA-256 pinned
+configs/holdout/      the frozen one-shot held-out test protocol
 data/README.md        dataset provenance
 data/splits/          the frozen patient split and slice manifest (tracked)
 data/raw/, processed/ image data (git-ignored)
@@ -2643,6 +2755,8 @@ outputs/audit/        measured dataset facts (figures there are git-ignored)
 outputs/metrics/      tracked per-slice, per-patient and split-level scores
 outputs/metrics/multiseed/  one directory per additional training seed, plus
                       the aggregate five-seed summary (tracked)
+outputs/metrics/holdout/    reserved for the held-out test tables; created
+                      only by the one held-out run, and absent until then
 outputs/runs/         per-epoch training histories and run summaries for all
                       ten runs (tracked)
 outputs/checkpoints/  model weights (git-ignored; only their SHA-256 is tracked)

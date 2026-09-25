@@ -195,3 +195,44 @@ looking exactly like a valid delta.
 
 With both options left at their defaults the layout is the canonical one and
 nothing changes.
+
+## Where the held-out test tables will go
+
+Nowhere yet: **no held-out test table exists.** The layout below was frozen in
+Milestone 11A, in
+[`configs/holdout/test_plan.yaml`](../../configs/holdout/test_plan.yaml),
+before the test split was opened, and
+[`scripts/run_holdout_test.py`](../../scripts/run_holdout_test.py) is the only
+command that writes it, once. It refuses if either directory already exists.
+
+```
+holdout/test.incomplete/   assembled here first; moved to holdout/test/ only
+                           when every table is written and checked. An
+                           interrupted run leaves it in place, with its log
+                           and a failure record, for an integrity review.
+holdout/test/
+  degraded_test_{slices,patients}.csv, degraded_test_summary.json
+  clahe_test_{slices,patients}.csv, clahe_test_summary.json
+  clahe_vs_degraded_test_patient_deltas.csv
+  deterministic_methods.csv    degraded and CLAHE, measured once, no seed spread
+  seed_level_metrics.csv       each learned architecture at each of five seeds
+  paired_seed_deltas.csv       U-Net - CNN by seed, raw and oriented
+  learned_vs_degraded.csv      every learned seed against the one degraded baseline
+  learned_vs_clahe.csv         every learned seed against the one CLAHE result
+  validation_to_test.csv       secondary, descriptive only
+  holdout_test_summary.json    every predeclared comparison
+  opening_record.json          written before the first test file is opened
+  execution_log.txt            progress lines only; no metric is printed
+  execution_receipt.json       what ran and what was read; no metric value
+  seed2026/ ... seed2030/
+    {cnn,unet}_test_{slices,patients}.csv, {cnn,unet}_test_summary.json
+    {cnn,unet}_vs_{degraded,clahe}_test_patient_deltas.csv
+    unet_vs_cnn_test_patient_deltas.csv
+```
+
+Tables and JSON only - no image, figure, array or model output of any kind.
+Every per-slice table has the Milestone 5-10 columns plus one,
+`degraded_input_sha256`: the hash of the single degraded input every method
+scored on that slice, so a reader can check that all twelve tables measured
+the same corruption. The stress set has no directory here and gets none in
+Milestone 11.

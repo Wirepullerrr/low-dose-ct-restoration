@@ -67,7 +67,7 @@ from torch.utils.data import Dataset
 
 from ct_restoration.data.degradation import DegradationConfig, degrade_low_dose_like
 from ct_restoration.data.splits import subject_sort_key
-from ct_restoration.evaluation import require_development_split
+from ct_restoration.evaluation import require_development_split, require_rows_split_access
 
 #: The pair-generation contract this module implements. A future variant -
 #: a different preprocessing, a different degradation, a cached representation
@@ -345,6 +345,12 @@ class RestorationDataset(Dataset):
         preprocessing: the frozen Milestone 1 settings. Copied, never mutated.
         degradation: the frozen Milestone 4 corruption. Defaults to canonical.
         split: the partition these rows came from, recorded for provenance.
+
+    Raises:
+        HeldOutSplitError: a row is labelled test or stress, or carries no
+            split label. The supervised pairs are development data only, and
+            this is checked here as well as in :func:`development_rows`, so
+            rows that reach the constructor by another route are refused too.
     """
 
     def __init__(
@@ -355,6 +361,9 @@ class RestorationDataset(Dataset):
         degradation: DegradationConfig | None = None,
         split: str | None = None,
     ) -> None:
+        require_rows_split_access(rows)
+        if split is not None:
+            require_development_split(str(split))
         ordered = canonical_order(rows)
 
         for field in ("window_center", "window_width", "image_size", "interpolation"):

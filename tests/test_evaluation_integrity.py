@@ -71,7 +71,14 @@ class _ConstantCorrection(torch.nn.Module):
 def _diagnostics_over(images: list[np.ndarray], correction: float) -> dict:
     """Run the diagnostic over in-memory images, bypassing DICOM entirely."""
     model = _ConstantCorrection(correction)
-    rows = pd.DataFrame({"relative_dicom_path": [f"s{i}.dcm" for i in range(len(images))]})
+    # Labelled as validation: the diagnostic reads development rows only and
+    # refuses unlabelled ones, since Milestone 11A.
+    rows = pd.DataFrame(
+        {
+            "relative_dicom_path": [f"s{i}.dcm" for i in range(len(images))],
+            "split": ["validation"] * len(images),
+        }
+    )
     by_key = dict(zip(rows["relative_dicom_path"], images, strict=True))
 
     def fake_prepare(path, preprocessing, evaluation):
