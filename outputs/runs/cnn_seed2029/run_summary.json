@@ -1,0 +1,130 @@
+{
+  "milestone": "8 - small residual CNN, single-seed development run",
+  "result_class": "SINGLE-SEED VALIDATION DEVELOPMENT RESULT. One seed shows what this run did; it does not establish that the architecture is stable. Multi-seed work is a later milestone, and the test split remains sealed.",
+  "model": {
+    "algorithm": "residual_cnn_v1",
+    "input_channels": 1,
+    "output_channels": 1,
+    "hidden_channels": 32,
+    "depth": 5,
+    "kernel_size": 3,
+    "padding": 1,
+    "activation": "relu",
+    "batch_norm": false,
+    "dropout": 0.0,
+    "residual_correction": true,
+    "zero_initialize_final_layer": true,
+    "trainable_parameters": 28353,
+    "receptive_field_pixels": 11,
+    "receptive_field_note": "Five stacked 3x3 stride-1 convolutions: 1 + 5 * 2 = 11 pixels. A statement about pixels only, not about anatomical context."
+  },
+  "config": {
+    "path": "configs/multiseed/cnn_seed2029.yaml",
+    "sha256": "a295ad4d83b81be7e1e193375f3727aaee41244fdd4050b0bb73c304c8abec85",
+    "frozen_before_training": true
+  },
+  "training": {
+    "seed": 2029,
+    "epochs": 30,
+    "batch_size": 32,
+    "loss": "full-frame L1 on the raw (unclamped) restoration",
+    "optimizer": "adam",
+    "learning_rate": 0.001,
+    "betas": [
+      0.9,
+      0.999
+    ],
+    "eps": 1e-08,
+    "weight_decay": 0.0,
+    "scheduler": "none",
+    "gradient_clipping": "none",
+    "mixed_precision": false,
+    "augmentation": "none"
+  },
+  "data": {
+    "sampler_algorithm": "patient_balanced_v1",
+    "train_patients": 25,
+    "train_slices": 4160,
+    "train_draws_per_epoch": 4160,
+    "validation_patients": 6,
+    "validation_slices": 885,
+    "validation_sampling": "canonical_sequential, exactly once",
+    "num_workers": 2,
+    "drop_last": false
+  },
+  "epoch_zero_identity_check": {
+    "description": "The zero-initialized network outputs a correction of exactly 0, so its clamped restoration is the degraded image. Its validation MAE must match the committed degraded baseline, or the learned-method evaluation path disagrees with the frozen benchmark.",
+    "zero_initialized_cnn_patient_weighted_full_mae": 0.0163589219,
+    "committed_degraded_baseline_patient_weighted_full_mae": 0.0163589219,
+    "baseline_source": "outputs/metrics/degraded_baseline_validation_patients.csv",
+    "absolute_difference": 0.0,
+    "absolute_difference_exact": "2.026799e-11",
+    "tolerance": 1e-06,
+    "difference_note": "Not expected to be exactly zero: the benchmark computes this with NumPy metric code and this script with a torch reduction, so the two differ by floating-point summation order. A plumbing mismatch would be orders of magnitude larger.",
+    "identity_reproduced": true
+  },
+  "checkpoint_selection": {
+    "split": "validation",
+    "primary_metric": "validation_patient_weighted_full_mae",
+    "direction": "minimize",
+    "tie_breaker": "earlier_epoch",
+    "epoch_zero_eligible": false,
+    "predeclared": true,
+    "best_epoch": 30,
+    "best_validation_patient_weighted_full_mae": 0.0093911278,
+    "final_epoch_validation_patient_weighted_full_mae": 0.0093911278
+  },
+  "checkpoint": {
+    "path": "outputs/checkpoints/cnn_seed2029_best.pt",
+    "sha256": "abc24d93ba6963b6e304bb09e1f349f24d1de6056b8bb8b20a1781ac5a2d94a7",
+    "tracked_in_git": false,
+    "contents": [
+      "model_state_dict",
+      "epoch",
+      "seed",
+      "config_sha256",
+      "selection_metric",
+      "selection_value"
+    ],
+    "note": "Plain tensors only; loadable with weights_only=True.",
+    "round_trip": {
+      "state_dict_keys": 10,
+      "state_dict_tensor_mismatches": 0,
+      "probe_tensors": 4,
+      "probe_prediction_mismatches": 0,
+      "reproduces_saved_model": true,
+      "loaded_with_weights_only": true
+    }
+  },
+  "environment": {
+    "torch_version": "2.14.0+cu130",
+    "cuda_build_version": "13.0",
+    "cudnn_version": 92400,
+    "cuda_available": true,
+    "device": "cuda",
+    "gpu_name": "NVIDIA GeForce RTX 5070 Ti",
+    "gpu_total_memory_bytes": 17066033152,
+    "gpu_capability": "12.0",
+    "use_deterministic_algorithms": true,
+    "deterministic_warn_only": false,
+    "cudnn_benchmark": false,
+    "cudnn_deterministic": true,
+    "cublas_workspace_config": ":4096:8",
+    "seed": 2029,
+    "python_random": true,
+    "numpy_global": true,
+    "torch_cpu": true,
+    "torch_cuda": true
+  },
+  "reproducibility_claim": "Same repository, config, environment, hardware and seed reproduce this run. Bitwise identity across different GPUs or driver versions is NOT claimed.",
+  "inspection_policy": {
+    "train_images_read": true,
+    "validation_images_read": true,
+    "test_images_read": 0,
+    "stress_images_read": 0,
+    "validation_images_visually_inspected": false
+  },
+  "outputs": {
+    "training_history_csv": "outputs/runs/cnn_seed2029/training_history.csv"
+  }
+}

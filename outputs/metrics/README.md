@@ -51,13 +51,16 @@ improvement for MAE and MSE.
 
 Everything in this section applies to both `cnn_*` and `unet_*`.
 
-**One seed each.** Each is a single training run. The number is what that run
-produced; it is not evidence that the architecture reaches it reliably.
-Multi-seed stability is a later milestone. This matters most for
-`unet_vs_cnn_validation_patient_deltas.csv`: the two models differ there by
-about 0.2 dB, and with one seed apiece the run-to-run spread of either is
-unmeasured and could be of comparable size. Read that file as "this U-Net run
+**One seed each, in this directory.** Each file here is a single training
+run at seed 2026. The number is what that run produced; on its own it is not
+evidence that the architecture reaches it reliably, so
+`unet_vs_cnn_validation_patient_deltas.csv` should be read as "this U-Net run
 scored slightly better than this CNN run", not as an architecture ranking.
+
+The run-to-run spread is no longer unmeasured. Milestone 10 trained five
+seeds per architecture and aggregated them in
+`multiseed/multiseed_summary.json`; the architecture comparison belongs
+there, across all five seeds, rather than in the single pair of files here.
 
 **The CNN and U-Net were trained under an identical policy** - same data,
 same corruption, same sampler, same loss, same optimizer, same seed, same
@@ -123,11 +126,12 @@ definition rewrites every file byte for byte.
 ## Reading them
 
 All of these are **validation development results**, not final benchmark
-results, and both learned methods - the CNN and the U-Net - are additionally
-**single-seed** results: one training seed each, which shows what those runs
-did and does not establish that either architecture reaches its figure
-reliably. The final comparison happens on the held-out test split once every
-method decision is frozen.
+results, and the learned tables in this directory - the CNN's and the
+U-Net's - are **single-seed** results: one training seed each, which shows
+what those runs did. How much the figure of either architecture varied
+across five training seeds is described in `multiseed/`, not here; five
+seeds describe that spread, they do not bound it. The final comparison happens
+on the held-out test split once every method decision is frozen.
 
 MAE and MSE are lower-is-better; PSNR, in decibels, and SSIM are
 higher-is-better. The **primary** figure for a split is the patient-weighted
@@ -148,10 +152,11 @@ recorded with the dataset provenance in [`data/README.md`](../../data/README.md)
 Those dataset terms are separate from the license covering this repository's
 source code.
 
-## Where additional statistical seeds will write
+## Where the additional statistical seeds wrote
 
-The tables in this directory are the canonical single-seed results. Any
-further seed writes into its own directory instead:
+The tables in this directory are the canonical single-seed results. Each
+further seed wrote into its own directory instead, and seeds 2027 through
+2030 are now present:
 
 ```
 outputs/metrics/multiseed/seed<SEED>/
@@ -161,7 +166,19 @@ outputs/metrics/multiseed/seed<SEED>/
     cnn_vs_*_patient_deltas.csv     unet_vs_*_patient_deltas.csv
 ```
 
-so no later seed can overwrite a number reported for Milestone 8 or 9.
+so no later seed can overwrite a number reported for Milestone 8 or 9. The
+eight new runs confirmed this in practice: every file in this directory is
+byte-identical to what it was before they ran.
+
+The aggregate across all five seeds is
+`multiseed/multiseed_summary.json`, written by
+[`scripts/summarize_multiseed.py`](../../scripts/summarize_multiseed.py). It
+records the SHA-256 of the plan it was produced under, every seed's value
+for all eight metrics, per-architecture means with sample standard
+deviations (ddof = 1), and the per-seed paired deltas in both their raw and
+their orientation-corrected form. The summarizer refuses to write it unless
+all ten planned runs are present and no unplanned seed exists on disk, so a
+partial or quietly extended experiment cannot be summarized at all.
 
 Two directories, because two kinds of reference behave differently:
 

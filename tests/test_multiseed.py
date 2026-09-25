@@ -762,12 +762,20 @@ def test_documentation_under_the_multiseed_root_is_not_a_result(tmp_path, monkey
     assert sorted(summarize.collect(plan)["cnn"]) == list(SEEDS)
 
 
-def test_the_summarizer_refuses_today_because_the_experiment_has_not_run():
-    # Milestone 10A: only seed 2026 exists. The command must refuse rather
-    # than summarise two runs out of ten.
+def test_the_real_experiment_on_disk_is_now_complete():
+    # Milestone 10A asserted the opposite: that only seed 2026 existed and the
+    # summarizer had to refuse. Milestone 10B executed the pre-registered runs,
+    # so the assertion is inverted rather than deleted - the real on-disk state
+    # is still checked against the plan, just against the phase the project is
+    # actually in. The refusal behaviour itself is not lost: it is covered on
+    # synthetic trees by test_scenario_d_a_missing_seed_refuses_the_whole_summary
+    # and test_a_missing_seed_for_only_one_architecture_is_still_refused, which
+    # can construct an incomplete experiment without deleting a real run.
     plan = summarize.load_plan(Path("configs/multiseed/plan.yaml"))
-    with pytest.raises(MultiseedError, match="incomplete"):
-        summarize.collect(plan)
+    collected = summarize.collect(plan)
+    for method in ("cnn", "unet"):
+        assert sorted(collected[method]) == list(SEEDS)
+    assert summarize.discover_unplanned_seeds(plan) == []
 
 
 # ---------------------------------------------------------------------------
@@ -896,15 +904,63 @@ def test_the_seed_2026_destinations_are_untouched_by_the_plan():
     assert checkpoint_path("unet", 2026) == Path("outputs/checkpoints/unet_seed2026_best.pt")
 
 
-def test_no_training_artifact_exists_yet_for_any_new_seed():
-    # Milestone 10A creates the design, not the runs.
-    from ct_restoration.run_layout import checkpoint_path, run_directory, seed_metrics_directory
+def test_every_planned_run_is_recorded_exactly_once_in_tracked_artifacts():
+    # Milestone 10A asserted that none of these existed yet. Milestone 10B
+    # produced them, so what is worth protecting is no longer their absence but
+    # their exactness: one run, one recorded checkpoint and one metric set per
+    # planned run, and nothing in the tracked output trees beyond the plan.
+    #
+    # Tracked evidence only. The checkpoint binaries are git-ignored, so a
+    # fresh clone has none and a unit test must not need them. What a clone
+    # does have is each run summary's record of the single checkpoint that run
+    # selected - its path and SHA-256 - which is also what the evaluation
+    # provenance gate checks a regenerated checkpoint against.
+    from ct_restoration.run_layout import (
+        MULTISEED_METRICS_ROOT,
+        RUNS_ROOT,
+        checkpoint_path,
+        run_directory,
+        seed_metrics_directory,
+    )
 
-    for seed in (2027, 2028, 2029, 2030):
-        for method in ("cnn", "unet"):
-            assert not run_directory(method, seed).exists(), f"{method} {seed} run dir exists"
-            assert not checkpoint_path(method, seed).exists(), f"{method} {seed} checkpoint exists"
-        assert not seed_metrics_directory(seed).exists(), f"seed {seed} metrics exist"
+    plan = summarize.load_plan(Path("configs/multiseed/plan.yaml"))
+    canonical_seed = plan["canonical_existing_seed"]
+    hex_digits = set("0123456789abcdef")
+    recorded = []
+
+    for method in ("cnn", "unet"):
+        for seed in SEEDS:
+            run_dir = run_directory(method, seed)
+            assert (run_dir / "training_history.csv").is_file(), f"{method} {seed} history"
+            summary = json.loads((run_dir / "run_summary.json").read_text(encoding="utf-8"))
+            assert summary["training"]["seed"] == seed
+
+            checkpoint = summary["checkpoint"]
+            assert checkpoint["path"] == checkpoint_path(method, seed).as_posix()
+            assert checkpoint["tracked_in_git"] is False
+            digest = checkpoint["sha256"]
+            assert len(digest) == 64 and set(digest) <= hex_digits, f"{method} {seed} sha"
+            recorded.append(digest)
+
+            if seed != canonical_seed:
+                metrics = seed_metrics_directory(seed) / f"{method}_validation_summary.json"
+                assert metrics.is_file(), f"{method} {seed} metric summary missing"
+
+    # Ten runs, ten distinct selected checkpoints. The same digest recorded
+    # twice would mean two runs claim one set of weights.
+    assert len(recorded) == 10
+    assert len(set(recorded)) == 10
+
+    # Nothing beyond the plan in the tracked trees: no extra run directory and
+    # no extra seed directory, whatever it is named.
+    expected_runs = sorted(f"{method}_seed{seed}" for method in ("cnn", "unet") for seed in SEEDS)
+    assert sorted(entry.name for entry in RUNS_ROOT.iterdir() if entry.is_dir()) == expected_runs
+    expected_seed_dirs = sorted(f"seed{seed}" for seed in SEEDS if seed != canonical_seed)
+    assert (
+        sorted(entry.name for entry in MULTISEED_METRICS_ROOT.iterdir() if entry.is_dir())
+        == expected_seed_dirs
+    )
+    assert summarize.discover_unplanned_seeds(plan) == []
 
 
 def test_the_training_seed_cannot_reach_the_degradation():

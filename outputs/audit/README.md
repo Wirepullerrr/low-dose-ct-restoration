@@ -28,6 +28,13 @@ They contain **measurements and counts, not image pixels**. No DICOM file, no
 pixel array, and no rendered image is stored in the tracked files here. The
 `figures/` subdirectory does hold rendered images and is excluded from Git.
 
+**One known wart, left as generated.** `chaos_metadata_summary.json` records
+the absolute local path of the raw-data root it was produced from, under its
+`root` key, including the local user-profile directory name. It is a
+Milestone 2 artifact and is kept byte-for-byte as generated rather than edited
+after the fact. No later command reads it, and none of the audit's
+measurements depends on it.
+
 **Patient-identifying fields are not exported.** Subjects are identified by the
 CHAOS folder name, which is the dataset's own anonymized case label. No DICOM
 patient attribute is read for identity. Series and study instance UIDs appear
@@ -46,8 +53,11 @@ learned methods. Neither `scripts/qc_cnn.py` nor `scripts/qc_unet.py` has a
 the checkpoints have already been selected numerically and the canonical
 metrics written. The U-Net panels put both models side by side on the same
 slices, so the numeric comparison can be sanity-checked visually without
-looking at held-out data. No validation, test or stress image has been looked
-at.
+looking at held-out data. Neither QC command has rendered a validation, test
+or stress image, and no such image has been looked at since the split was
+frozen. The only renders of test or stress subjects are the Milestone 2
+cohort-audit panels in `figures/`, made before any partition existed, when
+the audit covered all 40 subjects.
 
 ## `dataset_dataloader_summary.json` in particular
 

@@ -1,0 +1,775 @@
+{
+  "milestone": 10,
+  "result_class": "MULTI-SEED VALIDATION DEVELOPMENT RESULT. Five training seeds per architecture on fixed data. This measures the spread of the training procedure, not variation across patients, scanners or institutions. The test split remains sealed.",
+  "plan_path": "configs/multiseed/plan.yaml",
+  "plan_sha256": "199e4dd55fd9747b7c868e4adc2c84025decdd3d4db13c12693808a452107b26",
+  "seeds": [
+    2026,
+    2027,
+    2028,
+    2029,
+    2030
+  ],
+  "split": "validation",
+  "patients": 6,
+  "unit_of_analysis": "statistical training seed, after per-run patient aggregation",
+  "pooled_patients_and_seeds": false,
+  "significance_testing": false,
+  "per_metric": {
+    "full_mae": {
+      "metric": "full_mae",
+      "direction": "lower_is_better",
+      "seeds": [
+        2026,
+        2027,
+        2028,
+        2029,
+        2030
+      ],
+      "cnn": {
+        "values": [
+          0.009353093,
+          0.0093685682,
+          0.0094989326,
+          0.0093912262,
+          0.0094054243
+        ],
+        "n": 5,
+        "mean": 0.00940344886,
+        "std": 5.705877115622074e-05,
+        "std_ddof": 1,
+        "min": 0.009353093,
+        "max": 0.0094989326
+      },
+      "unet": {
+        "values": [
+          0.0091265268,
+          0.0091485836,
+          0.0090998031,
+          0.009136743,
+          0.0091546807
+        ],
+        "n": 5,
+        "mean": 0.00913326744,
+        "std": 2.1624582409448033e-05,
+        "std_ddof": 1,
+        "min": 0.0090998031,
+        "max": 0.0091546807
+      },
+      "raw_delta_definition": "unet_minus_cnn",
+      "raw_delta_by_seed": {
+        "2026": -0.00022656620000000016,
+        "2027": -0.00021998460000000053,
+        "2028": -0.00039912949999999954,
+        "2029": -0.00025448320000000073,
+        "2030": -0.0002507435999999988
+      },
+      "raw_delta": {
+        "values": [
+          -0.00022656620000000016,
+          -0.00021998460000000053,
+          -0.00039912949999999954,
+          -0.00025448320000000073,
+          -0.0002507435999999988
+        ],
+        "n": 5,
+        "mean": -0.00027018141999999993,
+        "std": 7.36102548001429e-05,
+        "std_ddof": 1,
+        "min": -0.00039912949999999954,
+        "max": -0.00021998460000000053
+      },
+      "oriented_improvement_definition": "unet - cnn for higher-is-better metrics, cnn - unet for lower-is-better; positive always means the U-Net did better",
+      "oriented_improvement_by_seed": {
+        "2026": 0.00022656620000000016,
+        "2027": 0.00021998460000000053,
+        "2028": 0.00039912949999999954,
+        "2029": 0.00025448320000000073,
+        "2030": 0.0002507435999999988
+      },
+      "oriented_improvement": {
+        "values": [
+          0.00022656620000000016,
+          0.00021998460000000053,
+          0.00039912949999999954,
+          0.00025448320000000073,
+          0.0002507435999999988
+        ],
+        "n": 5,
+        "mean": 0.00027018141999999993,
+        "std": 7.36102548001429e-05,
+        "std_ddof": 1,
+        "min": 0.00021998460000000053,
+        "max": 0.00039912949999999954
+      },
+      "seeds_favouring_unet": 5,
+      "seeds_favouring_cnn": 0,
+      "seeds_tied": 0,
+      "directionally_consistent_for_unet": true,
+      "directionally_consistent_for_cnn": false
+    },
+    "full_mse": {
+      "metric": "full_mse",
+      "direction": "lower_is_better",
+      "seeds": [
+        2026,
+        2027,
+        2028,
+        2029,
+        2030
+      ],
+      "cnn": {
+        "values": [
+          0.0003491568,
+          0.0003485209,
+          0.000356974,
+          0.0003501432,
+          0.0003497651
+        ],
+        "n": 5,
+        "mean": 0.000350912,
+        "std": 3.4442837898465833e-06,
+        "std_ddof": 1,
+        "min": 0.0003485209,
+        "max": 0.000356974
+      },
+      "unet": {
+        "values": [
+          0.0003333357,
+          0.0003327396,
+          0.0003321053,
+          0.00033238,
+          0.0003344819
+        ],
+        "n": 5,
+        "mean": 0.0003330085,
+        "std": 9.435381682793723e-07,
+        "std_ddof": 1,
+        "min": 0.0003321053,
+        "max": 0.0003344819
+      },
+      "raw_delta_definition": "unet_minus_cnn",
+      "raw_delta_by_seed": {
+        "2026": -1.582109999999999e-05,
+        "2027": -1.578129999999997e-05,
+        "2028": -2.486869999999996e-05,
+        "2029": -1.7763199999999973e-05,
+        "2030": -1.528320000000001e-05
+      },
+      "raw_delta": {
+        "values": [
+          -1.582109999999999e-05,
+          -1.578129999999997e-05,
+          -2.486869999999996e-05,
+          -1.7763199999999973e-05,
+          -1.528320000000001e-05
+        ],
+        "n": 5,
+        "mean": -1.7903499999999982e-05,
+        "std": 4.0074864260531054e-06,
+        "std_ddof": 1,
+        "min": -2.486869999999996e-05,
+        "max": -1.528320000000001e-05
+      },
+      "oriented_improvement_definition": "unet - cnn for higher-is-better metrics, cnn - unet for lower-is-better; positive always means the U-Net did better",
+      "oriented_improvement_by_seed": {
+        "2026": 1.582109999999999e-05,
+        "2027": 1.578129999999997e-05,
+        "2028": 2.486869999999996e-05,
+        "2029": 1.7763199999999973e-05,
+        "2030": 1.528320000000001e-05
+      },
+      "oriented_improvement": {
+        "values": [
+          1.582109999999999e-05,
+          1.578129999999997e-05,
+          2.486869999999996e-05,
+          1.7763199999999973e-05,
+          1.528320000000001e-05
+        ],
+        "n": 5,
+        "mean": 1.7903499999999982e-05,
+        "std": 4.0074864260531054e-06,
+        "std_ddof": 1,
+        "min": 1.528320000000001e-05,
+        "max": 2.486869999999996e-05
+      },
+      "seeds_favouring_unet": 5,
+      "seeds_favouring_cnn": 0,
+      "seeds_tied": 0,
+      "directionally_consistent_for_unet": true,
+      "directionally_consistent_for_cnn": false
+    },
+    "full_psnr": {
+      "metric": "full_psnr",
+      "direction": "higher_is_better",
+      "seeds": [
+        2026,
+        2027,
+        2028,
+        2029,
+        2030
+      ],
+      "cnn": {
+        "values": [
+          34.6583400642,
+          34.6668226953,
+          34.5617244752,
+          34.6478621194,
+          34.6520136681
+        ],
+        "n": 5,
+        "mean": 34.637352604440004,
+        "std": 0.04287764670301105,
+        "std_ddof": 1,
+        "min": 34.5617244752,
+        "max": 34.6668226953
+      },
+      "unet": {
+        "values": [
+          34.8622517318,
+          34.8683215526,
+          34.8769096544,
+          34.8715849076,
+          34.8470972809
+        ],
+        "n": 5,
+        "mean": 34.86523302546001,
+        "std": 0.011445767914934365,
+        "std_ddof": 1,
+        "min": 34.8470972809,
+        "max": 34.8769096544
+      },
+      "raw_delta_definition": "unet_minus_cnn",
+      "raw_delta_by_seed": {
+        "2026": 0.20391166760000345,
+        "2027": 0.2014988573000025,
+        "2028": 0.3151851792000002,
+        "2029": 0.2237227881999999,
+        "2030": 0.19508361280000486
+      },
+      "raw_delta": {
+        "values": [
+          0.20391166760000345,
+          0.2014988573000025,
+          0.3151851792000002,
+          0.2237227881999999,
+          0.19508361280000486
+        ],
+        "n": 5,
+        "mean": 0.2278804210200022,
+        "std": 0.04996380036029656,
+        "std_ddof": 1,
+        "min": 0.19508361280000486,
+        "max": 0.3151851792000002
+      },
+      "oriented_improvement_definition": "unet - cnn for higher-is-better metrics, cnn - unet for lower-is-better; positive always means the U-Net did better",
+      "oriented_improvement_by_seed": {
+        "2026": 0.20391166760000345,
+        "2027": 0.2014988573000025,
+        "2028": 0.3151851792000002,
+        "2029": 0.2237227881999999,
+        "2030": 0.19508361280000486
+      },
+      "oriented_improvement": {
+        "values": [
+          0.20391166760000345,
+          0.2014988573000025,
+          0.3151851792000002,
+          0.2237227881999999,
+          0.19508361280000486
+        ],
+        "n": 5,
+        "mean": 0.2278804210200022,
+        "std": 0.04996380036029656,
+        "std_ddof": 1,
+        "min": 0.19508361280000486,
+        "max": 0.3151851792000002
+      },
+      "seeds_favouring_unet": 5,
+      "seeds_favouring_cnn": 0,
+      "seeds_tied": 0,
+      "directionally_consistent_for_unet": true,
+      "directionally_consistent_for_cnn": false
+    },
+    "full_ssim": {
+      "metric": "full_ssim",
+      "direction": "higher_is_better",
+      "seeds": [
+        2026,
+        2027,
+        2028,
+        2029,
+        2030
+      ],
+      "cnn": {
+        "values": [
+          0.9538602047,
+          0.9538579114,
+          0.9532663461,
+          0.9535553182,
+          0.953535206
+        ],
+        "n": 5,
+        "mean": 0.9536149972799999,
+        "std": 0.0002503097255339226,
+        "std_ddof": 1,
+        "min": 0.9532663461,
+        "max": 0.9538602047
+      },
+      "unet": {
+        "values": [
+          0.9551423036,
+          0.9550850522,
+          0.9553326155,
+          0.9554875273,
+          0.9546236915
+        ],
+        "n": 5,
+        "mean": 0.95513423802,
+        "std": 0.0003268443771460468,
+        "std_ddof": 1,
+        "min": 0.9546236915,
+        "max": 0.9554875273
+      },
+      "raw_delta_definition": "unet_minus_cnn",
+      "raw_delta_by_seed": {
+        "2026": 0.0012820988999999727,
+        "2027": 0.0012271407999999706,
+        "2028": 0.002066269399999987,
+        "2029": 0.0019322091000000263,
+        "2030": 0.0010884855000000693
+      },
+      "raw_delta": {
+        "values": [
+          0.0012820988999999727,
+          0.0012271407999999706,
+          0.002066269399999987,
+          0.0019322091000000263,
+          0.0010884855000000693
+        ],
+        "n": 5,
+        "mean": 0.0015192407400000051,
+        "std": 0.00044634401677308,
+        "std_ddof": 1,
+        "min": 0.0010884855000000693,
+        "max": 0.002066269399999987
+      },
+      "oriented_improvement_definition": "unet - cnn for higher-is-better metrics, cnn - unet for lower-is-better; positive always means the U-Net did better",
+      "oriented_improvement_by_seed": {
+        "2026": 0.0012820988999999727,
+        "2027": 0.0012271407999999706,
+        "2028": 0.002066269399999987,
+        "2029": 0.0019322091000000263,
+        "2030": 0.0010884855000000693
+      },
+      "oriented_improvement": {
+        "values": [
+          0.0012820988999999727,
+          0.0012271407999999706,
+          0.002066269399999987,
+          0.0019322091000000263,
+          0.0010884855000000693
+        ],
+        "n": 5,
+        "mean": 0.0015192407400000051,
+        "std": 0.00044634401677308,
+        "std_ddof": 1,
+        "min": 0.0010884855000000693,
+        "max": 0.002066269399999987
+      },
+      "seeds_favouring_unet": 5,
+      "seeds_favouring_cnn": 0,
+      "seeds_tied": 0,
+      "directionally_consistent_for_unet": true,
+      "directionally_consistent_for_cnn": false
+    },
+    "body_mae": {
+      "metric": "body_mae",
+      "direction": "lower_is_better",
+      "seeds": [
+        2026,
+        2027,
+        2028,
+        2029,
+        2030
+      ],
+      "cnn": {
+        "values": [
+          0.0199396529,
+          0.0199700106,
+          0.0202643114,
+          0.0200231855,
+          0.0200520565
+        ],
+        "n": 5,
+        "mean": 0.020049843379999998,
+        "std": 0.00012769816630839618,
+        "std_ddof": 1,
+        "min": 0.0199396529,
+        "max": 0.0202643114
+      },
+      "unet": {
+        "values": [
+          0.0194098684,
+          0.0194230492,
+          0.0194043875,
+          0.0194119661,
+          0.0194737804
+        ],
+        "n": 5,
+        "mean": 0.01942461032,
+        "std": 2.831208583056108e-05,
+        "std_ddof": 1,
+        "min": 0.0194043875,
+        "max": 0.0194737804
+      },
+      "raw_delta_definition": "unet_minus_cnn",
+      "raw_delta_by_seed": {
+        "2026": -0.0005297845000000016,
+        "2027": -0.0005469614000000005,
+        "2028": -0.0008599239000000002,
+        "2029": -0.000611219399999998,
+        "2030": -0.000578276099999997
+      },
+      "raw_delta": {
+        "values": [
+          -0.0005297845000000016,
+          -0.0005469614000000005,
+          -0.0008599239000000002,
+          -0.000611219399999998,
+          -0.000578276099999997
+        ],
+        "n": 5,
+        "mean": -0.0006252330599999994,
+        "std": 0.00013483138498155022,
+        "std_ddof": 1,
+        "min": -0.0008599239000000002,
+        "max": -0.0005297845000000016
+      },
+      "oriented_improvement_definition": "unet - cnn for higher-is-better metrics, cnn - unet for lower-is-better; positive always means the U-Net did better",
+      "oriented_improvement_by_seed": {
+        "2026": 0.0005297845000000016,
+        "2027": 0.0005469614000000005,
+        "2028": 0.0008599239000000002,
+        "2029": 0.000611219399999998,
+        "2030": 0.000578276099999997
+      },
+      "oriented_improvement": {
+        "values": [
+          0.0005297845000000016,
+          0.0005469614000000005,
+          0.0008599239000000002,
+          0.000611219399999998,
+          0.000578276099999997
+        ],
+        "n": 5,
+        "mean": 0.0006252330599999994,
+        "std": 0.00013483138498155022,
+        "std_ddof": 1,
+        "min": 0.0005297845000000016,
+        "max": 0.0008599239000000002
+      },
+      "seeds_favouring_unet": 5,
+      "seeds_favouring_cnn": 0,
+      "seeds_tied": 0,
+      "directionally_consistent_for_unet": true,
+      "directionally_consistent_for_cnn": false
+    },
+    "body_mse": {
+      "metric": "body_mse",
+      "direction": "lower_is_better",
+      "seeds": [
+        2026,
+        2027,
+        2028,
+        2029,
+        2030
+      ],
+      "cnn": {
+        "values": [
+          0.0007486449,
+          0.0007477433,
+          0.0007640638,
+          0.0007510883,
+          0.0007510788
+        ],
+        "n": 5,
+        "mean": 0.00075252382,
+        "std": 6.618521940509063e-06,
+        "std_ddof": 1,
+        "min": 0.0007477433,
+        "max": 0.0007640638
+      },
+      "unet": {
+        "values": [
+          0.0007143999,
+          0.0007132646,
+          0.0007133292,
+          0.0007123939,
+          0.0007166119
+        ],
+        "n": 5,
+        "mean": 0.0007139999,
+        "std": 1.6242140083745237e-06,
+        "std_ddof": 1,
+        "min": 0.0007123939,
+        "max": 0.0007166119
+      },
+      "raw_delta_definition": "unet_minus_cnn",
+      "raw_delta_by_seed": {
+        "2026": -3.424500000000002e-05,
+        "2027": -3.4478700000000026e-05,
+        "2028": -5.0734599999999967e-05,
+        "2029": -3.869440000000006e-05,
+        "2030": -3.4466900000000014e-05
+      },
+      "raw_delta": {
+        "values": [
+          -3.424500000000002e-05,
+          -3.4478700000000026e-05,
+          -5.0734599999999967e-05,
+          -3.869440000000006e-05,
+          -3.4466900000000014e-05
+        ],
+        "n": 5,
+        "mean": -3.852392000000002e-05,
+        "std": 7.075700353816551e-06,
+        "std_ddof": 1,
+        "min": -5.0734599999999967e-05,
+        "max": -3.424500000000002e-05
+      },
+      "oriented_improvement_definition": "unet - cnn for higher-is-better metrics, cnn - unet for lower-is-better; positive always means the U-Net did better",
+      "oriented_improvement_by_seed": {
+        "2026": 3.424500000000002e-05,
+        "2027": 3.4478700000000026e-05,
+        "2028": 5.0734599999999967e-05,
+        "2029": 3.869440000000006e-05,
+        "2030": 3.4466900000000014e-05
+      },
+      "oriented_improvement": {
+        "values": [
+          3.424500000000002e-05,
+          3.4478700000000026e-05,
+          5.0734599999999967e-05,
+          3.869440000000006e-05,
+          3.4466900000000014e-05
+        ],
+        "n": 5,
+        "mean": 3.852392000000002e-05,
+        "std": 7.075700353816551e-06,
+        "std_ddof": 1,
+        "min": 3.424500000000002e-05,
+        "max": 5.0734599999999967e-05
+      },
+      "seeds_favouring_unet": 5,
+      "seeds_favouring_cnn": 0,
+      "seeds_tied": 0,
+      "directionally_consistent_for_unet": true,
+      "directionally_consistent_for_cnn": false
+    },
+    "body_psnr": {
+      "metric": "body_psnr",
+      "direction": "higher_is_better",
+      "seeds": [
+        2026,
+        2027,
+        2028,
+        2029,
+        2030
+      ],
+      "cnn": {
+        "values": [
+          31.3631071445,
+          31.3697655441,
+          31.2742553827,
+          31.3514540045,
+          31.3507873113
+        ],
+        "n": 5,
+        "mean": 31.34187387742,
+        "std": 0.038640282309008116,
+        "std_ddof": 1,
+        "min": 31.2742553827,
+        "max": 31.3697655441
+      },
+      "unet": {
+        "values": [
+          31.5750155391,
+          31.5800460906,
+          31.5804417285,
+          31.5835822732,
+          31.5603198123
+        ],
+        "n": 5,
+        "mean": 31.575881088739997,
+        "std": 0.009224389115581126,
+        "std_ddof": 1,
+        "min": 31.5603198123,
+        "max": 31.5835822732
+      },
+      "raw_delta_definition": "unet_minus_cnn",
+      "raw_delta_by_seed": {
+        "2026": 0.21190839460000177,
+        "2027": 0.21028054649999817,
+        "2028": 0.30618634579999693,
+        "2029": 0.23212826870000214,
+        "2030": 0.20953250100000176
+      },
+      "raw_delta": {
+        "values": [
+          0.21190839460000177,
+          0.21028054649999817,
+          0.30618634579999693,
+          0.23212826870000214,
+          0.20953250100000176
+        ],
+        "n": 5,
+        "mean": 0.23400721132000016,
+        "std": 0.041423669709488985,
+        "std_ddof": 1,
+        "min": 0.20953250100000176,
+        "max": 0.30618634579999693
+      },
+      "oriented_improvement_definition": "unet - cnn for higher-is-better metrics, cnn - unet for lower-is-better; positive always means the U-Net did better",
+      "oriented_improvement_by_seed": {
+        "2026": 0.21190839460000177,
+        "2027": 0.21028054649999817,
+        "2028": 0.30618634579999693,
+        "2029": 0.23212826870000214,
+        "2030": 0.20953250100000176
+      },
+      "oriented_improvement": {
+        "values": [
+          0.21190839460000177,
+          0.21028054649999817,
+          0.30618634579999693,
+          0.23212826870000214,
+          0.20953250100000176
+        ],
+        "n": 5,
+        "mean": 0.23400721132000016,
+        "std": 0.041423669709488985,
+        "std_ddof": 1,
+        "min": 0.20953250100000176,
+        "max": 0.30618634579999693
+      },
+      "seeds_favouring_unet": 5,
+      "seeds_favouring_cnn": 0,
+      "seeds_tied": 0,
+      "directionally_consistent_for_unet": true,
+      "directionally_consistent_for_cnn": false
+    },
+    "body_ssim": {
+      "metric": "body_ssim",
+      "direction": "higher_is_better",
+      "seeds": [
+        2026,
+        2027,
+        2028,
+        2029,
+        2030
+      ],
+      "cnn": {
+        "values": [
+          0.8970972528,
+          0.8970816281,
+          0.8957820674,
+          0.8963727936,
+          0.8962775132
+        ],
+        "n": 5,
+        "mean": 0.89652225102,
+        "std": 0.0005642773424656073,
+        "std_ddof": 1,
+        "min": 0.8957820674,
+        "max": 0.8970972528
+      },
+      "unet": {
+        "values": [
+          0.8998868359,
+          0.8997630805,
+          0.9002245289,
+          0.9007175144,
+          0.8986646154
+        ],
+        "n": 5,
+        "mean": 0.89985131502,
+        "std": 0.0007594229746460344,
+        "std_ddof": 1,
+        "min": 0.8986646154,
+        "max": 0.9007175144
+      },
+      "raw_delta_definition": "unet_minus_cnn",
+      "raw_delta_by_seed": {
+        "2026": 0.0027895830999999927,
+        "2027": 0.0026814523999999507,
+        "2028": 0.00444246150000005,
+        "2029": 0.004344720800000035,
+        "2030": 0.0023871021999999353
+      },
+      "raw_delta": {
+        "values": [
+          0.0027895830999999927,
+          0.0026814523999999507,
+          0.00444246150000005,
+          0.004344720800000035,
+          0.0023871021999999353
+        ],
+        "n": 5,
+        "mean": 0.0033290639999999927,
+        "std": 0.0009834817216109657,
+        "std_ddof": 1,
+        "min": 0.0023871021999999353,
+        "max": 0.00444246150000005
+      },
+      "oriented_improvement_definition": "unet - cnn for higher-is-better metrics, cnn - unet for lower-is-better; positive always means the U-Net did better",
+      "oriented_improvement_by_seed": {
+        "2026": 0.0027895830999999927,
+        "2027": 0.0026814523999999507,
+        "2028": 0.00444246150000005,
+        "2029": 0.004344720800000035,
+        "2030": 0.0023871021999999353
+      },
+      "oriented_improvement": {
+        "values": [
+          0.0027895830999999927,
+          0.0026814523999999507,
+          0.00444246150000005,
+          0.004344720800000035,
+          0.0023871021999999353
+        ],
+        "n": 5,
+        "mean": 0.0033290639999999927,
+        "std": 0.0009834817216109657,
+        "std_ddof": 1,
+        "min": 0.0023871021999999353,
+        "max": 0.00444246150000005
+      },
+      "seeds_favouring_unet": 5,
+      "seeds_favouring_cnn": 0,
+      "seeds_tied": 0,
+      "directionally_consistent_for_unet": true,
+      "directionally_consistent_for_cnn": false
+    }
+  },
+  "overall": {
+    "architecture": "unet",
+    "metrics_directional_for_unet": [
+      "full_mae",
+      "full_mse",
+      "full_psnr",
+      "full_ssim",
+      "body_mae",
+      "body_mse",
+      "body_psnr",
+      "body_ssim"
+    ],
+    "metrics_directional_for_cnn": [],
+    "requires_all_metrics": 8,
+    "requires_minimum_seeds_favouring": 4,
+    "statement": "The unet was directionally consistent across training seeds on all 8 metrics.",
+    "significance_tested": false,
+    "note": "Descriptive only. Five seeds measure the spread of this training procedure on fixed data; no p-value, significance claim or confidence interval is reported, and none is implied."
+  }
+}

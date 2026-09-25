@@ -1,0 +1,546 @@
+{
+  "milestone": "8 - small residual CNN, single-seed development run",
+  "result_class": "SINGLE-SEED VALIDATION DEVELOPMENT RESULT, not a final benchmark result. One training seed shows what this run did; it does not establish that the architecture is stable. The test split remains sealed.",
+  "method": "cnn",
+  "method_description": "A 28,353-parameter residual CNN predicting an additive correction to the frozen degraded image, clamped to [0, 1]. It receives the degraded image only: no clean reference, no body mask, no patient identity.",
+  "split": "validation",
+  "patients": 6,
+  "slices": 885,
+  "subject_ids": [
+    "4",
+    "14",
+    "17",
+    "23",
+    "24",
+    "34"
+  ],
+  "model_config": {
+    "algorithm": "residual_cnn_v1",
+    "input_channels": 1,
+    "output_channels": 1,
+    "hidden_channels": 32,
+    "depth": 5,
+    "kernel_size": 3,
+    "padding": 1,
+    "activation": "relu",
+    "batch_norm": false,
+    "dropout": 0.0,
+    "residual_correction": true,
+    "zero_initialize_final_layer": true
+  },
+  "checkpoint": {
+    "path": "outputs/checkpoints/cnn_seed2030_best.pt",
+    "epoch": 28,
+    "seed": 2030,
+    "config_sha256": "05faaae5d9d0500d298bcfe2f0c7f347444138e8488d53280cf7038a9dce76f4",
+    "selection_metric": "validation_patient_weighted_full_mae",
+    "selection_value": 0.0094055342,
+    "selection_note": "Chosen on patient-weighted validation full-frame MAE alone, predeclared before training. The metrics below are reported, not optimized against.",
+    "provenance": {
+      "verified": true,
+      "verified_before_any_image_was_scored": true,
+      "checks_passed": [
+        "checkpoint_config_sha_matches_frozen_config",
+        "checkpoint_config_sha_matches_run_summary",
+        "checkpoint_epoch_matches_recomputed_selection",
+        "checkpoint_epoch_matches_run_summary",
+        "checkpoint_file_sha_matches_run_summary",
+        "checkpoint_seed_is_canonical",
+        "checkpoint_seed_matches_run_summary",
+        "checkpoint_selection_metric_is_predeclared",
+        "checkpoint_selection_value_matches_history",
+        "checkpoint_selection_value_matches_run_summary",
+        "round_trip_predictions_clean",
+        "round_trip_reproduces_saved_model",
+        "round_trip_state_dict_clean",
+        "run_summary_seed_is_canonical",
+        "run_summary_selection_metric_is_predeclared"
+      ],
+      "checks_failed": [],
+      "recomputed_from_files": {
+        "config_sha256": "05faaae5d9d0500d298bcfe2f0c7f347444138e8488d53280cf7038a9dce76f4",
+        "checkpoint_file_sha256": "503c63cac31126f59f18ba2d6d3f222b85664d310fd860da0233b9dccf6be30d",
+        "selected_epoch_from_training_history": 28,
+        "selection_value_from_training_history": 0.0094055342
+      },
+      "selection_rule_reapplied": "lowest validation_patient_weighted_full_mae, ties to the earlier epoch, epoch 0 ineligible",
+      "selection_value_tolerance": 5e-10,
+      "sources": {
+        "frozen_config": "configs/multiseed/cnn_seed2030.yaml",
+        "run_summary": "outputs/runs/cnn_seed2030/run_summary.json",
+        "training_history": "outputs/runs/cnn_seed2030/training_history.csv",
+        "checkpoint": "outputs/checkpoints/cnn_seed2030_best.pt"
+      },
+      "note": "Each field is checked against something computed independently of the checkpoint - the config bytes, the checkpoint bytes, and the tracked history re-run through the predeclared selection rule - not copied from the payload."
+    }
+  },
+  "evaluation_config": {
+    "data_range": 1.0,
+    "ssim": {
+      "win_size": 11,
+      "gaussian_weights": true,
+      "sigma": 1.5,
+      "use_sample_covariance": false,
+      "data_range": 1.0
+    },
+    "body_mask": {
+      "threshold_hu": -500.0,
+      "connectivity": 8,
+      "keep_largest_component": true,
+      "fill_holes": true,
+      "resize_interpolation": "nearest"
+    },
+    "aggregation": {
+      "slice_to_patient": "arithmetic_mean",
+      "patient_to_split": "arithmetic_mean",
+      "primary_unit": "patient"
+    }
+  },
+  "degradation_config": {
+    "algorithm": "correlated_heteroscedastic_gaussian_v1",
+    "global_seed": 2026,
+    "sigma_floor": 0.015,
+    "sigma_signal": 0.035,
+    "correlation_sigma_px": 0.6,
+    "clip_min": 0.0,
+    "clip_max": 1.0
+  },
+  "primary_result": {
+    "unit": "patient",
+    "description": "PRIMARY figure. Per-slice metrics averaged within each patient, then patients averaged with equal weight.",
+    "patients": 6,
+    "full_mae": {
+      "mean": 0.0094054243,
+      "std": 0.0009612197,
+      "median": 0.0093292698,
+      "min": 0.0082145515,
+      "max": 0.0111134134
+    },
+    "full_mse": {
+      "mean": 0.0003497651,
+      "std": 4.29977e-05,
+      "median": 0.000339391,
+      "min": 0.0003086558,
+      "max": 0.0004268898
+    },
+    "full_psnr": {
+      "mean": 34.6520136681,
+      "std": 0.527454072,
+      "median": 34.7629314034,
+      "min": 33.7206493754,
+      "max": 35.1807090164
+    },
+    "full_ssim": {
+      "mean": 0.953535206,
+      "std": 0.0084235812,
+      "median": 0.9516385314,
+      "min": 0.9434489545,
+      "max": 0.9681876343
+    },
+    "body_mae": {
+      "mean": 0.0200520565,
+      "std": 0.0013634875,
+      "median": 0.0195811515,
+      "min": 0.0187358896,
+      "max": 0.0221398495
+    },
+    "body_mse": {
+      "mean": 0.0007510788,
+      "std": 7.69039e-05,
+      "median": 0.000723433,
+      "min": 0.0006861086,
+      "max": 0.0008524127
+    },
+    "body_psnr": {
+      "mean": 31.3507873113,
+      "std": 0.4751394072,
+      "median": 31.5075269197,
+      "min": 30.7029001154,
+      "max": 31.7800022581
+    },
+    "body_ssim": {
+      "mean": 0.8962775132,
+      "std": 0.0137016796,
+      "median": 0.8985097069,
+      "min": 0.8805733248,
+      "max": 0.916795635
+    }
+  },
+  "secondary_slice_weighted_summary": {
+    "unit": "slice",
+    "description": "SECONDARY slice-weighted descriptive summary, NOT the benchmark result.",
+    "slices": 885,
+    "full_mae": {
+      "mean": 0.0093022079
+    },
+    "full_mse": {
+      "mean": 0.0003420518
+    },
+    "full_psnr": {
+      "mean": 34.740748808
+    },
+    "full_ssim": {
+      "mean": 0.9539233269
+    },
+    "body_mae": {
+      "mean": 0.0196652041
+    },
+    "body_mse": {
+      "mean": 0.0007283142
+    },
+    "body_psnr": {
+      "mean": 31.4882532435
+    },
+    "body_ssim": {
+      "mean": 0.8980000638
+    }
+  },
+  "paired_comparison_vs_degraded_baseline": {
+    "description": "delta = CNN - degraded baseline, per patient, same patients and same slices. Positive is an improvement for PSNR and SSIM; negative is an improvement for MAE and MSE. No significance test is run: six patients is a small descriptive sample.",
+    "baseline": "degraded_baseline_validation_patients.csv",
+    "patient_deltas_csv": "outputs/metrics/multiseed/seed2030/cnn_vs_degraded_baseline_validation_patient_deltas.csv",
+    "patients": 6,
+    "full_mae": {
+      "direction": "lower",
+      "improvement_sign": "negative",
+      "mean": -0.0069534975,
+      "median": -0.0070411684,
+      "std": 0.0002878811,
+      "min": -0.0072999544,
+      "max": -0.0064970257,
+      "count_improved": 6,
+      "count_worsened": 0,
+      "count_tied": 0
+    },
+    "full_mse": {
+      "direction": "lower",
+      "improvement_sign": "negative",
+      "mean": -0.000371539,
+      "median": -0.0003696505,
+      "std": 3.94591e-05,
+      "min": -0.0004207286,
+      "max": -0.0003055811,
+      "count_improved": 6,
+      "count_worsened": 0,
+      "count_tied": 0
+    },
+    "full_psnr": {
+      "direction": "higher",
+      "improvement_sign": "positive",
+      "mean": 3.1707544799,
+      "median": 3.1422612439,
+      "std": 0.1934380896,
+      "min": 2.9774170403,
+      "max": 3.4042835466,
+      "count_improved": 6,
+      "count_worsened": 0,
+      "count_tied": 0
+    },
+    "full_ssim": {
+      "direction": "higher",
+      "improvement_sign": "positive",
+      "mean": 0.1721896623,
+      "median": 0.1730924634,
+      "std": 0.0081240264,
+      "min": 0.1576120444,
+      "max": 0.1809899382,
+      "count_improved": 6,
+      "count_worsened": 0,
+      "count_tied": 0
+    },
+    "body_mae": {
+      "direction": "lower",
+      "improvement_sign": "negative",
+      "mean": -0.0081344795,
+      "median": -0.0082672923,
+      "std": 0.0004510898,
+      "min": -0.0086874514,
+      "max": -0.0073996889,
+      "count_improved": 6,
+      "count_worsened": 0,
+      "count_tied": 0
+    },
+    "body_mse": {
+      "direction": "lower",
+      "improvement_sign": "negative",
+      "mean": -0.0006641882,
+      "median": -0.0006683462,
+      "std": 4.92965e-05,
+      "min": -0.0007314819,
+      "max": -0.0005859683,
+      "count_improved": 6,
+      "count_worsened": 0,
+      "count_tied": 0
+    },
+    "body_psnr": {
+      "direction": "higher",
+      "improvement_sign": "positive",
+      "mean": 2.7887571891,
+      "median": 2.80165963,
+      "std": 0.2174814442,
+      "min": 2.5077062236,
+      "max": 3.060495336,
+      "count_improved": 6,
+      "count_worsened": 0,
+      "count_tied": 0
+    },
+    "body_ssim": {
+      "direction": "higher",
+      "improvement_sign": "positive",
+      "mean": 0.0858474703,
+      "median": 0.0854588288,
+      "std": 0.0128736528,
+      "min": 0.0692441678,
+      "max": 0.1004117511,
+      "count_improved": 6,
+      "count_worsened": 0,
+      "count_tied": 0
+    }
+  },
+  "paired_comparison_vs_clahe": {
+    "description": "delta = CNN - selected CLAHE, per patient. Descriptive context only: the bar a restoration method has to clear is no restoration, not CLAHE.",
+    "baseline": "clahe_validation_patients.csv",
+    "patient_deltas_csv": "outputs/metrics/multiseed/seed2030/cnn_vs_clahe_validation_patient_deltas.csv",
+    "patients": 6,
+    "full_mae": {
+      "direction": "lower",
+      "improvement_sign": "negative",
+      "mean": -0.0141642984,
+      "median": -0.0140564156,
+      "std": 0.0009261181,
+      "min": -0.0154903867,
+      "max": -0.0131768699,
+      "count_improved": 6,
+      "count_worsened": 0,
+      "count_tied": 0
+    },
+    "full_mse": {
+      "direction": "lower",
+      "improvement_sign": "negative",
+      "mean": -0.0008827557,
+      "median": -0.0008809457,
+      "std": 0.0001123854,
+      "min": -0.0010237107,
+      "max": -0.0007033729,
+      "count_improved": 6,
+      "count_worsened": 0,
+      "count_tied": 0
+    },
+    "full_psnr": {
+      "direction": "higher",
+      "improvement_sign": "positive",
+      "mean": 5.4958932773,
+      "median": 5.4460623547,
+      "std": 0.5622471261,
+      "min": 4.7501815204,
+      "max": 6.2925466244,
+      "count_improved": 6,
+      "count_worsened": 0,
+      "count_tied": 0
+    },
+    "full_ssim": {
+      "direction": "higher",
+      "improvement_sign": "positive",
+      "mean": 0.3327664699,
+      "median": 0.3348875895,
+      "std": 0.0211005397,
+      "min": 0.2982326062,
+      "max": 0.3535721712,
+      "count_improved": 6,
+      "count_worsened": 0,
+      "count_tied": 0
+    },
+    "body_mae": {
+      "direction": "lower",
+      "improvement_sign": "negative",
+      "mean": -0.0162288587,
+      "median": -0.0159974145,
+      "std": 0.0020074283,
+      "min": -0.0192429174,
+      "max": -0.0141494872,
+      "count_improved": 6,
+      "count_worsened": 0,
+      "count_tied": 0
+    },
+    "body_mse": {
+      "direction": "lower",
+      "improvement_sign": "negative",
+      "mean": -0.0015477232,
+      "median": -0.0015357096,
+      "std": 0.0002137384,
+      "min": -0.0018870975,
+      "max": -0.0012669806,
+      "count_improved": 6,
+      "count_worsened": 0,
+      "count_tied": 0
+    },
+    "body_psnr": {
+      "direction": "higher",
+      "improvement_sign": "positive",
+      "mean": 4.8676585382,
+      "median": 4.8063664841,
+      "std": 0.6261720593,
+      "min": 4.2109624253,
+      "max": 5.7186716584,
+      "count_improved": 6,
+      "count_worsened": 0,
+      "count_tied": 0
+    },
+    "body_ssim": {
+      "direction": "higher",
+      "improvement_sign": "positive",
+      "mean": 0.1281929294,
+      "median": 0.1281517709,
+      "std": 0.0244322975,
+      "min": 0.0903278662,
+      "max": 0.15771307,
+      "count_improved": 6,
+      "count_worsened": 0,
+      "count_tied": 0
+    }
+  },
+  "verdict": {
+    "question": "Did the selected CNN beat no restoration on each metric?",
+    "beats_degraded_baseline": {
+      "full_mae": true,
+      "full_mse": true,
+      "full_psnr": true,
+      "full_ssim": true,
+      "body_mae": true,
+      "body_mse": true,
+      "body_psnr": true,
+      "body_ssim": true
+    },
+    "metrics_improved": 8,
+    "metrics_total": 8
+  },
+  "raw_output_diagnostics": {
+    "raw_minimum": -0.030085573,
+    "raw_maximum": 1.0604948997,
+    "fraction_raw_below_zero": 0.4707720396,
+    "fraction_raw_above_one": 0.0040441653,
+    "fraction_changed_by_clamp": 0.4748162049,
+    "mean_absolute_predicted_correction": 0.0121057789,
+    "per_slice_mean_absolute_predicted_correction": {
+      "q05": 0.0102421604,
+      "q50": 0.0119373369,
+      "q95": 0.0142293784
+    },
+    "mean_absolute_post_clamp_change_vs_degraded": 0.011934054,
+    "per_slice_mean_absolute_post_clamp_change": {
+      "q05": 0.0100199162,
+      "q50": 0.0117779808,
+      "q95": 0.0140806931
+    },
+    "finite_value_failures": 0,
+    "definitions": {
+      "predicted_correction": "abs(raw - degraded), from the UNCLAMPED model output",
+      "post_clamp_change": "abs(clamp(raw, 0, 1) - degraded), what reached the metrics",
+      "why_both": "They differ wherever the raw output leaves [0, 1]. Reporting either one under the other's name misstates how hard the network is pushing."
+    },
+    "note": "Descriptive diagnostics of the clamp and the predicted correction. Reported metrics use the clamped image; nothing here is an optimization objective."
+  },
+  "sample_alignment": {
+    "rows": 885,
+    "unique_rows": 885,
+    "duplicates": 0,
+    "references": [
+      "vs_clahe",
+      "vs_degraded_baseline"
+    ],
+    "vs_degraded_baseline": {
+      "reference_rows": 885,
+      "missing": 0,
+      "extra": 0,
+      "order_mismatches": 0,
+      "identical_order": true
+    },
+    "vs_clahe": {
+      "reference_rows": 885,
+      "missing": 0,
+      "extra": 0,
+      "order_mismatches": 0,
+      "identical_order": true
+    },
+    "enforced": true
+  },
+  "acquisition_group_breakdown": {
+    "description": "Descriptive only, patient-weighted within each group, three patients each. No significance test and no general claim about acquisition settings.",
+    "groups": {
+      "A": {
+        "patients": 3,
+        "full_mae": {
+          "mean": 0.0092355752
+        },
+        "full_mse": {
+          "mean": 0.0003319216
+        },
+        "full_psnr": {
+          "mean": 34.8623231514
+        },
+        "full_ssim": {
+          "mean": 0.9533538714
+        },
+        "body_mae": {
+          "mean": 0.0189875218
+        },
+        "body_mse": {
+          "mean": 0.0006868964
+        },
+        "body_psnr": {
+          "mean": 31.7481982103
+        },
+        "body_ssim": {
+          "mean": 0.8995830663
+        }
+      },
+      "B": {
+        "patients": 3,
+        "full_mae": {
+          "mean": 0.0095752735
+        },
+        "full_mse": {
+          "mean": 0.0003676087
+        },
+        "full_psnr": {
+          "mean": 34.4417041848
+        },
+        "full_ssim": {
+          "mean": 0.9537165406
+        },
+        "body_mae": {
+          "mean": 0.0211165912
+        },
+        "body_mse": {
+          "mean": 0.0008152613
+        },
+        "body_psnr": {
+          "mean": 30.9533764123
+        },
+        "body_ssim": {
+          "mean": 0.8929719602
+        }
+      }
+    }
+  },
+  "inspection_policy": {
+    "train_images_read": false,
+    "validation_images_read": true,
+    "test_images_read": 0,
+    "stress_images_read": 0,
+    "validation_images_visually_inspected": false,
+    "note": "This command cannot evaluate test or stress: require_development_split refuses them. The checkpoint was selected on validation MAE only."
+  },
+  "interpretation": {
+    "mae": "lower is better",
+    "mse": "lower is better",
+    "psnr": "higher is better, in decibels",
+    "ssim": "higher is better, 1.0 for identical images",
+    "caution": "A single-seed validation development result. No value here indicates clinical adequacy, and a PSNR difference is in decibels, never a percentage."
+  },
+  "outputs": {
+    "slices_csv": "outputs/metrics/multiseed/seed2030/cnn_validation_slices.csv",
+    "patients_csv": "outputs/metrics/multiseed/seed2030/cnn_validation_patients.csv",
+    "patient_deltas_csv": "outputs/metrics/multiseed/seed2030/cnn_vs_degraded_baseline_validation_patient_deltas.csv"
+  }
+}

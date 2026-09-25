@@ -21,3 +21,11 @@ configs/unet.yaml  text eol=lf
 # is pinned from the moment it is created, not after a CRLF checkout has
 # already made a run unverifiable on someone else's machine.
 configs/multiseed/*.yaml  text eol=lf
+
+# The frozen patient split and slice manifest. The split's SHA-256 is published
+# in the README and asserted byte for byte by tests/test_splits.py, and a CRLF
+# checkout under core.autocrlf=true changes those bytes without changing a
+# single row - so the guard on the frozen split fails on exactly the platform
+# this project runs on. The committed bytes are already LF, so pinning them
+# changes no hash; it only stops checkout from rewriting them.
+data/splits/*.csv  text eol=lf

@@ -1,0 +1,145 @@
+{
+  "milestone": "9 - lightweight residual U-Net, single-seed development run",
+  "result_class": "SINGLE-SEED VALIDATION DEVELOPMENT RESULT. One seed shows what this run did; it does not establish that the architecture is stable. Multi-seed work is a later milestone, and the test split remains sealed.",
+  "comparability": "Seed, epochs, batch size, loss, optimizer and its hyperparameters, sampler, augmentation policy and checkpoint-selection rule are identical to the Milestone 8 residual CNN's and were not adjusted for this architecture. The intended difference between the two runs is the model. Neither recipe was ever hyperparameter-tuned: the CNN's values were one predeclared development configuration. The U-Net therefore inherits the CNN benchmark's predeclared training recipe rather than receiving architecture-specific tuning, and is measured under that recipe rather than at its best.",
+  "model": {
+    "algorithm": "lightweight_residual_unet_v1",
+    "input_channels": 1,
+    "output_channels": 1,
+    "base_channels": 16,
+    "levels": 2,
+    "convolutions_per_block": 2,
+    "kernel_size": 3,
+    "padding": 1,
+    "activation": "relu",
+    "downsampling": "max_pool_2x2",
+    "upsampling": "conv_transpose_2x2_stride2",
+    "skip_connection": "concatenate",
+    "batch_norm": false,
+    "dropout": 0.0,
+    "residual_correction": true,
+    "zero_initialize_final_layer": true,
+    "final_kernel_size": 1,
+    "trainable_parameters": 116753,
+    "encoder_channels_per_level": [
+      16,
+      32
+    ],
+    "bottleneck_channels": 64,
+    "downsampling_steps": 2,
+    "skip_connections": 2,
+    "receptive_field_pixels": 44,
+    "receptive_field_note": "Maximum theoretical receptive field through the deepest encoder-decoder path: 44x44 pixels. Skip paths are shallower and retain smaller-scale local information, so this is the maximum over paths, not the window every contribution comes through. A statement about pixels only, not about anatomical or clinical context.",
+    "canonical_receptive_field": 44
+  },
+  "config": {
+    "path": "configs/multiseed/unet_seed2030.yaml",
+    "sha256": "906ee3ac5e95bff221d979e9c4734a70aed2329bb0326968401428a113849f41",
+    "frozen_before_training": true
+  },
+  "training": {
+    "seed": 2030,
+    "epochs": 30,
+    "batch_size": 32,
+    "loss": "full-frame L1 on the raw (unclamped) restoration",
+    "optimizer": "adam",
+    "learning_rate": 0.001,
+    "betas": [
+      0.9,
+      0.999
+    ],
+    "eps": 1e-08,
+    "weight_decay": 0.0,
+    "scheduler": "none",
+    "gradient_clipping": "none",
+    "mixed_precision": false,
+    "augmentation": "none"
+  },
+  "data": {
+    "sampler_algorithm": "patient_balanced_v1",
+    "train_patients": 25,
+    "train_slices": 4160,
+    "train_draws_per_epoch": 4160,
+    "validation_patients": 6,
+    "validation_slices": 885,
+    "validation_sampling": "canonical_sequential, exactly once",
+    "num_workers": 2,
+    "drop_last": false
+  },
+  "epoch_zero_identity_check": {
+    "description": "The zero-initialized network's 1x1 head outputs a correction of exactly 0, so its clamped restoration is the degraded image. Its validation MAE must match the committed degraded baseline, or the learned-method evaluation path disagrees with the frozen benchmark.",
+    "zero_initialized_unet_patient_weighted_full_mae": 0.0163589219,
+    "committed_degraded_baseline_patient_weighted_full_mae": 0.0163589219,
+    "baseline_source": "outputs/metrics/degraded_baseline_validation_patients.csv",
+    "absolute_difference": 0.0,
+    "absolute_difference_exact": "2.026799e-11",
+    "tolerance": 1e-06,
+    "difference_note": "Not expected to be exactly zero: the benchmark computes this with NumPy metric code and this script with a torch reduction, so the two differ by floating-point summation order. A plumbing mismatch would be orders of magnitude larger.",
+    "identity_reproduced": true
+  },
+  "checkpoint_selection": {
+    "split": "validation",
+    "primary_metric": "validation_patient_weighted_full_mae",
+    "direction": "minimize",
+    "tie_breaker": "earlier_epoch",
+    "epoch_zero_eligible": false,
+    "predeclared": true,
+    "identical_to_cnn_criterion": true,
+    "best_epoch": 27,
+    "best_validation_patient_weighted_full_mae": 0.0091545862,
+    "final_epoch_validation_patient_weighted_full_mae": 0.0093043399
+  },
+  "checkpoint": {
+    "path": "outputs/checkpoints/unet_seed2030_best.pt",
+    "sha256": "7b83e4c36804541d988f12dac2f4bc97d56cf61b24124196ff7cf644752d6e44",
+    "tracked_in_git": false,
+    "contents": [
+      "model_state_dict",
+      "epoch",
+      "seed",
+      "config_sha256",
+      "selection_metric",
+      "selection_value"
+    ],
+    "note": "Plain tensors only; loadable with weights_only=True.",
+    "round_trip": {
+      "state_dict_keys": 26,
+      "state_dict_tensor_mismatches": 0,
+      "probe_tensors": 4,
+      "probe_prediction_mismatches": 0,
+      "reproduces_saved_model": true,
+      "loaded_with_weights_only": true
+    }
+  },
+  "environment": {
+    "torch_version": "2.14.0+cu130",
+    "cuda_build_version": "13.0",
+    "cudnn_version": 92400,
+    "cuda_available": true,
+    "device": "cuda",
+    "gpu_name": "NVIDIA GeForce RTX 5070 Ti",
+    "gpu_total_memory_bytes": 17066033152,
+    "gpu_capability": "12.0",
+    "use_deterministic_algorithms": true,
+    "deterministic_warn_only": false,
+    "cudnn_benchmark": false,
+    "cudnn_deterministic": true,
+    "cublas_workspace_config": ":4096:8",
+    "seed": 2030,
+    "python_random": true,
+    "numpy_global": true,
+    "torch_cpu": true,
+    "torch_cuda": true
+  },
+  "reproducibility_claim": "Same repository, config, environment, hardware and seed reproduce this run. Bitwise identity across different GPUs or driver versions is NOT claimed.",
+  "inspection_policy": {
+    "train_images_read": true,
+    "validation_images_read": true,
+    "test_images_read": 0,
+    "stress_images_read": 0,
+    "validation_images_visually_inspected": false
+  },
+  "outputs": {
+    "training_history_csv": "outputs/runs/unet_seed2030/training_history.csv"
+  }
+}

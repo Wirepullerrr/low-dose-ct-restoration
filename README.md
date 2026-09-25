@@ -1,47 +1,59 @@
-# Low-Dose CT Image Restoration: Classical vs. Deep Learning Approaches
+# Low-Dose-like CT Image Restoration: Classical vs. Deep Learning Approaches
 
 An engineering benchmark comparing classical and lightweight deep-learning
 restoration methods on **synthetically degraded, low-dose-like CT images**
 built from public abdominal CT data.
 
-> **Status: in progress (Milestone 9 of 15 complete - all four methods are
-> now measured on validation. Milestone 10's multi-seed design is frozen;
-> its execution is pending).**
+> **Status: in progress (Milestone 10 of 15 complete - all four methods are
+> measured on validation, and both learned methods are measured across five
+> training seeds).**
 >
 > **CLAHE scored worse than doing nothing on every metric and every
 > patient.** Both learned methods beat no restoration on all eight reported
-> metrics and on all six validation patients: the 28,353-parameter residual
-> CNN by +3.18 dB full-frame PSNR, and the 116,753-parameter lightweight
-> U-Net by +3.38 dB.
+> metrics and on all six validation patients, at every one of the five
+> training seeds. The full-frame PSNR gain over no restoration was +3.08 to
+> +3.19 dB across the five seeds of the 28,353-parameter residual CNN, and
+> +3.37 to +3.40 dB across those of the 116,753-parameter lightweight U-Net
+> (seed 2026: +3.18 and +3.38 dB).
 >
-> **U-Net versus CNN:** the U-Net used 4.12x the trainable parameters and
-> scored +0.20 dB higher full-frame PSNR in this single-seed validation run.
-> It is ahead on the mean of all eight metrics, by roughly one fifteenth of
-> the distance either model travels from the baseline.
+> **U-Net versus CNN, across five predeclared training seeds each:** the
+> U-Net used 4.12x the trainable parameters, and all eight metrics favoured
+> it at each of the five seeds. Across the five seeds, the paired
+> U-Net-minus-CNN full-frame PSNR difference averaged **+0.228 dB** (sample
+> SD 0.050 dB; range +0.195 to +0.315 dB), with all five seeds favouring the
+> U-Net; the body-region PSNR difference averaged +0.234 dB (sample SD
+> 0.041 dB).
 >
-> Both learned figures are **single-seed development results**. One seed
-> shows what a run did; it does not establish that an architecture is stable.
-> A 0.20 dB gap between two single-seed runs is **not** established as an
-> architecture effect, because the run-to-run spread of either is unmeasured.
-> Multi-seed work is a later milestone.
+> The smallest observed full-PSNR difference (+0.195 dB) exceeded either
+> architecture's observed five-seed full-PSNR range. This is a
+> **descriptive** validation-development finding from five training seeds
+> on one dataset and one synthetic degradation. No p-value, confidence
+> interval or significance claim is reported, and five observed seeds do
+> not bound what further seeds could produce.
 >
-> **Milestone 10 design frozen / execution pending.** The multi-seed
-> experiment is pre-registered in
-> [configs/multiseed/plan.yaml](configs/multiseed/plan.yaml): five training
-> seeds per architecture (2026, 2027, 2028, 2029, 2030), with seed 2026
-> reused from Milestones 8 and 9 rather than retrained, leaving **eight new
-> training runs** still to do. **No additional seed has been trained, and no
-> multi-seed result exists or is reported here.**
+> **Milestone 10 executed as pre-registered.** The design was committed in
+> [configs/multiseed/plan.yaml](configs/multiseed/plan.yaml) *before* any of
+> the eight new runs existed, and the eight ran afterwards without a single
+> change to it: five training seeds per architecture (2026, 2027, 2028,
+> 2029, 2030), seed 2026 reused from Milestones 8 and 9 rather than
+> retrained. No seed was added, dropped, rerun or selected, and every run
+> kept the checkpoint its own frozen rule chose.
 >
 > Every measured number here is a **validation** development result. No test
 > or stress number exists, and no test or stress image content has been read
 > since the split was frozen.
 >
 > Every number reported here is read from a tracked file under `outputs/`.
-> All of them except the CNN's are re-derivable from the committed configs and
-> the imaging data alone; the CNN's additionally require re-running the
-> training command, whose checkpoint is git-ignored with only its SHA-256
-> tracked.
+> The degraded-baseline and CLAHE numbers are re-derivable from the committed
+> configs and the imaging data alone. Every learned-method number - the CNN
+> and U-Net at seed 2026 and all eight Milestone 10 runs - additionally
+> requires re-running a training command, because every checkpoint is
+> git-ignored; each checkpoint's SHA-256 and selection evidence are recorded
+> in tracked run and metric artifacts, so a regenerated checkpoint can be
+> checked against them. The two seed-2026 training runs were each executed
+> twice and reproduced a byte-identical training history and checkpoint on
+> the same machine; the eight Milestone 10 runs were each executed once and
+> were **not** independently bitwise-repeated.
 
 ## Research question
 
@@ -55,8 +67,8 @@ quality, and what does each method cost in inference latency?
 | --- | --- | --- |
 | Degraded input (no restoration) | mandatory reference baseline | implemented; [measured on validation](#validation-degraded-baseline) |
 | CLAHE | classical local contrast enhancement | implemented, validation-tuned and frozen; [worse than no restoration](#validation-result-clahe-versus-no-restoration) |
-| Small residual CNN | deep learning | implemented and trained, one seed; [beat no restoration on all 8 metrics](#validation-result-cnn-versus-no-restoration) |
-| Lightweight U-Net | deep learning | implemented and trained, one seed; [best of the four, narrowly](#validation-result-four-methods-side-by-side) |
+| Small residual CNN | deep learning | implemented and trained, **five seeds**; [beat no restoration on all 8 metrics](#validation-result-cnn-versus-no-restoration) |
+| Lightweight U-Net | deep learning | implemented and trained, **five seeds**; [favoured over the CNN on all 8 metrics at each of 5 seeds, on validation](#milestone-10-the-multi-seed-result) |
 
 All four have now been evaluated on identical patients, identical clean
 targets and identical degraded inputs, through the same frozen metric code,
@@ -1032,8 +1044,11 @@ declared rather than quietly repaired.
 
 Within the predeclared grid the ranking is **monotone in both parameters**:
 the lower tested clip limits and the coarser tested tile grids scored better.
-The winner therefore lies at the boundary of the tested parameter space, so
-the sweep does **not** establish what would happen outside that space —
+The winner therefore lies at the boundary of the tested parameter space —
+clip limit 0.5 with 4×4 tiles is the mildest corner of the grid, its lowest
+clip limit and coarsest tiling — so the search did not identify an interior
+optimum, and the sweep does **not** establish what would happen outside that
+space —
 neither that a still lower clip limit would keep improving, nor what OpenCV's
 integer clip threshold would do there. The grid was intentionally not expanded
 after the validation results were seen.
@@ -1219,7 +1234,9 @@ The reason is a scoping decision, not a claim that the alternative is
 invalid. This benchmark defines exactly **one** degraded counterpart per clean
 slice. Holding that pair fixed makes the training inputs reproducible and lets
 the CNN and the U-Net inherit an identical input-target mapping, so a
-difference between them is attributable to the model. Re-drawing the
+difference between them cannot come from the training pairs: it comes from
+the model side, meaning the architecture together with the training run of
+that model. Re-drawing the
 corruption every epoch is a perfectly legitimate way to train a denoiser — it
 is a standard stochastic augmentation — but it is a different experiment: it
 changes the training distribution and introduces a second stochastic policy to
@@ -1244,7 +1261,7 @@ against this contract.
 
 The 25 training patients hold **78 to 294 slices each**. Visiting every slice
 once per epoch — ordinary `shuffle=True` — would give the longest scan almost
-four times the optimizer weight of the shortest, purely because of how long
+four times as many training draws as the shortest, purely because of how long
 that patient's scan was. Scan length is an acquisition-protocol fact, not a
 statement about how much a patient should matter.
 
@@ -1253,16 +1270,20 @@ patient-level, and every reported metric averages slices within a patient
 before averaging patients. Slice-weighted training would be the one place the
 experiment quietly switched units.
 
-So the canonical training policy weights **patients** equally, via
-`PatientBalancedSampler` (`patient_balanced_v1`).
+So the canonical training policy approximately equalizes **per-patient
+sampling exposure**: within an epoch every training patient is drawn 166 or
+167 times, via `PatientBalancedSampler` (`patient_balanced_v1`).
 
-Two things this does not mean. It does **not** make slices statistically
-independent — adjacent slices of one CT scan remain highly correlated, and
-nothing here changes that. It only stops scan length from directly determining
-a patient's total training weight. And it does **not** balance acquisition
-groups: training holds 10 group-A and 15 group-B patients, so equal
-per-patient weight leaves group B with 15/25 of the patient mass, which is the
-cohort's own composition. Forcing A and B to 50/50 would be a second
+Three things this does not mean. It does **not** equalize optimizer
+influence: equal draw counts are not equal gradient contributions, because
+how far one draw moves the weights depends on that slice's content and on
+the current model, not only on how often the patient is drawn. It does
+**not** make slices statistically independent — adjacent slices of one CT
+scan remain highly correlated, and nothing here changes that; it only stops
+scan length from directly determining how often a patient is drawn. And it
+does **not** balance acquisition groups: training holds 10 group-A and 15
+group-B patients, so equal per-patient draw counts leave group B with 15/25
+of the draws, which is the cohort's own composition. Forcing A and B to 50/50 would be a second
 intervention the frozen cohort definition does not justify. Source archive and
 slice position are likewise left alone.
 
@@ -1779,12 +1800,18 @@ restoring it never executes code from the file.
 
 ### What this result is not
 
-**It is one seed.** The single most important limitation. One training run
-shows what that run did. It does not establish that this architecture reaches
-this number reliably, and the run-to-run spread is unmeasured — it could be
-small or it could be comparable to the gaps being discussed. Multi-seed
-stability is a deliberately separate later milestone, and until it exists no
-statement here should be read as "the residual CNN achieves 34.66 dB".
+**It is one seed.** The single most important limitation *of this section*.
+One training run shows what that run did, so no statement here should be
+read as "the residual CNN achieves 34.66 dB".
+
+The run-to-run spread was unmeasured when this section was written, and
+[Milestone 10](#milestone-10-the-multi-seed-result) has since measured it:
+across five predeclared training seeds the CNN's full-frame PSNR ranged from
+34.5617 to 34.6668 dB (sample SD 0.0429 dB). This run, seed 2026, scored
+34.658340 dB, the second highest of the five. Seed 2026 was the project's
+canonical seed, fixed before any training run existed; it was not chosen for
+its result. The figure above is left unedited because it is what the
+Milestone 8 run produced.
 
 **It is validation, not test.** These numbers were computed on the split the
 checkpoint was selected on. Selecting one of 30 epochs on validation makes a
@@ -1828,8 +1855,10 @@ run added a checkpoint round-trip check and recorded the identity difference
 at full precision; the run was then repeated from scratch rather than patched
 after the fact, and no scientific hyperparameter moved.
 
-These are validation development results for one seed. The final comparison on
-the held-out test split happens only once every method decision is frozen.
+These are validation development results for one seed; the spread across five
+seeds is reported in [Milestone 10](#milestone-10-the-multi-seed-result). The
+final comparison on the held-out test split happens only once every method
+decision is frozen.
 
 ## The lightweight U-Net
 
@@ -2113,7 +2142,9 @@ U-Net used 4.12× the trainable parameters** of the CNN (116,753 against
 28,353) **and scored +0.20 dB higher full-frame PSNR in this single-seed
 validation run.** Both models are about **+3 dB** over no restoration, so the
 gap between them is roughly **one fifteenth** of the distance either travels
-from the baseline.
+from the baseline. Across five predeclared seeds the paired difference
+averaged **+0.228 dB**; see
+[Milestone 10](#milestone-10-the-multi-seed-result).
 
 The parameter count is reported beside the score, not as its cause. Nothing
 here isolates which change produced the difference, and no latency has been
@@ -2129,13 +2160,24 @@ concatenative skips, in parameter count and in the entire computational
 graph, and all of those changed together. Isolating any one of them would be
 a separate, declared experiment.
 
-Most importantly: **these are one seed each.** A +0.20 dB gap between two
-single-seed runs is not established as an architecture effect, because the
-run-to-run spread of either architecture is unmeasured and could be of
-comparable size. Multi-seed stability is a deliberately separate later
-milestone, and until it exists the correct reading of this table is "this
-U-Net run scored slightly better than this CNN run", not "U-Nets are better
-here".
+Most importantly: **these are one seed each**, so the correct reading of this
+table on its own is "this U-Net run scored slightly better than this CNN
+run", not "U-Nets are better here".
+
+When this section was written the run-to-run spread of either architecture
+was unmeasured and could have been of comparable size, which is why no
+architecture effect was claimed.
+[Milestone 10](#milestone-10-the-multi-seed-result) has since trained five
+predeclared seeds per architecture. All eight metrics favoured the U-Net at
+each of the five seeds. Across them, the paired U-Net-minus-CNN full-frame
+PSNR difference averaged +0.228 dB (sample SD 0.050 dB; range +0.195 to
++0.315 dB), and this run's seed-2026 difference, +0.203912 dB, was near the
+lower end of the observed range. The smallest observed difference
+(+0.195 dB) exceeded either architecture's observed five-seed full-PSNR
+range. That is still a descriptive validation result from five seeds: it
+does not bound what further seeds could produce, it remains confounded
+across every architectural change listed above, and it is not a statement
+that U-Nets are better in general.
 
 ### What the clamp is doing
 
@@ -2204,12 +2246,12 @@ Within that scope it was checked rather than asserted:
 Both gates are the same shared code the CNN's evaluation clears, in
 [src/ct_restoration/evaluation_integrity.py](src/ct_restoration/evaluation_integrity.py).
 
-## Milestone 10: the multi-seed design, frozen before it runs
+## Milestone 10: the multi-seed result
 
 Milestone 9 measured one CNN run against one U-Net run and found the U-Net
 ahead by +0.20 dB full-frame PSNR. With one seed each, that gap could not be
 separated from ordinary run-to-run variation, because the run-to-run spread
-of either architecture was unmeasured. Milestone 10 measures that spread.
+of either architecture was unmeasured. Milestone 10 measured that spread.
 
 The design below was written and committed **before any of the eight new runs
 existed**, so none of it could have been chosen to suit a number. It lives in
@@ -2219,6 +2261,14 @@ that: the aggregate `multiseed_summary.json` records the hash of the plan
 file the summarizer actually read. Individual training run summaries record
 their own config's hash, not the plan's.
 
+The eight new runs were then executed in one session under a single frozen
+commit, in the pre-registered order, one process at a time. The plan was not
+edited, and the plan SHA-256 recorded in the aggregate summary is the one
+that was committed before any of them ran. The plan file therefore still
+reads `milestone_stage: 10A - design frozen, execution pending`: that line
+records the moment of the freeze, and the file is byte-pinned, so it is
+deliberately not edited now that the runs exist.
+
 ### The seed set
 
 | | |
@@ -2226,8 +2276,8 @@ their own config's hash, not the plan's.
 | statistical seeds | **2026, 2027, 2028, 2029, 2030** |
 | architectures | residual CNN, lightweight U-Net |
 | total runs | 10 |
-| already trained | 2 - the Milestone 8 CNN and Milestone 9 U-Net, both at seed 2026 |
-| **new runs still to do** | **8** |
+| reused, not retrained | 2 - the Milestone 8 CNN and Milestone 9 U-Net, both at seed 2026 |
+| **new runs executed** | **8, all completed** |
 
 Seed 2026 is **reused, not retrained**. Its checkpoint, history and run
 summary are the committed ones, and it keeps the checkpoint it already
@@ -2243,9 +2293,10 @@ whichever seeds survived inspection.
 Within each architecture, the only thing that differs across its five
 training-seed runs is **training randomness**: weight initialization and
 patient-balanced sampler ordering, both driven by that run's seed. Each of
-the eight new runs has its own frozen config under `configs/multiseed/`,
+the eight new runs had its own frozen config under `configs/multiseed/`,
 identical to the canonical one except for a single line, and each config's
-SHA-256 is pinned in the plan.
+SHA-256 is pinned in the plan and was re-verified against the checkpoint
+that run produced.
 
 Between the matched CNN and U-Net runs at a given seed label, **architecture
 differs by design**, while the data, degradation, sampler algorithm and
@@ -2335,9 +2386,9 @@ Validation only. Test and stress stay sealed, and the plan records
 `test_allowed: false` and `stress_allowed: false` - the summarizer refuses a
 plan that says otherwise.
 
-### What a shared seed number will and will not mean
+### What a shared seed number does and does not mean
 
-Milestone 10 will train both architectures at each of several seeds, and the
+Milestone 10 trained both architectures at each of the five seeds, and the
 paired comparison only means something if "the same seed" is described
 accurately.
 
@@ -2368,29 +2419,181 @@ The per-slice degradation is unaffected by any of this. Its seed lives in
 constructor takes no seed argument at all - so every seed of every
 architecture sees pixel-identical degraded images.
 
+### The result
+
+Every number below is read from [outputs/metrics/multiseed/multiseed_summary.json](outputs/metrics/multiseed/multiseed_summary.json),
+which records the SHA-256 of the plan it was produced under. Per-architecture
+spread across the five training seeds, patient-weighted validation:
+
+| metric | CNN mean | CNN sd | CNN min-max | U-Net mean | U-Net sd | U-Net min-max |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| full_mae | 0.009403 | 0.000057 | 0.009353-0.009499 | 0.009133 | 0.000022 | 0.009100-0.009155 |
+| full_mse | 0.000351 | 0.000003 | 0.000349-0.000357 | 0.000333 | 0.000001 | 0.000332-0.000334 |
+| full_psnr | 34.6374 | 0.0429 | 34.5617-34.6668 | 34.8652 | 0.0114 | 34.8471-34.8769 |
+| full_ssim | 0.953615 | 0.000250 | 0.953266-0.953860 | 0.955134 | 0.000327 | 0.954624-0.955488 |
+| body_mae | 0.020050 | 0.000128 | 0.019940-0.020264 | 0.019425 | 0.000028 | 0.019404-0.019474 |
+| body_mse | 0.000753 | 0.000007 | 0.000748-0.000764 | 0.000714 | 0.000002 | 0.000712-0.000717 |
+| body_psnr | 31.3419 | 0.0386 | 31.2743-31.3698 | 31.5759 | 0.0092 | 31.5603-31.5836 |
+| body_ssim | 0.896522 | 0.000564 | 0.895782-0.897097 | 0.899851 | 0.000759 | 0.898665-0.900718 |
+
+The standard deviations are **sample** standard deviations (ddof = 1) over
+five values, as the plan requires.
+
+Paired within each seed, oriented so that **positive always means the U-Net
+did better**, whichever direction the metric runs:
+
+| metric | mean improvement | sd | min | max | seeds favouring U-Net |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| full_mae | 0.000270 | 0.000074 | 0.000220 | 0.000399 | **5 / 5** |
+| full_mse | 0.000018 | 0.000004 | 0.000015 | 0.000025 | **5 / 5** |
+| full_psnr | 0.2279 | 0.0500 | 0.1951 | 0.3152 | **5 / 5** |
+| full_ssim | 0.001519 | 0.000446 | 0.001088 | 0.002066 | **5 / 5** |
+| body_mae | 0.000625 | 0.000135 | 0.000530 | 0.000860 | **5 / 5** |
+| body_mse | 0.000039 | 0.000007 | 0.000034 | 0.000051 | **5 / 5** |
+| body_psnr | 0.2340 | 0.0414 | 0.2095 | 0.3062 | **5 / 5** |
+| body_ssim | 0.003329 | 0.000983 | 0.002387 | 0.004442 | **5 / 5** |
+
+The five per-seed full-frame PSNR advantages, in plan order (2026 … 2030),
+are printed rather than summarized because at n=5 the list is the more
+honest report:
+
+`2026: +0.2039 dB  2027: +0.2015 dB  2028: +0.3152 dB  2029: +0.2237 dB  2030: +0.1951 dB`
+
+### What this does and does not establish
+
+Under the rule frozen before the runs - mean direction **and** at least 4 of
+5 seeds - the U-Net qualifies as **directionally consistent across training
+seeds on all eight metrics**, which is the one overall statement the plan
+permits. All eight metrics favoured the U-Net at each of the five
+predeclared seeds. The eight metrics are not independent of one another -
+MAE, MSE and PSNR are all computed from the same pixel residuals - so this is
+one pattern observed at five seeds, not forty separate confirmations.
+
+Each of the following is stated narrowly, because each is easy to
+overstate.
+
+**What the five seeds show.** Across the five predeclared training seeds,
+the paired U-Net-minus-CNN full-frame PSNR difference averaged +0.228 dB
+(sample SD 0.050 dB; range +0.195 to +0.315 dB), with all five seeds
+favouring the U-Net. The smallest observed full-PSNR difference (+0.195 dB)
+exceeded either architecture's observed five-seed full-PSNR range (CNN
+0.105 dB, U-Net 0.030 dB). The seed-2026 difference behind Milestone 9's
++0.20 dB, +0.203912 dB, was near the lower end of the observed range - the
+middle of the five values, 0.009 dB above the smallest and 0.111 dB below
+the largest. Milestone 9 could say none of this, because with one seed per
+architecture the spread was unmeasured.
+
+**What they do not show.** Five seeds are five observations of one training
+procedure. Their observed range is not a bound on what further seeds could
+produce, and nothing here rules out training randomness as a contributor to
+the gap, estimates how often a reversal would occur, or attributes the gap
+to any one architectural difference.
+
+**It is still a descriptive result on one dataset.** No p-value, confidence
+interval or significance test is reported; the plan forbids them at n=5 and
+the summarizer records `significance_tested: false`. Five seeds measure the
+spread of *this training procedure on fixed data*. They say nothing about
+variation across patients, scanners, institutions or dose levels, and
+nothing about real low-dose CT, which this degradation does not reproduce.
+
+The observed seed-to-seed spread also differed by metric. For PSNR the
+U-Net's five-seed sample SD was smaller than the CNN's (full-frame 0.0114
+vs 0.0429 dB; body 0.0092 vs 0.0386 dB); for both SSIM metrics it was
+slightly larger (full 0.000327 vs 0.000250; body 0.000759 vs 0.000564). A
+sample SD from five values is itself imprecise, so these describe the ten
+runs; they are not a claim that either architecture trains more stably.
+
+### How the eight runs were kept honest
+
+| check | result |
+| --- | --- |
+| scientific code changed during execution | none observed - the design commit precedes the first run, and `git diff` against it was empty across `src/`, `scripts/`, `configs/` after the last; the run artifacts do not themselves record a commit ([see below](#before-milestones-11-and-12-requirements-recorded-in-advance)) |
+| seed witnesses per run | 5 agree (plan key, frozen config, checkpoint payload, run summary, metric summary) |
+| config SHA-256 witnesses per run | 5 agree, against the hash pinned in the plan before the run |
+| checkpoints per run | exactly 1 - no run produced candidates to choose between |
+| unplanned seeds on disk | 0, by the summarizer's own detector and an independent scan |
+| slices scored | 885, identical keys in identical order for all 10 runs |
+| degradation `global_seed` | 2026 in all 10 runs - the training seed cannot reach it |
+| statistics | recomputed independently twice - 321 values from the per-seed summaries, 288 from the per-slice tables upward - 0 disagreements in either |
+| repeat execution | each of the eight runs executed once; **not** independently bitwise-repeated |
+| hold-out | validation only; test and stress unread |
+
 ### What was and was not looked at
 
 Training and validation image content was read numerically. **No test or
-stress image content was read** — `scripts/train_unet.py` and
-`scripts/evaluate_unet.py` both refuse those splits through the same hold-out
-gate, and both summaries record `test_images_read: 0` and
-`stress_images_read: 0`.
+stress image content was read** in Milestone 9 or Milestone 10 — both
+training commands and both evaluation commands refuse those splits through
+the same hold-out gate, and all ten learned-method validation summaries
+record `test_images_read: 0` and `stress_images_read: 0`.
 
 **No validation image was inspected visually at any point.**
 `scripts/qc_unet.py` has no `--split` option: it reads **training** slices
-only, and it ran after both checkpoints had been selected numerically and the
-canonical metrics had been written. Its six-panel figures — clean, degraded,
-CNN restored, U-Net restored, the U-Net's correction, and its remaining error
-— go to a git-ignored directory, and nothing about either model was changed
-after looking at them.
+only, and it ran after the two seed-2026 checkpoints had been selected
+numerically and their canonical metrics written. Its six-panel figures —
+clean, degraded, CNN restored, U-Net restored, the U-Net's correction, and
+its remaining error — go to a git-ignored directory, and nothing about
+either model was changed after looking at them. No figure of any kind was
+rendered for seeds 2027-2030: Milestone 10 read its results as numbers only.
 
 Nothing in the architecture, the loss, the optimizer, the learning rate, the
 epoch count, the batch size or the checkpoint criterion was changed after the
-first validation number existed.
+first validation number existed, and nothing in the Milestone 10 plan or its
+eight configs was changed after the first Milestone 10 run began.
 
-These are single-seed validation development results for both learned
-methods. The final comparison on the held-out test split happens only once
-every method decision is frozen.
+These are **five-seed** validation development results for both learned
+methods, and validation development results are all they are. The final
+comparison on the held-out test split happens only once every method
+decision is frozen.
+
+## Before Milestones 11 and 12: requirements recorded in advance
+
+Nothing in this section has been implemented or run. It records, before the
+held-out test split is opened, what Milestones 11 and 12 must satisfy, so the
+requirements cannot be shaped by the results they govern.
+
+### Milestone 11: the one-time held-out test evaluation
+
+The run artifacts of Milestones 8-10 record each run's config SHA-256 and
+checkpoint SHA-256, but **not** the git commit they were produced under. The
+statement that all eight Milestone 10 runs used one frozen commit rests on the
+design commit preceding the first run and on `git diff` being empty across
+`src/`, `scripts/` and `configs/` after the last. Milestone 11 closes that gap
+before it reads a single test image. It must record, and refuse to proceed
+without:
+
+* the exact git commit of the evaluating code;
+* a clean working tree - no modified or untracked file under `src/`,
+  `scripts/`, `configs/` or `data/splits/`;
+* the SHA-256 of every checkpoint scored, checked against the one recorded in
+  its tracked run summary;
+* the SHA-256 of every config those checkpoints were trained from;
+* the test protocol itself - which methods, which checkpoints, which metrics,
+  which aggregation and which comparisons - written down and committed before
+  the test split is read;
+* an explicit record that every method decision was frozen before the test
+  split was opened.
+
+The test split is evaluated **once**. A result that looks wrong is reported,
+not re-run under a changed protocol.
+
+### Milestone 12: latency, after one known fix
+
+The U-Net's `forward()` validates its input on every call
+([src/ct_restoration/models/unet.py](src/ct_restoration/models/unet.py)),
+and that validation reads back a finiteness flag, a minimum and a maximum -
+three device-to-host synchronizations per forward pass. The CNN's `forward()`
+performs no such check. Neither affects any image-quality number, but timed
+as it stands the U-Net would be charged for synchronization the CNN never
+pays. Before any latency is measured:
+
+1. the benchmark-distorting synchronization is removed from the timed path,
+   for both models on equal terms;
+2. the change is shown to leave every model output numerically unchanged;
+3. the latency protocol is frozen;
+4. only then is latency measured.
+
+Milestone 11 is unaffected: it evaluates image quality with the frozen model
+implementation and checkpoints exactly as they are.
 
 ## Setup
 
@@ -2427,15 +2630,21 @@ src/ct_restoration/   library code (importable package)
 scripts/              runnable commands (cohort audit, split generation,
                       degradation audit, body-mask audit, baseline and CLAHE
                       evaluation, CLAHE tuning, Dataset/DataLoader audit,
-                      CNN and U-Net training, evaluation and visual QC)
+                      CNN and U-Net training, evaluation and visual QC,
+                      multi-seed aggregation)
 tests/                pytest suite, fully synthetic, no downloads
 configs/              YAML experiment settings
+configs/multiseed/    the pre-registered multi-seed plan and one frozen
+                      config per training seed, each SHA-256 pinned
 data/README.md        dataset provenance
 data/splits/          the frozen patient split and slice manifest (tracked)
 data/raw/, processed/ image data (git-ignored)
 outputs/audit/        measured dataset facts (figures there are git-ignored)
 outputs/metrics/      tracked per-slice, per-patient and split-level scores
-outputs/runs/         per-epoch training histories and run summaries (tracked)
+outputs/metrics/multiseed/  one directory per additional training seed, plus
+                      the aggregate five-seed summary (tracked)
+outputs/runs/         per-epoch training histories and run summaries for all
+                      ten runs (tracked)
 outputs/checkpoints/  model weights (git-ignored; only their SHA-256 is tracked)
 ```
 

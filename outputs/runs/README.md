@@ -1,9 +1,10 @@
 # Training runs
 
-One directory per training run, named for the method and the seed:
-`cnn_seed2026` (Milestone 8) and `unet_seed2026` (Milestone 9). These are
-**development** artifacts: they record what a run did, not what the benchmark
-concluded. The benchmark numbers live in
+One directory per training run, named for the method and the seed. There are
+ten: `cnn_seed2026` (Milestone 8) and `unet_seed2026` (Milestone 9), plus the
+eight Milestone 10 runs at seeds 2027, 2028, 2029 and 2030 - one per
+architecture per seed. These are **development** artifacts: they record what a
+run did, not what the benchmark concluded. The benchmark numbers live in
 [`outputs/metrics/`](../metrics/README.md).
 
 | File | Contents |
@@ -23,23 +24,34 @@ exists for one purpose: choosing a checkpoint.
 **Checkpoint selection used one predeclared criterion.** The lowest
 patient-weighted validation full-frame MAE, computed from the clamped
 prediction, over epochs 1..30, ties broken towards the earlier epoch. That
-criterion was written into `configs/cnn.yaml` before the first training run
-and its SHA-256 is recorded in the summary. Epoch 0 is the zero-initialized
-identity check and is recorded but never eligible.
+criterion was written into each run's frozen config - `configs/cnn.yaml`,
+`configs/unet.yaml`, and the eight per-seed configs under
+`configs/multiseed/` - before that run started, and the config's SHA-256 is
+recorded in its summary. Epoch 0 is the zero-initialized identity check and
+is recorded but never eligible.
 
 **The full metrics were computed once, afterwards.** MAE, MSE, PSNR and SSIM,
 full frame and body region, were calculated only for the already-selected
 checkpoint, through the same frozen benchmark harness every other method uses.
 They are reported, not optimized against.
 
-**Single seed.** These runs use one training seed. One seed shows what that
-run did; it does not establish that the architecture is stable. Multi-seed
-work is a later milestone.
+**One run, one seed.** Each directory here is a single training run at a
+single seed, and shows only what that run did. Stability across seeds is not
+a property of any one of these files: it is measured by comparing the five
+runs per architecture, and is reported in
+[`outputs/metrics/multiseed/`](../metrics/README.md).
 
-**The two runs are deliberately comparable.** `unet_seed2026` uses the same
-seed, epoch budget, batch size, loss, optimizer and hyperparameters, sampler
-and checkpoint-selection rule as `cnn_seed2026`; none of them were adjusted
-for the U-Net. The intended difference between the two runs is the model.
+Every run kept the checkpoint its own predeclared rule selected. No run was
+repeated to obtain a better one, and no seed has more than one checkpoint -
+which is what makes the five-seed spread a spread rather than a selection.
+
+**The runs are deliberately comparable.** `unet_seed2026` uses the same seed,
+epoch budget, batch size, loss, optimizer and hyperparameters, sampler and
+checkpoint-selection rule as `cnn_seed2026`; none of them were adjusted for
+the U-Net. The intended difference between the two runs is the model. The
+eight Milestone 10 runs hold all of that fixed as well, and differ from their
+seed-2026 counterpart by exactly one line of config - `training.seed` - whose
+SHA-256 was pinned in `configs/multiseed/plan.yaml` before any of them ran.
 Both training commands call the same shared helpers in
 `ct_restoration.training_loop`, so they cannot drift apart in how they train.
 
@@ -75,9 +87,17 @@ Each summary records the torch version, the CUDA build, the GPU name and the
 determinism settings the run used, so a mismatch is visible rather than
 assumed away.
 
-Both runs were executed twice end to end as a check, and each produced a
-byte-identical history, summary and checkpoint. That is a determinism check,
-**not** a second seed, and it is not stability evidence.
+The two canonical seed-2026 runs were each executed twice end to end as a
+determinism check: both `cnn_seed2026` executions produced a byte-identical
+training history and checkpoint, and both `unet_seed2026` executions a
+byte-identical history, run summary and checkpoint. That is a determinism
+check, **not** a second seed, and it is not stability evidence.
+
+The eight Milestone 10 runs at seeds 2027-2030 were each executed **once**,
+under the same frozen scientific commit, and were **not** independently
+bitwise-repeated. They ran with the same deterministic settings, recorded in
+each summary, so the scoped claim above is expected to hold for them; it has
+not been demonstrated by a repeat.
 
 ## Terms
 
@@ -104,7 +124,8 @@ a seed that is not a genuine non-negative integer: `True`, `2027.0` and
 caller did not intend.
 
 The Milestone 8 and Milestone 9 destinations are `cnn_seed2026` and
-`unet_seed2026` and are immutable.
+`unet_seed2026` and are immutable. The eight Milestone 10 runs were written
+to their own destinations, each verified absent before its run started.
 
 Before a training command reads any image, builds an optimizer or takes a
 gradient step, it refuses to start if its checkpoint already exists or its
@@ -126,4 +147,5 @@ a committed result permanently unverifiable.
 
 `--overwrite` exists for a deliberate re-run of a result nothing depends on.
 Multi-seed automation must not use it: each seed has its own destination, so
-needing the flag means the destination was wrong.
+needing the flag means the destination was wrong. It was not used anywhere in
+Milestone 10 - all eight destinations were empty when their runs began.
