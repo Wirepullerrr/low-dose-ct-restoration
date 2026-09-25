@@ -1,0 +1,193 @@
+{
+  "milestone": 11,
+  "result_class": "HELD-OUT TEST RESULT, measured once under the frozen Milestone 11 protocol. Six held-out CHAOS patients, synthetic low-dose-like degradation.",
+  "method": "cnn_seed2027",
+  "split": "test",
+  "patients": 6,
+  "slices": 941,
+  "subject_ids": [
+    "11",
+    "13",
+    "19",
+    "25",
+    "29",
+    "32"
+  ],
+  "primary_result": {
+    "unit": "patient",
+    "description": "PRIMARY figure. Per-slice metrics averaged within each patient, then the six patients averaged with equal weight.",
+    "patients": 6,
+    "full_mae": {
+      "mean": 0.0094368936,
+      "std": 0.0017901793,
+      "median": 0.0088401997,
+      "min": 0.0080660322,
+      "max": 0.0128270391
+    },
+    "full_mse": {
+      "mean": 0.0003498579,
+      "std": 6.2176e-05,
+      "median": 0.0003386263,
+      "min": 0.0002927759,
+      "max": 0.0004642719
+    },
+    "full_psnr": {
+      "mean": 34.6907066949,
+      "std": 0.7054719882,
+      "median": 34.7554710019,
+      "min": 33.4570238694,
+      "max": 35.4076425895
+    },
+    "full_ssim": {
+      "mean": 0.9537989423,
+      "std": 0.0102566315,
+      "median": 0.9564490227,
+      "min": 0.9338404356,
+      "max": 0.9633714825
+    },
+    "body_mae": {
+      "mean": 0.0191524356,
+      "std": 0.001353585,
+      "median": 0.0187088871,
+      "min": 0.0179475659,
+      "max": 0.0212934262
+    },
+    "body_mse": {
+      "mean": 0.0007167065,
+      "std": 6.81567e-05,
+      "median": 0.0006859669,
+      "min": 0.0006627515,
+      "max": 0.0008230302
+    },
+    "body_psnr": {
+      "mean": 31.5860217339,
+      "std": 0.4384312366,
+      "median": 31.7960463885,
+      "min": 30.9180750767,
+      "max": 31.931796862
+    },
+    "body_ssim": {
+      "mean": 0.9024637051,
+      "std": 0.0100200482,
+      "median": 0.9016754265,
+      "min": 0.8865963783,
+      "max": 0.9160017436
+    }
+  },
+  "secondary_slice_weighted_summary": {
+    "unit": "slice",
+    "description": "SECONDARY slice-weighted descriptive summary, NOT the result.",
+    "slices": 941,
+    "full_mae": {
+      "mean": 0.0095965434
+    },
+    "full_mse": {
+      "mean": 0.0003529132
+    },
+    "full_psnr": {
+      "mean": 34.6835904747
+    },
+    "full_ssim": {
+      "mean": 0.9518004366
+    },
+    "body_mae": {
+      "mean": 0.0188779851
+    },
+    "body_mse": {
+      "mean": 0.0007000647
+    },
+    "body_psnr": {
+      "mean": 31.7006874762
+    },
+    "body_ssim": {
+      "mean": 0.9017136474
+    }
+  },
+  "preprocessing": {
+    "window_center": 40,
+    "window_width": 400,
+    "image_size": [
+      256,
+      256
+    ],
+    "interpolation": "area"
+  },
+  "degradation_config": {
+    "algorithm": "correlated_heteroscedastic_gaussian_v1",
+    "global_seed": 2026,
+    "sigma_floor": 0.015,
+    "sigma_signal": 0.035,
+    "correlation_sigma_px": 0.6,
+    "clip_min": 0.0,
+    "clip_max": 1.0
+  },
+  "evaluation_config": {
+    "data_range": 1.0,
+    "ssim": {
+      "win_size": 11,
+      "gaussian_weights": true,
+      "sigma": 1.5,
+      "use_sample_covariance": false,
+      "data_range": 1.0
+    },
+    "body_mask": {
+      "threshold_hu": -500.0,
+      "connectivity": 8,
+      "keep_largest_component": true,
+      "fill_holes": true,
+      "resize_interpolation": "nearest"
+    },
+    "aggregation": {
+      "slice_to_patient": "arithmetic_mean",
+      "patient_to_split": "arithmetic_mean",
+      "primary_unit": "patient"
+    }
+  },
+  "checkpoint": {
+    "method": "cnn",
+    "seed": 2027,
+    "epoch": 29,
+    "config": "configs/multiseed/cnn_seed2027.yaml",
+    "config_sha256": "80a2835bddb15f32a821745dc521874960c11685a010c78c2267255c9358d891",
+    "checkpoint": "outputs/checkpoints/cnn_seed2027_best.pt",
+    "checkpoint_sha256": "3da511b736e8db60cc6253a505a88200a81e41abeac24f3955a782cda08d704a",
+    "trainable_parameters": 28353,
+    "provenance": {
+      "verified": true,
+      "verified_before_any_image_was_scored": true,
+      "checks_passed": [
+        "checkpoint_config_sha_matches_frozen_config",
+        "checkpoint_config_sha_matches_run_summary",
+        "checkpoint_epoch_matches_recomputed_selection",
+        "checkpoint_epoch_matches_run_summary",
+        "checkpoint_file_sha_matches_run_summary",
+        "checkpoint_seed_is_canonical",
+        "checkpoint_seed_matches_run_summary",
+        "checkpoint_selection_metric_is_predeclared",
+        "checkpoint_selection_value_matches_history",
+        "checkpoint_selection_value_matches_run_summary",
+        "round_trip_predictions_clean",
+        "round_trip_reproduces_saved_model",
+        "round_trip_state_dict_clean",
+        "run_summary_seed_is_canonical",
+        "run_summary_selection_metric_is_predeclared"
+      ],
+      "checks_failed": [],
+      "recomputed_from_files": {
+        "config_sha256": "80a2835bddb15f32a821745dc521874960c11685a010c78c2267255c9358d891",
+        "checkpoint_file_sha256": "3da511b736e8db60cc6253a505a88200a81e41abeac24f3955a782cda08d704a",
+        "selected_epoch_from_training_history": 29,
+        "selection_value_from_training_history": 0.009368746
+      },
+      "selection_rule_reapplied": "lowest validation_patient_weighted_full_mae, ties to the earlier epoch, epoch 0 ineligible",
+      "selection_value_tolerance": 5e-10,
+      "sources": {
+        "frozen_config": "configs/multiseed/cnn_seed2027.yaml",
+        "run_summary": "outputs/runs/cnn_seed2027/run_summary.json",
+        "training_history": "outputs/runs/cnn_seed2027/training_history.csv",
+        "checkpoint": "outputs/checkpoints/cnn_seed2027_best.pt"
+      },
+      "note": "Each field is checked against something computed independently of the checkpoint - the config bytes, the checkpoint bytes, and the tracked history re-run through the predeclared selection rule - not copied from the payload."
+    }
+  }
+}

@@ -2,7 +2,9 @@
 
 Tracked image-quality results, produced by the evaluation commands in
 [`scripts/`](../../scripts/) using the frozen policy in
-[`configs/evaluation.yaml`](../../configs/evaluation.yaml).
+[`configs/evaluation.yaml`](../../configs/evaluation.yaml). The table below
+lists the validation files; the one-shot held-out test tables are in
+`holdout/test/`, described [at the end](#the-held-out-test-tables).
 
 | File | Contents |
 | --- | --- |
@@ -123,15 +125,21 @@ timestamps.** Slices are identified by the same `relative_dicom_path` sample
 key the frozen manifest uses. Regenerating from an unchanged experiment
 definition rewrites every file byte for byte.
 
+Two exceptions, both in `holdout/test/`. Its opening record, log and
+execution receipt carry the opening and completion timestamps, by design.
+And its tables are never regenerated, because doing so would reopen the
+test split.
+
 ## Reading them
 
-All of these are **validation development results**, not final benchmark
-results, and the learned tables in this directory - the CNN's and the
+Everything outside `holdout/` is a **validation development result**, not
+a final benchmark result, and the learned tables in this directory - the CNN's and the
 U-Net's - are **single-seed** results: one training seed each, which shows
 what those runs did. How much the figure of either architecture varied
 across five training seeds is described in `multiseed/`, not here; five
-seeds describe that spread, they do not bound it. The final comparison happens
-on the held-out test split once every method decision is frozen.
+seeds describe that spread, they do not bound it. The final comparison was
+made once, on the held-out test split, after every method decision was
+frozen; its tables are in `holdout/test/`.
 
 MAE and MSE are lower-is-better; PSNR, in decibels, and SSIM are
 higher-is-better. The **primary** figure for a split is the patient-weighted
@@ -196,20 +204,21 @@ looking exactly like a valid delta.
 With both options left at their defaults the layout is the canonical one and
 nothing changes.
 
-## Where the held-out test tables will go
+## The held-out test tables
 
-Nowhere yet: **no held-out test table exists.** The layout below was frozen in
-Milestone 11A, in
-[`configs/holdout/test_plan.yaml`](../../configs/holdout/test_plan.yaml),
-before the test split was opened, and
-[`scripts/run_holdout_test.py`](../../scripts/run_holdout_test.py) is the only
-command that writes it, once. It refuses if either directory already exists.
+`holdout/test/` holds the one-shot Milestone 11 measurement on the six
+held-out test patients (941 slices). It was written once, on 2026-09-25, by
+[`scripts/run_holdout_test.py`](../../scripts/run_holdout_test.py), under the
+protocol frozen in
+[`configs/holdout/test_plan.yaml`](../../configs/holdout/test_plan.yaml)
+before the test split was opened, and it was audited independently
+afterwards. The runner refuses to write it again, and it is not to be
+regenerated: the test split has been read once and is now spent.
+
+The layout is exactly the one frozen in the plan, with no file missing and
+none added:
 
 ```
-holdout/test.incomplete/   assembled here first; moved to holdout/test/ only
-                           when every table is written and checked. An
-                           interrupted run leaves it in place, with its log
-                           and a failure record, for an integrity review.
 holdout/test/
   degraded_test_{slices,patients}.csv, degraded_test_summary.json
   clahe_test_{slices,patients}.csv, clahe_test_summary.json
@@ -230,9 +239,43 @@ holdout/test/
     unet_vs_cnn_test_patient_deltas.csv
 ```
 
+The aggregate files, all patient-weighted and all descriptive:
+
+* `deterministic_methods.csv` - no restoration and CLAHE, measured once each,
+  with the CLAHE-minus-degraded change per metric. No seed spread exists for
+  them.
+* `seed_level_metrics.csv` - both learned architectures at each of the five
+  seeds, all eight metrics.
+* `paired_seed_deltas.csv` - U-Net minus CNN at each seed, raw and oriented
+  so that positive means the U-Net did better.
+* `learned_vs_degraded.csv`, `learned_vs_clahe.csv` - every learned seed
+  against the one deterministic reference, raw and oriented.
+* `validation_to_test.csv` - held-out minus validation per method and
+  metric. Secondary and descriptive only; not a generalization-error
+  estimate.
+* `holdout_test_summary.json` - every predeclared comparison with its five
+  seed values, mean, sample SD (ddof = 1), minimum, maximum and win counts,
+  and the directional statements the frozen rule permits.
+
+The execution record:
+
+* `opening_record.json` - written before the first test file was opened.
+* `execution_log.txt` - progress lines only; no metric was printed.
+* `execution_receipt.json` - the commit, the clean-tree state, every SHA-256
+  that was verified, and the file reads the audit hook measured. It holds no
+  metric value.
+
 Tables and JSON only - no image, figure, array or model output of any kind.
 Every per-slice table has the Milestone 5-10 columns plus one,
 `degraded_input_sha256`: the hash of the single degraded input every method
 scored on that slice, so a reader can check that all twelve tables measured
-the same corruption. The stress set has no directory here and gets none in
-Milestone 11.
+the same corruption.
+
+The staging directory `holdout/test.incomplete/` existed only while the run
+was in progress, and was renamed into place when the run completed. An
+interrupted run would have left it behind, with a failure record, for an
+integrity review; none was left.
+
+The stress set has no directory here. It remains sealed, and no stress image
+has been read since the split was frozen. The numbers are written up in the
+[README](../../README.md#milestone-11b-the-held-out-test-result).

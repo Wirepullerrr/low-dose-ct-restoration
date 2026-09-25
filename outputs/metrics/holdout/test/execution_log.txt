@@ -1,0 +1,13 @@
+test split opened at 2026-09-25T06:14:23+00:00 under commit 1d48d1a127c42a2fa4aaf3a5b23da740bc60f3bc
+scoring 941 test slices with 12 methods; no metric is printed
+  scored slice   100 / 941 with 12 methods
+  scored slice   200 / 941 with 12 methods
+  scored slice   300 / 941 with 12 methods
+  scored slice   400 / 941 with 12 methods
+  scored slice   500 / 941 with 12 methods
+  scored slice   600 / 941 with 12 methods
+  scored slice   700 / 941 with 12 methods
+  scored slice   800 / 941 with 12 methods
+  scored slice   900 / 941 with 12 methods
+  scored slice   941 / 941 with 12 methods
+all tables written; completed at 2026-09-25T06:15:37+00:00

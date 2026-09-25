@@ -1,0 +1,146 @@
+{
+  "milestone": 11,
+  "result_class": "HELD-OUT TEST RESULT, measured once under the frozen Milestone 11 protocol. Six held-out CHAOS patients, synthetic low-dose-like degradation.",
+  "method": "degraded",
+  "split": "test",
+  "patients": 6,
+  "slices": 941,
+  "subject_ids": [
+    "11",
+    "13",
+    "19",
+    "25",
+    "29",
+    "32"
+  ],
+  "primary_result": {
+    "unit": "patient",
+    "description": "PRIMARY figure. Per-slice metrics averaged within each patient, then the six patients averaged with equal weight.",
+    "patients": 6,
+    "full_mae": {
+      "mean": 0.0162117109,
+      "std": 0.0014527495,
+      "median": 0.0156780947,
+      "min": 0.0151807449,
+      "max": 0.0189427519
+    },
+    "full_mse": {
+      "mean": 0.0007036894,
+      "std": 6.23313e-05,
+      "median": 0.0006864184,
+      "min": 0.0006564041,
+      "max": 0.0008159538
+    },
+    "full_psnr": {
+      "mean": 31.5872145648,
+      "std": 0.371373253,
+      "median": 31.6858758054,
+      "min": 30.9405130315,
+      "max": 31.8821164061
+    },
+    "full_ssim": {
+      "mean": 0.786331925,
+      "std": 0.020240796,
+      "median": 0.7825272834,
+      "min": 0.764222266,
+      "max": 0.8188023822
+    },
+    "body_mae": {
+      "mean": 0.0269740626,
+      "std": 0.0016652285,
+      "median": 0.0267608255,
+      "min": 0.0253083225,
+      "max": 0.0298197519
+    },
+    "body_mse": {
+      "mean": 0.0013338584,
+      "std": 0.0001366744,
+      "median": 0.0013367804,
+      "min": 0.0011682299,
+      "max": 0.0015487844
+    },
+    "body_psnr": {
+      "mean": 28.8536551471,
+      "std": 0.446452568,
+      "median": 28.8678685362,
+      "min": 28.1537699141,
+      "max": 29.3963101306
+    },
+    "body_ssim": {
+      "mean": 0.8141498947,
+      "std": 0.0238016968,
+      "median": 0.8190360223,
+      "min": 0.7855258122,
+      "max": 0.836944896
+    }
+  },
+  "secondary_slice_weighted_summary": {
+    "unit": "slice",
+    "description": "SECONDARY slice-weighted descriptive summary, NOT the result.",
+    "slices": 941,
+    "full_mae": {
+      "mean": 0.0163670185
+    },
+    "full_mse": {
+      "mean": 0.0007084678
+    },
+    "full_psnr": {
+      "mean": 31.5668587299
+    },
+    "full_ssim": {
+      "mean": 0.7859003464
+    },
+    "body_mae": {
+      "mean": 0.0266749592
+    },
+    "body_mse": {
+      "mean": 0.0013086483
+    },
+    "body_psnr": {
+      "mean": 28.943426338
+    },
+    "body_ssim": {
+      "mean": 0.8099354478
+    }
+  },
+  "preprocessing": {
+    "window_center": 40,
+    "window_width": 400,
+    "image_size": [
+      256,
+      256
+    ],
+    "interpolation": "area"
+  },
+  "degradation_config": {
+    "algorithm": "correlated_heteroscedastic_gaussian_v1",
+    "global_seed": 2026,
+    "sigma_floor": 0.015,
+    "sigma_signal": 0.035,
+    "correlation_sigma_px": 0.6,
+    "clip_min": 0.0,
+    "clip_max": 1.0
+  },
+  "evaluation_config": {
+    "data_range": 1.0,
+    "ssim": {
+      "win_size": 11,
+      "gaussian_weights": true,
+      "sigma": 1.5,
+      "use_sample_covariance": false,
+      "data_range": 1.0
+    },
+    "body_mask": {
+      "threshold_hu": -500.0,
+      "connectivity": 8,
+      "keep_largest_component": true,
+      "fill_holes": true,
+      "resize_interpolation": "nearest"
+    },
+    "aggregation": {
+      "slice_to_patient": "arithmetic_mean",
+      "patient_to_split": "arithmetic_mean",
+      "primary_unit": "patient"
+    }
+  }
+}

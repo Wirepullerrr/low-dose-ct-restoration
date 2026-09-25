@@ -1,0 +1,258 @@
+{
+  "milestone": 11,
+  "event": "held-out test split opened",
+  "test_opening_started_utc": "2026-09-25T06:14:23+00:00",
+  "commit": "1d48d1a127c42a2fa4aaf3a5b23da740bc60f3bc",
+  "working_tree_clean": true,
+  "test_plan": {
+    "path": "configs/holdout/test_plan.yaml",
+    "sha256": "bbad8d1f738393b0712cc3e0ed04cbe5ad5e3aa71523d51afdd7ad4853cb4544"
+  },
+  "preflight": {
+    "checks": [
+      {
+        "name": "plan validated against the frozen protocol",
+        "passed": true,
+        "detail": "configs/holdout/test_plan.yaml"
+      },
+      {
+        "name": "git commit recorded",
+        "passed": true,
+        "detail": "1d48d1a127c42a2fa4aaf3a5b23da740bc60f3bc"
+      },
+      {
+        "name": "git working tree clean",
+        "passed": true,
+        "detail": "clean"
+      },
+      {
+        "name": "development frozen commit is an ancestor of HEAD",
+        "passed": true,
+        "detail": "f1fc6dd6714e8e818d27b9c4e52dc3aadbd4318e"
+      },
+      {
+        "name": "split file SHA-256",
+        "passed": true,
+        "detail": "split SHA-256 verified"
+      },
+      {
+        "name": "manifest file SHA-256",
+        "passed": true,
+        "detail": "manifest SHA-256 verified"
+      },
+      {
+        "name": "test cohort from the split file",
+        "passed": true,
+        "detail": "test ['11', '13', '19', '25', '29', '32']; stress ['1', '6', '39']"
+      },
+      {
+        "name": "test cohort from the manifest",
+        "passed": true,
+        "detail": "941 test slices over 6 patients"
+      },
+      {
+        "name": "Milestone 10 plan SHA-256",
+        "passed": true,
+        "detail": "multiseed plan SHA-256 verified"
+      },
+      {
+        "name": "frozen preprocessing config",
+        "passed": true,
+        "detail": "preprocessing policy verified"
+      },
+      {
+        "name": "frozen degradation config",
+        "passed": true,
+        "detail": "degradation policy verified"
+      },
+      {
+        "name": "frozen evaluation config",
+        "passed": true,
+        "detail": "evaluation policy verified"
+      },
+      {
+        "name": "frozen clahe config",
+        "passed": true,
+        "detail": "clahe policy verified"
+      },
+      {
+        "name": "validation reference degraded",
+        "passed": true,
+        "detail": "outputs/metrics/degraded_baseline_validation_summary.json verified"
+      },
+      {
+        "name": "validation reference clahe",
+        "passed": true,
+        "detail": "outputs/metrics/clahe_validation_summary.json verified"
+      },
+      {
+        "name": "validation reference cnn 2026",
+        "passed": true,
+        "detail": "outputs/metrics/cnn_validation_summary.json verified"
+      },
+      {
+        "name": "validation reference cnn 2027",
+        "passed": true,
+        "detail": "outputs/metrics/multiseed/seed2027/cnn_validation_summary.json verified"
+      },
+      {
+        "name": "validation reference cnn 2028",
+        "passed": true,
+        "detail": "outputs/metrics/multiseed/seed2028/cnn_validation_summary.json verified"
+      },
+      {
+        "name": "validation reference cnn 2029",
+        "passed": true,
+        "detail": "outputs/metrics/multiseed/seed2029/cnn_validation_summary.json verified"
+      },
+      {
+        "name": "validation reference cnn 2030",
+        "passed": true,
+        "detail": "outputs/metrics/multiseed/seed2030/cnn_validation_summary.json verified"
+      },
+      {
+        "name": "validation reference unet 2026",
+        "passed": true,
+        "detail": "outputs/metrics/unet_validation_summary.json verified"
+      },
+      {
+        "name": "validation reference unet 2027",
+        "passed": true,
+        "detail": "outputs/metrics/multiseed/seed2027/unet_validation_summary.json verified"
+      },
+      {
+        "name": "validation reference unet 2028",
+        "passed": true,
+        "detail": "outputs/metrics/multiseed/seed2028/unet_validation_summary.json verified"
+      },
+      {
+        "name": "validation reference unet 2029",
+        "passed": true,
+        "detail": "outputs/metrics/multiseed/seed2029/unet_validation_summary.json verified"
+      },
+      {
+        "name": "validation reference unet 2030",
+        "passed": true,
+        "detail": "outputs/metrics/multiseed/seed2030/unet_validation_summary.json verified"
+      },
+      {
+        "name": "tracked evidence cnn 2026",
+        "passed": true,
+        "detail": "cnn 2026: config, run summary and history agree"
+      },
+      {
+        "name": "tracked evidence cnn 2027",
+        "passed": true,
+        "detail": "cnn 2027: config, run summary and history agree"
+      },
+      {
+        "name": "tracked evidence cnn 2028",
+        "passed": true,
+        "detail": "cnn 2028: config, run summary and history agree"
+      },
+      {
+        "name": "tracked evidence cnn 2029",
+        "passed": true,
+        "detail": "cnn 2029: config, run summary and history agree"
+      },
+      {
+        "name": "tracked evidence cnn 2030",
+        "passed": true,
+        "detail": "cnn 2030: config, run summary and history agree"
+      },
+      {
+        "name": "tracked evidence unet 2026",
+        "passed": true,
+        "detail": "unet 2026: config, run summary and history agree"
+      },
+      {
+        "name": "tracked evidence unet 2027",
+        "passed": true,
+        "detail": "unet 2027: config, run summary and history agree"
+      },
+      {
+        "name": "tracked evidence unet 2028",
+        "passed": true,
+        "detail": "unet 2028: config, run summary and history agree"
+      },
+      {
+        "name": "tracked evidence unet 2029",
+        "passed": true,
+        "detail": "unet 2029: config, run summary and history agree"
+      },
+      {
+        "name": "tracked evidence unet 2030",
+        "passed": true,
+        "detail": "unet 2030: config, run summary and history agree"
+      },
+      {
+        "name": "checkpoint bytes cnn 2026",
+        "passed": true,
+        "detail": "outputs/checkpoints/cnn_seed2026_best.pt SHA-256 verified"
+      },
+      {
+        "name": "checkpoint bytes cnn 2027",
+        "passed": true,
+        "detail": "outputs/checkpoints/cnn_seed2027_best.pt SHA-256 verified"
+      },
+      {
+        "name": "checkpoint bytes cnn 2028",
+        "passed": true,
+        "detail": "outputs/checkpoints/cnn_seed2028_best.pt SHA-256 verified"
+      },
+      {
+        "name": "checkpoint bytes cnn 2029",
+        "passed": true,
+        "detail": "outputs/checkpoints/cnn_seed2029_best.pt SHA-256 verified"
+      },
+      {
+        "name": "checkpoint bytes cnn 2030",
+        "passed": true,
+        "detail": "outputs/checkpoints/cnn_seed2030_best.pt SHA-256 verified"
+      },
+      {
+        "name": "checkpoint bytes unet 2026",
+        "passed": true,
+        "detail": "outputs/checkpoints/unet_seed2026_best.pt SHA-256 verified"
+      },
+      {
+        "name": "checkpoint bytes unet 2027",
+        "passed": true,
+        "detail": "outputs/checkpoints/unet_seed2027_best.pt SHA-256 verified"
+      },
+      {
+        "name": "checkpoint bytes unet 2028",
+        "passed": true,
+        "detail": "outputs/checkpoints/unet_seed2028_best.pt SHA-256 verified"
+      },
+      {
+        "name": "checkpoint bytes unet 2029",
+        "passed": true,
+        "detail": "outputs/checkpoints/unet_seed2029_best.pt SHA-256 verified"
+      },
+      {
+        "name": "checkpoint bytes unet 2030",
+        "passed": true,
+        "detail": "outputs/checkpoints/unet_seed2030_best.pt SHA-256 verified"
+      },
+      {
+        "name": "output root absent",
+        "passed": true,
+        "detail": "outputs/metrics/holdout/test absent"
+      },
+      {
+        "name": "output staging absent",
+        "passed": true,
+        "detail": "outputs/metrics/holdout/test.incomplete absent"
+      },
+      {
+        "name": "learned checkpoints loaded and provenance verified",
+        "passed": true,
+        "detail": "10 of 10"
+      }
+    ],
+    "passed": 48,
+    "failed": 0
+  },
+  "note": "Written before the first test image was read. If no execution_receipt.json accompanies this file, the execution did not complete."
+}

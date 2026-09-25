@@ -1,0 +1,3223 @@
+{
+  "milestone": 11,
+  "result_class": "HELD-OUT TEST RESULT, measured once. Six held-out CHAOS patients under synthetic low-dose-like degradation; five predeclared training seeds per learned architecture, each seed's frozen checkpoint scored exactly once. Descriptive: no significance test, no confidence interval, no best seed.",
+  "test_plan": {
+    "path": "configs/holdout/test_plan.yaml",
+    "sha256": "bbad8d1f738393b0712cc3e0ed04cbe5ad5e3aa71523d51afdd7ad4853cb4544"
+  },
+  "commit": "1d48d1a127c42a2fa4aaf3a5b23da740bc60f3bc",
+  "split": "test",
+  "patients": 6,
+  "slices": 941,
+  "subject_ids": [
+    "11",
+    "13",
+    "19",
+    "25",
+    "29",
+    "32"
+  ],
+  "unit_of_analysis": "patient within each method-seed; then statistical training seed for the learned architectures. The six patients and five seeds are never pooled.",
+  "pooled_patients_and_seeds": false,
+  "significance_testing": false,
+  "confidence_intervals": false,
+  "best_seed": false,
+  "composite_score": false,
+  "deterministic_methods": {
+    "degraded": {
+      "full_mae": 0.0162117109,
+      "full_mse": 0.0007036894,
+      "full_psnr": 31.5872145648,
+      "full_ssim": 0.786331925,
+      "body_mae": 0.0269740626,
+      "body_mse": 0.0013338584,
+      "body_psnr": 28.8536551471,
+      "body_ssim": 0.8141498947
+    },
+    "clahe": {
+      "full_mae": 0.0240936655,
+      "full_mse": 0.0012968923,
+      "full_psnr": 29.0835417489,
+      "full_ssim": 0.6268929917,
+      "body_mae": 0.0357082625,
+      "body_mse": 0.0022685737,
+      "body_psnr": 26.6043321711,
+      "body_ssim": 0.7611385549
+    },
+    "training_seed_variability": "not applicable: both are deterministic methods, measured once. No seed standard deviation exists for them and none is reported.",
+    "clahe_vs_degraded": {
+      "full_mae": {
+        "raw_delta_clahe_minus_degraded": 0.0078819546,
+        "oriented_improvement_positive_is_clahe": -0.0078819546,
+        "patients_improved": 0,
+        "patients_worsened": 6,
+        "patients_tied": 0
+      },
+      "full_mse": {
+        "raw_delta_clahe_minus_degraded": 0.0005932029,
+        "oriented_improvement_positive_is_clahe": -0.0005932029,
+        "patients_improved": 0,
+        "patients_worsened": 6,
+        "patients_tied": 0
+      },
+      "full_psnr": {
+        "raw_delta_clahe_minus_degraded": -2.5036728158,
+        "oriented_improvement_positive_is_clahe": -2.5036728158,
+        "patients_improved": 0,
+        "patients_worsened": 6,
+        "patients_tied": 0
+      },
+      "full_ssim": {
+        "raw_delta_clahe_minus_degraded": -0.1594389333,
+        "oriented_improvement_positive_is_clahe": -0.1594389333,
+        "patients_improved": 0,
+        "patients_worsened": 6,
+        "patients_tied": 0
+      },
+      "body_mae": {
+        "raw_delta_clahe_minus_degraded": 0.0087341999,
+        "oriented_improvement_positive_is_clahe": -0.0087341999,
+        "patients_improved": 0,
+        "patients_worsened": 6,
+        "patients_tied": 0
+      },
+      "body_mse": {
+        "raw_delta_clahe_minus_degraded": 0.0009347153,
+        "oriented_improvement_positive_is_clahe": -0.0009347153,
+        "patients_improved": 0,
+        "patients_worsened": 6,
+        "patients_tied": 0
+      },
+      "body_psnr": {
+        "raw_delta_clahe_minus_degraded": -2.249322976,
+        "oriented_improvement_positive_is_clahe": -2.249322976,
+        "patients_improved": 0,
+        "patients_worsened": 6,
+        "patients_tied": 0
+      },
+      "body_ssim": {
+        "raw_delta_clahe_minus_degraded": -0.0530113398,
+        "oriented_improvement_positive_is_clahe": -0.0530113398,
+        "patients_improved": 0,
+        "patients_worsened": 6,
+        "patients_tied": 0
+      }
+    }
+  },
+  "learned_architectures": {
+    "cnn": {
+      "full_mae": {
+        "by_seed": {
+          "2026": 0.0094237533,
+          "2027": 0.0094368936,
+          "2028": 0.0095515951,
+          "2029": 0.0094627666,
+          "2030": 0.0094773726
+        },
+        "values": [
+          0.0094237533,
+          0.0094368936,
+          0.0095515951,
+          0.0094627666,
+          0.0094773726
+        ],
+        "n": 5,
+        "mean": 0.0094704762,
+        "std": 4.99952e-05,
+        "std_ddof": 1,
+        "min": 0.0094237533,
+        "max": 0.0095515951
+      },
+      "full_mse": {
+        "by_seed": {
+          "2026": 0.0003504558,
+          "2027": 0.0003498579,
+          "2028": 0.0003580804,
+          "2029": 0.0003518044,
+          "2030": 0.0003516818
+        },
+        "values": [
+          0.0003504558,
+          0.0003498579,
+          0.0003580804,
+          0.0003518044,
+          0.0003516818
+        ],
+        "n": 5,
+        "mean": 0.0003523761,
+        "std": 3.293e-06,
+        "std_ddof": 1,
+        "min": 0.0003498579,
+        "max": 0.0003580804
+      },
+      "full_psnr": {
+        "by_seed": {
+          "2026": 34.681179642,
+          "2027": 34.6907066949,
+          "2028": 34.5868537001,
+          "2029": 34.6683278332,
+          "2030": 34.6686541323
+        },
+        "values": [
+          34.681179642,
+          34.6907066949,
+          34.5868537001,
+          34.6683278332,
+          34.6686541323
+        ],
+        "n": 5,
+        "mean": 34.6591444005,
+        "std": 0.0414802546,
+        "std_ddof": 1,
+        "min": 34.5868537001,
+        "max": 34.6907066949
+      },
+      "full_ssim": {
+        "by_seed": {
+          "2026": 0.9537778125,
+          "2027": 0.9537989423,
+          "2028": 0.9532195235,
+          "2029": 0.9534149835,
+          "2030": 0.9534543855
+        },
+        "values": [
+          0.9537778125,
+          0.9537989423,
+          0.9532195235,
+          0.9534149835,
+          0.9534543855
+        ],
+        "n": 5,
+        "mean": 0.9535331295,
+        "std": 0.0002495165,
+        "std_ddof": 1,
+        "min": 0.9532195235,
+        "max": 0.9537989423
+      },
+      "body_mae": {
+        "by_seed": {
+          "2026": 0.019129686,
+          "2027": 0.0191524356,
+          "2028": 0.0194099519,
+          "2029": 0.0192149234,
+          "2030": 0.0192398207
+        },
+        "values": [
+          0.019129686,
+          0.0191524356,
+          0.0194099519,
+          0.0192149234,
+          0.0192398207
+        ],
+        "n": 5,
+        "mean": 0.0192293635,
+        "std": 0.000110435,
+        "std_ddof": 1,
+        "min": 0.019129686,
+        "max": 0.0194099519
+      },
+      "body_mse": {
+        "by_seed": {
+          "2026": 0.0007178693,
+          "2027": 0.0007167065,
+          "2028": 0.000732469,
+          "2029": 0.0007210928,
+          "2030": 0.0007212034
+        },
+        "values": [
+          0.0007178693,
+          0.0007167065,
+          0.000732469,
+          0.0007210928,
+          0.0007212034
+        ],
+        "n": 5,
+        "mean": 0.0007218682,
+        "std": 6.2461e-06,
+        "std_ddof": 1,
+        "min": 0.0007167065,
+        "max": 0.000732469
+      },
+      "body_psnr": {
+        "by_seed": {
+          "2026": 31.5755269497,
+          "2027": 31.5860217339,
+          "2028": 31.4889028973,
+          "2029": 31.5613117667,
+          "2030": 31.5594641085
+        },
+        "values": [
+          31.5755269497,
+          31.5860217339,
+          31.4889028973,
+          31.5613117667,
+          31.5594641085
+        ],
+        "n": 5,
+        "mean": 31.5542454912,
+        "std": 0.0381098769,
+        "std_ddof": 1,
+        "min": 31.4889028973,
+        "max": 31.5860217339
+      },
+      "body_ssim": {
+        "by_seed": {
+          "2026": 0.9024239457,
+          "2027": 0.9024637051,
+          "2028": 0.9012222641,
+          "2029": 0.901605919,
+          "2030": 0.901554356
+        },
+        "values": [
+          0.9024239457,
+          0.9024637051,
+          0.9012222641,
+          0.901605919,
+          0.901554356
+        ],
+        "n": 5,
+        "mean": 0.901854038,
+        "std": 0.0005583456,
+        "std_ddof": 1,
+        "min": 0.9012222641,
+        "max": 0.9024637051
+      }
+    },
+    "unet": {
+      "full_mae": {
+        "by_seed": {
+          "2026": 0.0091870815,
+          "2027": 0.0092009123,
+          "2028": 0.0091601451,
+          "2029": 0.0091982364,
+          "2030": 0.0092075747
+        },
+        "values": [
+          0.0091870815,
+          0.0092009123,
+          0.0091601451,
+          0.0091982364,
+          0.0092075747
+        ],
+        "n": 5,
+        "mean": 0.00919079,
+        "std": 1.86581e-05,
+        "std_ddof": 1,
+        "min": 0.0091601451,
+        "max": 0.0092075747
+      },
+      "full_mse": {
+        "by_seed": {
+          "2026": 0.0003339676,
+          "2027": 0.0003329572,
+          "2028": 0.0003330882,
+          "2029": 0.0003332495,
+          "2030": 0.000335034
+        },
+        "values": [
+          0.0003339676,
+          0.0003329572,
+          0.0003330882,
+          0.0003332495,
+          0.000335034
+        ],
+        "n": 5,
+        "mean": 0.0003336593,
+        "std": 8.62e-07,
+        "std_ddof": 1,
+        "min": 0.0003329572,
+        "max": 0.000335034
+      },
+      "full_psnr": {
+        "by_seed": {
+          "2026": 34.8993608514,
+          "2027": 34.9106201528,
+          "2028": 34.9107341391,
+          "2029": 34.9072828184,
+          "2030": 34.8852730253
+        },
+        "values": [
+          34.8993608514,
+          34.9106201528,
+          34.9107341391,
+          34.9072828184,
+          34.8852730253
+        ],
+        "n": 5,
+        "mean": 34.9026541974,
+        "std": 0.0107600802,
+        "std_ddof": 1,
+        "min": 34.8852730253,
+        "max": 34.9107341391
+      },
+      "full_ssim": {
+        "by_seed": {
+          "2026": 0.9554619136,
+          "2027": 0.9555202194,
+          "2028": 0.9556433431,
+          "2029": 0.9557302466,
+          "2030": 0.9546694408
+        },
+        "values": [
+          0.9554619136,
+          0.9555202194,
+          0.9556433431,
+          0.9557302466,
+          0.9546694408
+        ],
+        "n": 5,
+        "mean": 0.9554050327,
+        "std": 0.0004243097,
+        "std_ddof": 1,
+        "min": 0.9546694408,
+        "max": 0.9557302466
+      },
+      "body_mae": {
+        "by_seed": {
+          "2026": 0.0185908794,
+          "2027": 0.0185911135,
+          "2028": 0.0185734506,
+          "2029": 0.0185980441,
+          "2030": 0.0186351898
+        },
+        "values": [
+          0.0185908794,
+          0.0185911135,
+          0.0185734506,
+          0.0185980441,
+          0.0186351898
+        ],
+        "n": 5,
+        "mean": 0.0185977355,
+        "std": 2.28228e-05,
+        "std_ddof": 1,
+        "min": 0.0185734506,
+        "max": 0.0186351898
+      },
+      "body_mse": {
+        "by_seed": {
+          "2026": 0.000682995,
+          "2027": 0.0006811227,
+          "2028": 0.000681656,
+          "2029": 0.000681466,
+          "2030": 0.0006847118
+        },
+        "values": [
+          0.000682995,
+          0.0006811227,
+          0.000681656,
+          0.000681466,
+          0.0006847118
+        ],
+        "n": 5,
+        "mean": 0.0006823903,
+        "std": 1.4795e-06,
+        "std_ddof": 1,
+        "min": 0.0006811227,
+        "max": 0.0006847118
+      },
+      "body_psnr": {
+        "by_seed": {
+          "2026": 31.8009269264,
+          "2027": 31.8099715807,
+          "2028": 31.8090417205,
+          "2029": 31.8072429924,
+          "2030": 31.7872357751
+        },
+        "values": [
+          31.8009269264,
+          31.8099715807,
+          31.8090417205,
+          31.8072429924,
+          31.7872357751
+        ],
+        "n": 5,
+        "mean": 31.802883799,
+        "std": 0.009431983,
+        "std_ddof": 1,
+        "min": 31.7872357751,
+        "max": 31.8099715807
+      },
+      "body_ssim": {
+        "by_seed": {
+          "2026": 0.9059270754,
+          "2027": 0.9060514649,
+          "2028": 0.906323022,
+          "2029": 0.9065560235,
+          "2030": 0.904367564
+        },
+        "values": [
+          0.9059270754,
+          0.9060514649,
+          0.906323022,
+          0.9065560235,
+          0.904367564
+        ],
+        "n": 5,
+        "mean": 0.90584503,
+        "std": 0.0008611389,
+        "std_ddof": 1,
+        "min": 0.904367564,
+        "max": 0.9065560235
+      }
+    }
+  },
+  "unet_vs_cnn": {
+    "pairing": "same statistical seed",
+    "per_metric": {
+      "full_mae": {
+        "metric": "full_mae",
+        "direction": "lower_is_better",
+        "seeds": [
+          2026,
+          2027,
+          2028,
+          2029,
+          2030
+        ],
+        "cnn": {
+          "values": [
+            0.0094237533,
+            0.0094368936,
+            0.0095515951,
+            0.0094627666,
+            0.0094773726
+          ],
+          "n": 5,
+          "mean": 0.0094704762,
+          "std": 4.99952e-05,
+          "std_ddof": 1,
+          "min": 0.0094237533,
+          "max": 0.0095515951
+        },
+        "unet": {
+          "values": [
+            0.0091870815,
+            0.0092009123,
+            0.0091601451,
+            0.0091982364,
+            0.0092075747
+          ],
+          "n": 5,
+          "mean": 0.00919079,
+          "std": 1.86581e-05,
+          "std_ddof": 1,
+          "min": 0.0091601451,
+          "max": 0.0092075747
+        },
+        "raw_delta_definition": "unet_minus_cnn",
+        "raw_delta_by_seed": {
+          "2026": -0.0002366718,
+          "2027": -0.0002359813,
+          "2028": -0.00039145,
+          "2029": -0.0002645301,
+          "2030": -0.0002697978
+        },
+        "raw_delta": {
+          "values": [
+            -0.0002366718,
+            -0.0002359813,
+            -0.00039145,
+            -0.0002645301,
+            -0.0002697978
+          ],
+          "n": 5,
+          "mean": -0.0002796862,
+          "std": 6.43797e-05,
+          "std_ddof": 1,
+          "min": -0.00039145,
+          "max": -0.0002359813
+        },
+        "oriented_improvement_definition": "unet - cnn for higher-is-better metrics, cnn - unet for lower-is-better; positive always means the U-Net did better",
+        "oriented_improvement_by_seed": {
+          "2026": 0.0002366718,
+          "2027": 0.0002359813,
+          "2028": 0.00039145,
+          "2029": 0.0002645301,
+          "2030": 0.0002697978
+        },
+        "oriented_improvement": {
+          "values": [
+            0.0002366718,
+            0.0002359813,
+            0.00039145,
+            0.0002645301,
+            0.0002697978
+          ],
+          "n": 5,
+          "mean": 0.0002796862,
+          "std": 6.43797e-05,
+          "std_ddof": 1,
+          "min": 0.0002359813,
+          "max": 0.00039145
+        },
+        "seeds_favouring_unet": 5,
+        "seeds_favouring_cnn": 0,
+        "seeds_tied": 0,
+        "directionally_consistent_for_unet": true,
+        "directionally_consistent_for_cnn": false,
+        "permitted_phrase": "all 5 seeds favoured the U-Net"
+      },
+      "full_mse": {
+        "metric": "full_mse",
+        "direction": "lower_is_better",
+        "seeds": [
+          2026,
+          2027,
+          2028,
+          2029,
+          2030
+        ],
+        "cnn": {
+          "values": [
+            0.0003504558,
+            0.0003498579,
+            0.0003580804,
+            0.0003518044,
+            0.0003516818
+          ],
+          "n": 5,
+          "mean": 0.0003523761,
+          "std": 3.293e-06,
+          "std_ddof": 1,
+          "min": 0.0003498579,
+          "max": 0.0003580804
+        },
+        "unet": {
+          "values": [
+            0.0003339676,
+            0.0003329572,
+            0.0003330882,
+            0.0003332495,
+            0.000335034
+          ],
+          "n": 5,
+          "mean": 0.0003336593,
+          "std": 8.62e-07,
+          "std_ddof": 1,
+          "min": 0.0003329572,
+          "max": 0.000335034
+        },
+        "raw_delta_definition": "unet_minus_cnn",
+        "raw_delta_by_seed": {
+          "2026": -1.64882e-05,
+          "2027": -1.69007e-05,
+          "2028": -2.49922e-05,
+          "2029": -1.85549e-05,
+          "2030": -1.66478e-05
+        },
+        "raw_delta": {
+          "values": [
+            -1.64882e-05,
+            -1.69007e-05,
+            -2.49922e-05,
+            -1.85549e-05,
+            -1.66478e-05
+          ],
+          "n": 5,
+          "mean": -1.87168e-05,
+          "std": 3.6039e-06,
+          "std_ddof": 1,
+          "min": -2.49922e-05,
+          "max": -1.64882e-05
+        },
+        "oriented_improvement_definition": "unet - cnn for higher-is-better metrics, cnn - unet for lower-is-better; positive always means the U-Net did better",
+        "oriented_improvement_by_seed": {
+          "2026": 1.64882e-05,
+          "2027": 1.69007e-05,
+          "2028": 2.49922e-05,
+          "2029": 1.85549e-05,
+          "2030": 1.66478e-05
+        },
+        "oriented_improvement": {
+          "values": [
+            1.64882e-05,
+            1.69007e-05,
+            2.49922e-05,
+            1.85549e-05,
+            1.66478e-05
+          ],
+          "n": 5,
+          "mean": 1.87168e-05,
+          "std": 3.6039e-06,
+          "std_ddof": 1,
+          "min": 1.64882e-05,
+          "max": 2.49922e-05
+        },
+        "seeds_favouring_unet": 5,
+        "seeds_favouring_cnn": 0,
+        "seeds_tied": 0,
+        "directionally_consistent_for_unet": true,
+        "directionally_consistent_for_cnn": false,
+        "permitted_phrase": "all 5 seeds favoured the U-Net"
+      },
+      "full_psnr": {
+        "metric": "full_psnr",
+        "direction": "higher_is_better",
+        "seeds": [
+          2026,
+          2027,
+          2028,
+          2029,
+          2030
+        ],
+        "cnn": {
+          "values": [
+            34.681179642,
+            34.6907066949,
+            34.5868537001,
+            34.6683278332,
+            34.6686541323
+          ],
+          "n": 5,
+          "mean": 34.6591444005,
+          "std": 0.0414802546,
+          "std_ddof": 1,
+          "min": 34.5868537001,
+          "max": 34.6907066949
+        },
+        "unet": {
+          "values": [
+            34.8993608514,
+            34.9106201528,
+            34.9107341391,
+            34.9072828184,
+            34.8852730253
+          ],
+          "n": 5,
+          "mean": 34.9026541974,
+          "std": 0.0107600802,
+          "std_ddof": 1,
+          "min": 34.8852730253,
+          "max": 34.9107341391
+        },
+        "raw_delta_definition": "unet_minus_cnn",
+        "raw_delta_by_seed": {
+          "2026": 0.2181812094,
+          "2027": 0.2199134579,
+          "2028": 0.323880439,
+          "2029": 0.2389549852,
+          "2030": 0.2166188929
+        },
+        "raw_delta": {
+          "values": [
+            0.2181812094,
+            0.2199134579,
+            0.323880439,
+            0.2389549852,
+            0.2166188929
+          ],
+          "n": 5,
+          "mean": 0.2435097969,
+          "std": 0.0458302075,
+          "std_ddof": 1,
+          "min": 0.2166188929,
+          "max": 0.323880439
+        },
+        "oriented_improvement_definition": "unet - cnn for higher-is-better metrics, cnn - unet for lower-is-better; positive always means the U-Net did better",
+        "oriented_improvement_by_seed": {
+          "2026": 0.2181812094,
+          "2027": 0.2199134579,
+          "2028": 0.323880439,
+          "2029": 0.2389549852,
+          "2030": 0.2166188929
+        },
+        "oriented_improvement": {
+          "values": [
+            0.2181812094,
+            0.2199134579,
+            0.323880439,
+            0.2389549852,
+            0.2166188929
+          ],
+          "n": 5,
+          "mean": 0.2435097969,
+          "std": 0.0458302075,
+          "std_ddof": 1,
+          "min": 0.2166188929,
+          "max": 0.323880439
+        },
+        "seeds_favouring_unet": 5,
+        "seeds_favouring_cnn": 0,
+        "seeds_tied": 0,
+        "directionally_consistent_for_unet": true,
+        "directionally_consistent_for_cnn": false,
+        "permitted_phrase": "all 5 seeds favoured the U-Net"
+      },
+      "full_ssim": {
+        "metric": "full_ssim",
+        "direction": "higher_is_better",
+        "seeds": [
+          2026,
+          2027,
+          2028,
+          2029,
+          2030
+        ],
+        "cnn": {
+          "values": [
+            0.9537778125,
+            0.9537989423,
+            0.9532195235,
+            0.9534149835,
+            0.9534543855
+          ],
+          "n": 5,
+          "mean": 0.9535331295,
+          "std": 0.0002495165,
+          "std_ddof": 1,
+          "min": 0.9532195235,
+          "max": 0.9537989423
+        },
+        "unet": {
+          "values": [
+            0.9554619136,
+            0.9555202194,
+            0.9556433431,
+            0.9557302466,
+            0.9546694408
+          ],
+          "n": 5,
+          "mean": 0.9554050327,
+          "std": 0.0004243097,
+          "std_ddof": 1,
+          "min": 0.9546694408,
+          "max": 0.9557302466
+        },
+        "raw_delta_definition": "unet_minus_cnn",
+        "raw_delta_by_seed": {
+          "2026": 0.0016841011,
+          "2027": 0.001721277,
+          "2028": 0.0024238196,
+          "2029": 0.0023152631,
+          "2030": 0.0012150553
+        },
+        "raw_delta": {
+          "values": [
+            0.0016841011,
+            0.001721277,
+            0.0024238196,
+            0.0023152631,
+            0.0012150553
+          ],
+          "n": 5,
+          "mean": 0.0018719032,
+          "std": 0.0004976411,
+          "std_ddof": 1,
+          "min": 0.0012150553,
+          "max": 0.0024238196
+        },
+        "oriented_improvement_definition": "unet - cnn for higher-is-better metrics, cnn - unet for lower-is-better; positive always means the U-Net did better",
+        "oriented_improvement_by_seed": {
+          "2026": 0.0016841011,
+          "2027": 0.001721277,
+          "2028": 0.0024238196,
+          "2029": 0.0023152631,
+          "2030": 0.0012150553
+        },
+        "oriented_improvement": {
+          "values": [
+            0.0016841011,
+            0.001721277,
+            0.0024238196,
+            0.0023152631,
+            0.0012150553
+          ],
+          "n": 5,
+          "mean": 0.0018719032,
+          "std": 0.0004976411,
+          "std_ddof": 1,
+          "min": 0.0012150553,
+          "max": 0.0024238196
+        },
+        "seeds_favouring_unet": 5,
+        "seeds_favouring_cnn": 0,
+        "seeds_tied": 0,
+        "directionally_consistent_for_unet": true,
+        "directionally_consistent_for_cnn": false,
+        "permitted_phrase": "all 5 seeds favoured the U-Net"
+      },
+      "body_mae": {
+        "metric": "body_mae",
+        "direction": "lower_is_better",
+        "seeds": [
+          2026,
+          2027,
+          2028,
+          2029,
+          2030
+        ],
+        "cnn": {
+          "values": [
+            0.019129686,
+            0.0191524356,
+            0.0194099519,
+            0.0192149234,
+            0.0192398207
+          ],
+          "n": 5,
+          "mean": 0.0192293635,
+          "std": 0.000110435,
+          "std_ddof": 1,
+          "min": 0.019129686,
+          "max": 0.0194099519
+        },
+        "unet": {
+          "values": [
+            0.0185908794,
+            0.0185911135,
+            0.0185734506,
+            0.0185980441,
+            0.0186351898
+          ],
+          "n": 5,
+          "mean": 0.0185977355,
+          "std": 2.28228e-05,
+          "std_ddof": 1,
+          "min": 0.0185734506,
+          "max": 0.0186351898
+        },
+        "raw_delta_definition": "unet_minus_cnn",
+        "raw_delta_by_seed": {
+          "2026": -0.0005388066,
+          "2027": -0.000561322,
+          "2028": -0.0008365012,
+          "2029": -0.0006168793,
+          "2030": -0.0006046309
+        },
+        "raw_delta": {
+          "values": [
+            -0.0005388066,
+            -0.000561322,
+            -0.0008365012,
+            -0.0006168793,
+            -0.0006046309
+          ],
+          "n": 5,
+          "mean": -0.000631628,
+          "std": 0.0001188257,
+          "std_ddof": 1,
+          "min": -0.0008365012,
+          "max": -0.0005388066
+        },
+        "oriented_improvement_definition": "unet - cnn for higher-is-better metrics, cnn - unet for lower-is-better; positive always means the U-Net did better",
+        "oriented_improvement_by_seed": {
+          "2026": 0.0005388066,
+          "2027": 0.000561322,
+          "2028": 0.0008365012,
+          "2029": 0.0006168793,
+          "2030": 0.0006046309
+        },
+        "oriented_improvement": {
+          "values": [
+            0.0005388066,
+            0.000561322,
+            0.0008365012,
+            0.0006168793,
+            0.0006046309
+          ],
+          "n": 5,
+          "mean": 0.000631628,
+          "std": 0.0001188257,
+          "std_ddof": 1,
+          "min": 0.0005388066,
+          "max": 0.0008365012
+        },
+        "seeds_favouring_unet": 5,
+        "seeds_favouring_cnn": 0,
+        "seeds_tied": 0,
+        "directionally_consistent_for_unet": true,
+        "directionally_consistent_for_cnn": false,
+        "permitted_phrase": "all 5 seeds favoured the U-Net"
+      },
+      "body_mse": {
+        "metric": "body_mse",
+        "direction": "lower_is_better",
+        "seeds": [
+          2026,
+          2027,
+          2028,
+          2029,
+          2030
+        ],
+        "cnn": {
+          "values": [
+            0.0007178693,
+            0.0007167065,
+            0.000732469,
+            0.0007210928,
+            0.0007212034
+          ],
+          "n": 5,
+          "mean": 0.0007218682,
+          "std": 6.2461e-06,
+          "std_ddof": 1,
+          "min": 0.0007167065,
+          "max": 0.000732469
+        },
+        "unet": {
+          "values": [
+            0.000682995,
+            0.0006811227,
+            0.000681656,
+            0.000681466,
+            0.0006847118
+          ],
+          "n": 5,
+          "mean": 0.0006823903,
+          "std": 1.4795e-06,
+          "std_ddof": 1,
+          "min": 0.0006811227,
+          "max": 0.0006847118
+        },
+        "raw_delta_definition": "unet_minus_cnn",
+        "raw_delta_by_seed": {
+          "2026": -3.48743e-05,
+          "2027": -3.55837e-05,
+          "2028": -5.0813e-05,
+          "2029": -3.96269e-05,
+          "2030": -3.64917e-05
+        },
+        "raw_delta": {
+          "values": [
+            -3.48743e-05,
+            -3.55837e-05,
+            -5.0813e-05,
+            -3.96269e-05,
+            -3.64917e-05
+          ],
+          "n": 5,
+          "mean": -3.94779e-05,
+          "std": 6.5913e-06,
+          "std_ddof": 1,
+          "min": -5.0813e-05,
+          "max": -3.48743e-05
+        },
+        "oriented_improvement_definition": "unet - cnn for higher-is-better metrics, cnn - unet for lower-is-better; positive always means the U-Net did better",
+        "oriented_improvement_by_seed": {
+          "2026": 3.48743e-05,
+          "2027": 3.55837e-05,
+          "2028": 5.0813e-05,
+          "2029": 3.96269e-05,
+          "2030": 3.64917e-05
+        },
+        "oriented_improvement": {
+          "values": [
+            3.48743e-05,
+            3.55837e-05,
+            5.0813e-05,
+            3.96269e-05,
+            3.64917e-05
+          ],
+          "n": 5,
+          "mean": 3.94779e-05,
+          "std": 6.5913e-06,
+          "std_ddof": 1,
+          "min": 3.48743e-05,
+          "max": 5.0813e-05
+        },
+        "seeds_favouring_unet": 5,
+        "seeds_favouring_cnn": 0,
+        "seeds_tied": 0,
+        "directionally_consistent_for_unet": true,
+        "directionally_consistent_for_cnn": false,
+        "permitted_phrase": "all 5 seeds favoured the U-Net"
+      },
+      "body_psnr": {
+        "metric": "body_psnr",
+        "direction": "higher_is_better",
+        "seeds": [
+          2026,
+          2027,
+          2028,
+          2029,
+          2030
+        ],
+        "cnn": {
+          "values": [
+            31.5755269497,
+            31.5860217339,
+            31.4889028973,
+            31.5613117667,
+            31.5594641085
+          ],
+          "n": 5,
+          "mean": 31.5542454912,
+          "std": 0.0381098769,
+          "std_ddof": 1,
+          "min": 31.4889028973,
+          "max": 31.5860217339
+        },
+        "unet": {
+          "values": [
+            31.8009269264,
+            31.8099715807,
+            31.8090417205,
+            31.8072429924,
+            31.7872357751
+          ],
+          "n": 5,
+          "mean": 31.802883799,
+          "std": 0.009431983,
+          "std_ddof": 1,
+          "min": 31.7872357751,
+          "max": 31.8099715807
+        },
+        "raw_delta_definition": "unet_minus_cnn",
+        "raw_delta_by_seed": {
+          "2026": 0.2253999767,
+          "2027": 0.2239498469,
+          "2028": 0.3201388232,
+          "2029": 0.2459312257,
+          "2030": 0.2277716667
+        },
+        "raw_delta": {
+          "values": [
+            0.2253999767,
+            0.2239498469,
+            0.3201388232,
+            0.2459312257,
+            0.2277716667
+          ],
+          "n": 5,
+          "mean": 0.2486383078,
+          "std": 0.0409408379,
+          "std_ddof": 1,
+          "min": 0.2239498469,
+          "max": 0.3201388232
+        },
+        "oriented_improvement_definition": "unet - cnn for higher-is-better metrics, cnn - unet for lower-is-better; positive always means the U-Net did better",
+        "oriented_improvement_by_seed": {
+          "2026": 0.2253999767,
+          "2027": 0.2239498469,
+          "2028": 0.3201388232,
+          "2029": 0.2459312257,
+          "2030": 0.2277716667
+        },
+        "oriented_improvement": {
+          "values": [
+            0.2253999767,
+            0.2239498469,
+            0.3201388232,
+            0.2459312257,
+            0.2277716667
+          ],
+          "n": 5,
+          "mean": 0.2486383078,
+          "std": 0.0409408379,
+          "std_ddof": 1,
+          "min": 0.2239498469,
+          "max": 0.3201388232
+        },
+        "seeds_favouring_unet": 5,
+        "seeds_favouring_cnn": 0,
+        "seeds_tied": 0,
+        "directionally_consistent_for_unet": true,
+        "directionally_consistent_for_cnn": false,
+        "permitted_phrase": "all 5 seeds favoured the U-Net"
+      },
+      "body_ssim": {
+        "metric": "body_ssim",
+        "direction": "higher_is_better",
+        "seeds": [
+          2026,
+          2027,
+          2028,
+          2029,
+          2030
+        ],
+        "cnn": {
+          "values": [
+            0.9024239457,
+            0.9024637051,
+            0.9012222641,
+            0.901605919,
+            0.901554356
+          ],
+          "n": 5,
+          "mean": 0.901854038,
+          "std": 0.0005583456,
+          "std_ddof": 1,
+          "min": 0.9012222641,
+          "max": 0.9024637051
+        },
+        "unet": {
+          "values": [
+            0.9059270754,
+            0.9060514649,
+            0.906323022,
+            0.9065560235,
+            0.904367564
+          ],
+          "n": 5,
+          "mean": 0.90584503,
+          "std": 0.0008611389,
+          "std_ddof": 1,
+          "min": 0.904367564,
+          "max": 0.9065560235
+        },
+        "raw_delta_definition": "unet_minus_cnn",
+        "raw_delta_by_seed": {
+          "2026": 0.0035031298,
+          "2027": 0.0035877598,
+          "2028": 0.0051007579,
+          "2029": 0.0049501045,
+          "2030": 0.002813208
+        },
+        "raw_delta": {
+          "values": [
+            0.0035031298,
+            0.0035877598,
+            0.0051007579,
+            0.0049501045,
+            0.002813208
+          ],
+          "n": 5,
+          "mean": 0.003990992,
+          "std": 0.0009923782,
+          "std_ddof": 1,
+          "min": 0.002813208,
+          "max": 0.0051007579
+        },
+        "oriented_improvement_definition": "unet - cnn for higher-is-better metrics, cnn - unet for lower-is-better; positive always means the U-Net did better",
+        "oriented_improvement_by_seed": {
+          "2026": 0.0035031298,
+          "2027": 0.0035877598,
+          "2028": 0.0051007579,
+          "2029": 0.0049501045,
+          "2030": 0.002813208
+        },
+        "oriented_improvement": {
+          "values": [
+            0.0035031298,
+            0.0035877598,
+            0.0051007579,
+            0.0049501045,
+            0.002813208
+          ],
+          "n": 5,
+          "mean": 0.003990992,
+          "std": 0.0009923782,
+          "std_ddof": 1,
+          "min": 0.002813208,
+          "max": 0.0051007579
+        },
+        "seeds_favouring_unet": 5,
+        "seeds_favouring_cnn": 0,
+        "seeds_tied": 0,
+        "directionally_consistent_for_unet": true,
+        "directionally_consistent_for_cnn": false,
+        "permitted_phrase": "all 5 seeds favoured the U-Net"
+      }
+    },
+    "overall": {
+      "architecture": "unet",
+      "metrics_directional_for_unet": [
+        "full_mae",
+        "full_mse",
+        "full_psnr",
+        "full_ssim",
+        "body_mae",
+        "body_mse",
+        "body_psnr",
+        "body_ssim"
+      ],
+      "metrics_directional_for_cnn": [],
+      "requires_all_metrics": 8,
+      "requires_minimum_seeds_favouring": 4,
+      "statement": "The unet was directionally consistent across training seeds on all 8 metrics.",
+      "significance_tested": false,
+      "note": "Descriptive only. Five seeds measure the spread of this training procedure on fixed data; no p-value, significance claim or confidence interval is reported, and none is implied."
+    }
+  },
+  "learned_vs_degraded": {
+    "cnn": {
+      "full_mae": {
+        "metric": "full_mae",
+        "direction": "lower_is_better",
+        "reference_value": 0.0162117109,
+        "raw_delta_by_seed": {
+          "2026": -0.0067879576,
+          "2027": -0.0067748173,
+          "2028": -0.0066601158,
+          "2029": -0.0067489443,
+          "2030": -0.0067343383
+        },
+        "raw_delta": {
+          "values": [
+            -0.0067879576,
+            -0.0067748173,
+            -0.0066601158,
+            -0.0067489443,
+            -0.0067343383
+          ],
+          "n": 5,
+          "mean": -0.0067412346,
+          "std": 4.99952e-05,
+          "std_ddof": 1,
+          "min": -0.0067879576,
+          "max": -0.0066601158
+        },
+        "oriented_improvement_by_seed": {
+          "2026": 0.0067879576,
+          "2027": 0.0067748173,
+          "2028": 0.0066601158,
+          "2029": 0.0067489443,
+          "2030": 0.0067343383
+        },
+        "oriented_improvement": {
+          "values": [
+            0.0067879576,
+            0.0067748173,
+            0.0066601158,
+            0.0067489443,
+            0.0067343383
+          ],
+          "n": 5,
+          "mean": 0.0067412346,
+          "std": 4.99952e-05,
+          "std_ddof": 1,
+          "min": 0.0066601158,
+          "max": 0.0067879576
+        },
+        "seeds_improved": 5,
+        "seeds_worsened": 0,
+        "seeds_tied": 0,
+        "mean_improvement_positive": true,
+        "all_seeds_improved": true
+      },
+      "full_mse": {
+        "metric": "full_mse",
+        "direction": "lower_is_better",
+        "reference_value": 0.0007036894,
+        "raw_delta_by_seed": {
+          "2026": -0.0003532336,
+          "2027": -0.0003538315,
+          "2028": -0.0003456091,
+          "2029": -0.000351885,
+          "2030": -0.0003520077
+        },
+        "raw_delta": {
+          "values": [
+            -0.0003532336,
+            -0.0003538315,
+            -0.0003456091,
+            -0.000351885,
+            -0.0003520077
+          ],
+          "n": 5,
+          "mean": -0.0003513134,
+          "std": 3.293e-06,
+          "std_ddof": 1,
+          "min": -0.0003538315,
+          "max": -0.0003456091
+        },
+        "oriented_improvement_by_seed": {
+          "2026": 0.0003532336,
+          "2027": 0.0003538315,
+          "2028": 0.0003456091,
+          "2029": 0.000351885,
+          "2030": 0.0003520077
+        },
+        "oriented_improvement": {
+          "values": [
+            0.0003532336,
+            0.0003538315,
+            0.0003456091,
+            0.000351885,
+            0.0003520077
+          ],
+          "n": 5,
+          "mean": 0.0003513134,
+          "std": 3.293e-06,
+          "std_ddof": 1,
+          "min": 0.0003456091,
+          "max": 0.0003538315
+        },
+        "seeds_improved": 5,
+        "seeds_worsened": 0,
+        "seeds_tied": 0,
+        "mean_improvement_positive": true,
+        "all_seeds_improved": true
+      },
+      "full_psnr": {
+        "metric": "full_psnr",
+        "direction": "higher_is_better",
+        "reference_value": 31.5872145648,
+        "raw_delta_by_seed": {
+          "2026": 3.0939650772,
+          "2027": 3.1034921301,
+          "2028": 2.9996391354,
+          "2029": 3.0811132684,
+          "2030": 3.0814395676
+        },
+        "raw_delta": {
+          "values": [
+            3.0939650772,
+            3.1034921301,
+            2.9996391354,
+            3.0811132684,
+            3.0814395676
+          ],
+          "n": 5,
+          "mean": 3.0719298357,
+          "std": 0.0414802546,
+          "std_ddof": 1,
+          "min": 2.9996391354,
+          "max": 3.1034921301
+        },
+        "oriented_improvement_by_seed": {
+          "2026": 3.0939650772,
+          "2027": 3.1034921301,
+          "2028": 2.9996391354,
+          "2029": 3.0811132684,
+          "2030": 3.0814395676
+        },
+        "oriented_improvement": {
+          "values": [
+            3.0939650772,
+            3.1034921301,
+            2.9996391354,
+            3.0811132684,
+            3.0814395676
+          ],
+          "n": 5,
+          "mean": 3.0719298357,
+          "std": 0.0414802546,
+          "std_ddof": 1,
+          "min": 2.9996391354,
+          "max": 3.1034921301
+        },
+        "seeds_improved": 5,
+        "seeds_worsened": 0,
+        "seeds_tied": 0,
+        "mean_improvement_positive": true,
+        "all_seeds_improved": true
+      },
+      "full_ssim": {
+        "metric": "full_ssim",
+        "direction": "higher_is_better",
+        "reference_value": 0.786331925,
+        "raw_delta_by_seed": {
+          "2026": 0.1674458874,
+          "2027": 0.1674670173,
+          "2028": 0.1668875985,
+          "2029": 0.1670830585,
+          "2030": 0.1671224605
+        },
+        "raw_delta": {
+          "values": [
+            0.1674458874,
+            0.1674670173,
+            0.1668875985,
+            0.1670830585,
+            0.1671224605
+          ],
+          "n": 5,
+          "mean": 0.1672012044,
+          "std": 0.0002495165,
+          "std_ddof": 1,
+          "min": 0.1668875985,
+          "max": 0.1674670173
+        },
+        "oriented_improvement_by_seed": {
+          "2026": 0.1674458874,
+          "2027": 0.1674670173,
+          "2028": 0.1668875985,
+          "2029": 0.1670830585,
+          "2030": 0.1671224605
+        },
+        "oriented_improvement": {
+          "values": [
+            0.1674458874,
+            0.1674670173,
+            0.1668875985,
+            0.1670830585,
+            0.1671224605
+          ],
+          "n": 5,
+          "mean": 0.1672012044,
+          "std": 0.0002495165,
+          "std_ddof": 1,
+          "min": 0.1668875985,
+          "max": 0.1674670173
+        },
+        "seeds_improved": 5,
+        "seeds_worsened": 0,
+        "seeds_tied": 0,
+        "mean_improvement_positive": true,
+        "all_seeds_improved": true
+      },
+      "body_mae": {
+        "metric": "body_mae",
+        "direction": "lower_is_better",
+        "reference_value": 0.0269740626,
+        "raw_delta_by_seed": {
+          "2026": -0.0078443766,
+          "2027": -0.007821627,
+          "2028": -0.0075641107,
+          "2029": -0.0077591392,
+          "2030": -0.0077342419
+        },
+        "raw_delta": {
+          "values": [
+            -0.0078443766,
+            -0.007821627,
+            -0.0075641107,
+            -0.0077591392,
+            -0.0077342419
+          ],
+          "n": 5,
+          "mean": -0.0077446991,
+          "std": 0.000110435,
+          "std_ddof": 1,
+          "min": -0.0078443766,
+          "max": -0.0075641107
+        },
+        "oriented_improvement_by_seed": {
+          "2026": 0.0078443766,
+          "2027": 0.007821627,
+          "2028": 0.0075641107,
+          "2029": 0.0077591392,
+          "2030": 0.0077342419
+        },
+        "oriented_improvement": {
+          "values": [
+            0.0078443766,
+            0.007821627,
+            0.0075641107,
+            0.0077591392,
+            0.0077342419
+          ],
+          "n": 5,
+          "mean": 0.0077446991,
+          "std": 0.000110435,
+          "std_ddof": 1,
+          "min": 0.0075641107,
+          "max": 0.0078443766
+        },
+        "seeds_improved": 5,
+        "seeds_worsened": 0,
+        "seeds_tied": 0,
+        "mean_improvement_positive": true,
+        "all_seeds_improved": true
+      },
+      "body_mse": {
+        "metric": "body_mse",
+        "direction": "lower_is_better",
+        "reference_value": 0.0013338584,
+        "raw_delta_by_seed": {
+          "2026": -0.0006159891,
+          "2027": -0.0006171519,
+          "2028": -0.0006013894,
+          "2029": -0.0006127655,
+          "2030": -0.0006126549
+        },
+        "raw_delta": {
+          "values": [
+            -0.0006159891,
+            -0.0006171519,
+            -0.0006013894,
+            -0.0006127655,
+            -0.0006126549
+          ],
+          "n": 5,
+          "mean": -0.0006119902,
+          "std": 6.2461e-06,
+          "std_ddof": 1,
+          "min": -0.0006171519,
+          "max": -0.0006013894
+        },
+        "oriented_improvement_by_seed": {
+          "2026": 0.0006159891,
+          "2027": 0.0006171519,
+          "2028": 0.0006013894,
+          "2029": 0.0006127655,
+          "2030": 0.0006126549
+        },
+        "oriented_improvement": {
+          "values": [
+            0.0006159891,
+            0.0006171519,
+            0.0006013894,
+            0.0006127655,
+            0.0006126549
+          ],
+          "n": 5,
+          "mean": 0.0006119902,
+          "std": 6.2461e-06,
+          "std_ddof": 1,
+          "min": 0.0006013894,
+          "max": 0.0006171519
+        },
+        "seeds_improved": 5,
+        "seeds_worsened": 0,
+        "seeds_tied": 0,
+        "mean_improvement_positive": true,
+        "all_seeds_improved": true
+      },
+      "body_psnr": {
+        "metric": "body_psnr",
+        "direction": "higher_is_better",
+        "reference_value": 28.8536551471,
+        "raw_delta_by_seed": {
+          "2026": 2.7218718026,
+          "2027": 2.7323665867,
+          "2028": 2.6352477502,
+          "2029": 2.7076566196,
+          "2030": 2.7058089614
+        },
+        "raw_delta": {
+          "values": [
+            2.7218718026,
+            2.7323665867,
+            2.6352477502,
+            2.7076566196,
+            2.7058089614
+          ],
+          "n": 5,
+          "mean": 2.7005903441,
+          "std": 0.0381098769,
+          "std_ddof": 1,
+          "min": 2.6352477502,
+          "max": 2.7323665867
+        },
+        "oriented_improvement_by_seed": {
+          "2026": 2.7218718026,
+          "2027": 2.7323665867,
+          "2028": 2.6352477502,
+          "2029": 2.7076566196,
+          "2030": 2.7058089614
+        },
+        "oriented_improvement": {
+          "values": [
+            2.7218718026,
+            2.7323665867,
+            2.6352477502,
+            2.7076566196,
+            2.7058089614
+          ],
+          "n": 5,
+          "mean": 2.7005903441,
+          "std": 0.0381098769,
+          "std_ddof": 1,
+          "min": 2.6352477502,
+          "max": 2.7323665867
+        },
+        "seeds_improved": 5,
+        "seeds_worsened": 0,
+        "seeds_tied": 0,
+        "mean_improvement_positive": true,
+        "all_seeds_improved": true
+      },
+      "body_ssim": {
+        "metric": "body_ssim",
+        "direction": "higher_is_better",
+        "reference_value": 0.8141498947,
+        "raw_delta_by_seed": {
+          "2026": 0.0882740509,
+          "2027": 0.0883138104,
+          "2028": 0.0870723694,
+          "2029": 0.0874560243,
+          "2030": 0.0874044613
+        },
+        "raw_delta": {
+          "values": [
+            0.0882740509,
+            0.0883138104,
+            0.0870723694,
+            0.0874560243,
+            0.0874044613
+          ],
+          "n": 5,
+          "mean": 0.0877041433,
+          "std": 0.0005583456,
+          "std_ddof": 1,
+          "min": 0.0870723694,
+          "max": 0.0883138104
+        },
+        "oriented_improvement_by_seed": {
+          "2026": 0.0882740509,
+          "2027": 0.0883138104,
+          "2028": 0.0870723694,
+          "2029": 0.0874560243,
+          "2030": 0.0874044613
+        },
+        "oriented_improvement": {
+          "values": [
+            0.0882740509,
+            0.0883138104,
+            0.0870723694,
+            0.0874560243,
+            0.0874044613
+          ],
+          "n": 5,
+          "mean": 0.0877041433,
+          "std": 0.0005583456,
+          "std_ddof": 1,
+          "min": 0.0870723694,
+          "max": 0.0883138104
+        },
+        "seeds_improved": 5,
+        "seeds_worsened": 0,
+        "seeds_tied": 0,
+        "mean_improvement_positive": true,
+        "all_seeds_improved": true
+      }
+    },
+    "unet": {
+      "full_mae": {
+        "metric": "full_mae",
+        "direction": "lower_is_better",
+        "reference_value": 0.0162117109,
+        "raw_delta_by_seed": {
+          "2026": -0.0070246294,
+          "2027": -0.0070107986,
+          "2028": -0.0070515658,
+          "2029": -0.0070134744,
+          "2030": -0.0070041361
+        },
+        "raw_delta": {
+          "values": [
+            -0.0070246294,
+            -0.0070107986,
+            -0.0070515658,
+            -0.0070134744,
+            -0.0070041361
+          ],
+          "n": 5,
+          "mean": -0.0070209208,
+          "std": 1.86581e-05,
+          "std_ddof": 1,
+          "min": -0.0070515658,
+          "max": -0.0070041361
+        },
+        "oriented_improvement_by_seed": {
+          "2026": 0.0070246294,
+          "2027": 0.0070107986,
+          "2028": 0.0070515658,
+          "2029": 0.0070134744,
+          "2030": 0.0070041361
+        },
+        "oriented_improvement": {
+          "values": [
+            0.0070246294,
+            0.0070107986,
+            0.0070515658,
+            0.0070134744,
+            0.0070041361
+          ],
+          "n": 5,
+          "mean": 0.0070209208,
+          "std": 1.86581e-05,
+          "std_ddof": 1,
+          "min": 0.0070041361,
+          "max": 0.0070515658
+        },
+        "seeds_improved": 5,
+        "seeds_worsened": 0,
+        "seeds_tied": 0,
+        "mean_improvement_positive": true,
+        "all_seeds_improved": true
+      },
+      "full_mse": {
+        "metric": "full_mse",
+        "direction": "lower_is_better",
+        "reference_value": 0.0007036894,
+        "raw_delta_by_seed": {
+          "2026": -0.0003697218,
+          "2027": -0.0003707323,
+          "2028": -0.0003706013,
+          "2029": -0.0003704399,
+          "2030": -0.0003686554
+        },
+        "raw_delta": {
+          "values": [
+            -0.0003697218,
+            -0.0003707323,
+            -0.0003706013,
+            -0.0003704399,
+            -0.0003686554
+          ],
+          "n": 5,
+          "mean": -0.0003700301,
+          "std": 8.62e-07,
+          "std_ddof": 1,
+          "min": -0.0003707323,
+          "max": -0.0003686554
+        },
+        "oriented_improvement_by_seed": {
+          "2026": 0.0003697218,
+          "2027": 0.0003707323,
+          "2028": 0.0003706013,
+          "2029": 0.0003704399,
+          "2030": 0.0003686554
+        },
+        "oriented_improvement": {
+          "values": [
+            0.0003697218,
+            0.0003707323,
+            0.0003706013,
+            0.0003704399,
+            0.0003686554
+          ],
+          "n": 5,
+          "mean": 0.0003700301,
+          "std": 8.62e-07,
+          "std_ddof": 1,
+          "min": 0.0003686554,
+          "max": 0.0003707323
+        },
+        "seeds_improved": 5,
+        "seeds_worsened": 0,
+        "seeds_tied": 0,
+        "mean_improvement_positive": true,
+        "all_seeds_improved": true
+      },
+      "full_psnr": {
+        "metric": "full_psnr",
+        "direction": "higher_is_better",
+        "reference_value": 31.5872145648,
+        "raw_delta_by_seed": {
+          "2026": 3.3121462866,
+          "2027": 3.323405588,
+          "2028": 3.3235195743,
+          "2029": 3.3200682536,
+          "2030": 3.2980584605
+        },
+        "raw_delta": {
+          "values": [
+            3.3121462866,
+            3.323405588,
+            3.3235195743,
+            3.3200682536,
+            3.2980584605
+          ],
+          "n": 5,
+          "mean": 3.3154396326,
+          "std": 0.0107600802,
+          "std_ddof": 1,
+          "min": 3.2980584605,
+          "max": 3.3235195743
+        },
+        "oriented_improvement_by_seed": {
+          "2026": 3.3121462866,
+          "2027": 3.323405588,
+          "2028": 3.3235195743,
+          "2029": 3.3200682536,
+          "2030": 3.2980584605
+        },
+        "oriented_improvement": {
+          "values": [
+            3.3121462866,
+            3.323405588,
+            3.3235195743,
+            3.3200682536,
+            3.2980584605
+          ],
+          "n": 5,
+          "mean": 3.3154396326,
+          "std": 0.0107600802,
+          "std_ddof": 1,
+          "min": 3.2980584605,
+          "max": 3.3235195743
+        },
+        "seeds_improved": 5,
+        "seeds_worsened": 0,
+        "seeds_tied": 0,
+        "mean_improvement_positive": true,
+        "all_seeds_improved": true
+      },
+      "full_ssim": {
+        "metric": "full_ssim",
+        "direction": "higher_is_better",
+        "reference_value": 0.786331925,
+        "raw_delta_by_seed": {
+          "2026": 0.1691299885,
+          "2027": 0.1691882943,
+          "2028": 0.1693114181,
+          "2029": 0.1693983216,
+          "2030": 0.1683375158
+        },
+        "raw_delta": {
+          "values": [
+            0.1691299885,
+            0.1691882943,
+            0.1693114181,
+            0.1693983216,
+            0.1683375158
+          ],
+          "n": 5,
+          "mean": 0.1690731077,
+          "std": 0.0004243097,
+          "std_ddof": 1,
+          "min": 0.1683375158,
+          "max": 0.1693983216
+        },
+        "oriented_improvement_by_seed": {
+          "2026": 0.1691299885,
+          "2027": 0.1691882943,
+          "2028": 0.1693114181,
+          "2029": 0.1693983216,
+          "2030": 0.1683375158
+        },
+        "oriented_improvement": {
+          "values": [
+            0.1691299885,
+            0.1691882943,
+            0.1693114181,
+            0.1693983216,
+            0.1683375158
+          ],
+          "n": 5,
+          "mean": 0.1690731077,
+          "std": 0.0004243097,
+          "std_ddof": 1,
+          "min": 0.1683375158,
+          "max": 0.1693983216
+        },
+        "seeds_improved": 5,
+        "seeds_worsened": 0,
+        "seeds_tied": 0,
+        "mean_improvement_positive": true,
+        "all_seeds_improved": true
+      },
+      "body_mae": {
+        "metric": "body_mae",
+        "direction": "lower_is_better",
+        "reference_value": 0.0269740626,
+        "raw_delta_by_seed": {
+          "2026": -0.0083831832,
+          "2027": -0.008382949,
+          "2028": -0.0084006119,
+          "2029": -0.0083760185,
+          "2030": -0.0083388728
+        },
+        "raw_delta": {
+          "values": [
+            -0.0083831832,
+            -0.008382949,
+            -0.0084006119,
+            -0.0083760185,
+            -0.0083388728
+          ],
+          "n": 5,
+          "mean": -0.0083763271,
+          "std": 2.28228e-05,
+          "std_ddof": 1,
+          "min": -0.0084006119,
+          "max": -0.0083388728
+        },
+        "oriented_improvement_by_seed": {
+          "2026": 0.0083831832,
+          "2027": 0.008382949,
+          "2028": 0.0084006119,
+          "2029": 0.0083760185,
+          "2030": 0.0083388728
+        },
+        "oriented_improvement": {
+          "values": [
+            0.0083831832,
+            0.008382949,
+            0.0084006119,
+            0.0083760185,
+            0.0083388728
+          ],
+          "n": 5,
+          "mean": 0.0083763271,
+          "std": 2.28228e-05,
+          "std_ddof": 1,
+          "min": 0.0083388728,
+          "max": 0.0084006119
+        },
+        "seeds_improved": 5,
+        "seeds_worsened": 0,
+        "seeds_tied": 0,
+        "mean_improvement_positive": true,
+        "all_seeds_improved": true
+      },
+      "body_mse": {
+        "metric": "body_mse",
+        "direction": "lower_is_better",
+        "reference_value": 0.0013338584,
+        "raw_delta_by_seed": {
+          "2026": -0.0006508633,
+          "2027": -0.0006527357,
+          "2028": -0.0006522024,
+          "2029": -0.0006523924,
+          "2030": -0.0006491466
+        },
+        "raw_delta": {
+          "values": [
+            -0.0006508633,
+            -0.0006527357,
+            -0.0006522024,
+            -0.0006523924,
+            -0.0006491466
+          ],
+          "n": 5,
+          "mean": -0.0006514681,
+          "std": 1.4795e-06,
+          "std_ddof": 1,
+          "min": -0.0006527357,
+          "max": -0.0006491466
+        },
+        "oriented_improvement_by_seed": {
+          "2026": 0.0006508633,
+          "2027": 0.0006527357,
+          "2028": 0.0006522024,
+          "2029": 0.0006523924,
+          "2030": 0.0006491466
+        },
+        "oriented_improvement": {
+          "values": [
+            0.0006508633,
+            0.0006527357,
+            0.0006522024,
+            0.0006523924,
+            0.0006491466
+          ],
+          "n": 5,
+          "mean": 0.0006514681,
+          "std": 1.4795e-06,
+          "std_ddof": 1,
+          "min": 0.0006491466,
+          "max": 0.0006527357
+        },
+        "seeds_improved": 5,
+        "seeds_worsened": 0,
+        "seeds_tied": 0,
+        "mean_improvement_positive": true,
+        "all_seeds_improved": true
+      },
+      "body_psnr": {
+        "metric": "body_psnr",
+        "direction": "higher_is_better",
+        "reference_value": 28.8536551471,
+        "raw_delta_by_seed": {
+          "2026": 2.9472717793,
+          "2027": 2.9563164336,
+          "2028": 2.9553865734,
+          "2029": 2.9535878453,
+          "2030": 2.933580628
+        },
+        "raw_delta": {
+          "values": [
+            2.9472717793,
+            2.9563164336,
+            2.9553865734,
+            2.9535878453,
+            2.933580628
+          ],
+          "n": 5,
+          "mean": 2.9492286519,
+          "std": 0.009431983,
+          "std_ddof": 1,
+          "min": 2.933580628,
+          "max": 2.9563164336
+        },
+        "oriented_improvement_by_seed": {
+          "2026": 2.9472717793,
+          "2027": 2.9563164336,
+          "2028": 2.9553865734,
+          "2029": 2.9535878453,
+          "2030": 2.933580628
+        },
+        "oriented_improvement": {
+          "values": [
+            2.9472717793,
+            2.9563164336,
+            2.9553865734,
+            2.9535878453,
+            2.933580628
+          ],
+          "n": 5,
+          "mean": 2.9492286519,
+          "std": 0.009431983,
+          "std_ddof": 1,
+          "min": 2.933580628,
+          "max": 2.9563164336
+        },
+        "seeds_improved": 5,
+        "seeds_worsened": 0,
+        "seeds_tied": 0,
+        "mean_improvement_positive": true,
+        "all_seeds_improved": true
+      },
+      "body_ssim": {
+        "metric": "body_ssim",
+        "direction": "higher_is_better",
+        "reference_value": 0.8141498947,
+        "raw_delta_by_seed": {
+          "2026": 0.0917771807,
+          "2027": 0.0919015702,
+          "2028": 0.0921731273,
+          "2029": 0.0924061288,
+          "2030": 0.0902176692
+        },
+        "raw_delta": {
+          "values": [
+            0.0917771807,
+            0.0919015702,
+            0.0921731273,
+            0.0924061288,
+            0.0902176692
+          ],
+          "n": 5,
+          "mean": 0.0916951352,
+          "std": 0.0008611389,
+          "std_ddof": 1,
+          "min": 0.0902176692,
+          "max": 0.0924061288
+        },
+        "oriented_improvement_by_seed": {
+          "2026": 0.0917771807,
+          "2027": 0.0919015702,
+          "2028": 0.0921731273,
+          "2029": 0.0924061288,
+          "2030": 0.0902176692
+        },
+        "oriented_improvement": {
+          "values": [
+            0.0917771807,
+            0.0919015702,
+            0.0921731273,
+            0.0924061288,
+            0.0902176692
+          ],
+          "n": 5,
+          "mean": 0.0916951352,
+          "std": 0.0008611389,
+          "std_ddof": 1,
+          "min": 0.0902176692,
+          "max": 0.0924061288
+        },
+        "seeds_improved": 5,
+        "seeds_worsened": 0,
+        "seeds_tied": 0,
+        "mean_improvement_positive": true,
+        "all_seeds_improved": true
+      }
+    }
+  },
+  "learned_vs_clahe": {
+    "cnn": {
+      "full_mae": {
+        "metric": "full_mae",
+        "direction": "lower_is_better",
+        "reference_value": 0.0240936655,
+        "raw_delta_by_seed": {
+          "2026": -0.0146699122,
+          "2027": -0.0146567719,
+          "2028": -0.0145420704,
+          "2029": -0.0146308989,
+          "2030": -0.0146162929
+        },
+        "raw_delta": {
+          "values": [
+            -0.0146699122,
+            -0.0146567719,
+            -0.0145420704,
+            -0.0146308989,
+            -0.0146162929
+          ],
+          "n": 5,
+          "mean": -0.0146231893,
+          "std": 4.99952e-05,
+          "std_ddof": 1,
+          "min": -0.0146699122,
+          "max": -0.0145420704
+        },
+        "oriented_improvement_by_seed": {
+          "2026": 0.0146699122,
+          "2027": 0.0146567719,
+          "2028": 0.0145420704,
+          "2029": 0.0146308989,
+          "2030": 0.0146162929
+        },
+        "oriented_improvement": {
+          "values": [
+            0.0146699122,
+            0.0146567719,
+            0.0145420704,
+            0.0146308989,
+            0.0146162929
+          ],
+          "n": 5,
+          "mean": 0.0146231893,
+          "std": 4.99952e-05,
+          "std_ddof": 1,
+          "min": 0.0145420704,
+          "max": 0.0146699122
+        },
+        "seeds_improved": 5,
+        "seeds_worsened": 0,
+        "seeds_tied": 0,
+        "mean_improvement_positive": true,
+        "all_seeds_improved": true
+      },
+      "full_mse": {
+        "metric": "full_mse",
+        "direction": "lower_is_better",
+        "reference_value": 0.0012968923,
+        "raw_delta_by_seed": {
+          "2026": -0.0009464365,
+          "2027": -0.0009470344,
+          "2028": -0.0009388119,
+          "2029": -0.0009450879,
+          "2030": -0.0009452105
+        },
+        "raw_delta": {
+          "values": [
+            -0.0009464365,
+            -0.0009470344,
+            -0.0009388119,
+            -0.0009450879,
+            -0.0009452105
+          ],
+          "n": 5,
+          "mean": -0.0009445163,
+          "std": 3.293e-06,
+          "std_ddof": 1,
+          "min": -0.0009470344,
+          "max": -0.0009388119
+        },
+        "oriented_improvement_by_seed": {
+          "2026": 0.0009464365,
+          "2027": 0.0009470344,
+          "2028": 0.0009388119,
+          "2029": 0.0009450879,
+          "2030": 0.0009452105
+        },
+        "oriented_improvement": {
+          "values": [
+            0.0009464365,
+            0.0009470344,
+            0.0009388119,
+            0.0009450879,
+            0.0009452105
+          ],
+          "n": 5,
+          "mean": 0.0009445163,
+          "std": 3.293e-06,
+          "std_ddof": 1,
+          "min": 0.0009388119,
+          "max": 0.0009470344
+        },
+        "seeds_improved": 5,
+        "seeds_worsened": 0,
+        "seeds_tied": 0,
+        "mean_improvement_positive": true,
+        "all_seeds_improved": true
+      },
+      "full_psnr": {
+        "metric": "full_psnr",
+        "direction": "higher_is_better",
+        "reference_value": 29.0835417489,
+        "raw_delta_by_seed": {
+          "2026": 5.597637893,
+          "2027": 5.6071649459,
+          "2028": 5.5033119512,
+          "2029": 5.5847860842,
+          "2030": 5.5851123834
+        },
+        "raw_delta": {
+          "values": [
+            5.597637893,
+            5.6071649459,
+            5.5033119512,
+            5.5847860842,
+            5.5851123834
+          ],
+          "n": 5,
+          "mean": 5.5756026515,
+          "std": 0.0414802546,
+          "std_ddof": 1,
+          "min": 5.5033119512,
+          "max": 5.6071649459
+        },
+        "oriented_improvement_by_seed": {
+          "2026": 5.597637893,
+          "2027": 5.6071649459,
+          "2028": 5.5033119512,
+          "2029": 5.5847860842,
+          "2030": 5.5851123834
+        },
+        "oriented_improvement": {
+          "values": [
+            5.597637893,
+            5.6071649459,
+            5.5033119512,
+            5.5847860842,
+            5.5851123834
+          ],
+          "n": 5,
+          "mean": 5.5756026515,
+          "std": 0.0414802546,
+          "std_ddof": 1,
+          "min": 5.5033119512,
+          "max": 5.6071649459
+        },
+        "seeds_improved": 5,
+        "seeds_worsened": 0,
+        "seeds_tied": 0,
+        "mean_improvement_positive": true,
+        "all_seeds_improved": true
+      },
+      "full_ssim": {
+        "metric": "full_ssim",
+        "direction": "higher_is_better",
+        "reference_value": 0.6268929917,
+        "raw_delta_by_seed": {
+          "2026": 0.3268848208,
+          "2027": 0.3269059506,
+          "2028": 0.3263265318,
+          "2029": 0.3265219919,
+          "2030": 0.3265613938
+        },
+        "raw_delta": {
+          "values": [
+            0.3268848208,
+            0.3269059506,
+            0.3263265318,
+            0.3265219919,
+            0.3265613938
+          ],
+          "n": 5,
+          "mean": 0.3266401378,
+          "std": 0.0002495165,
+          "std_ddof": 1,
+          "min": 0.3263265318,
+          "max": 0.3269059506
+        },
+        "oriented_improvement_by_seed": {
+          "2026": 0.3268848208,
+          "2027": 0.3269059506,
+          "2028": 0.3263265318,
+          "2029": 0.3265219919,
+          "2030": 0.3265613938
+        },
+        "oriented_improvement": {
+          "values": [
+            0.3268848208,
+            0.3269059506,
+            0.3263265318,
+            0.3265219919,
+            0.3265613938
+          ],
+          "n": 5,
+          "mean": 0.3266401378,
+          "std": 0.0002495165,
+          "std_ddof": 1,
+          "min": 0.3263265318,
+          "max": 0.3269059506
+        },
+        "seeds_improved": 5,
+        "seeds_worsened": 0,
+        "seeds_tied": 0,
+        "mean_improvement_positive": true,
+        "all_seeds_improved": true
+      },
+      "body_mae": {
+        "metric": "body_mae",
+        "direction": "lower_is_better",
+        "reference_value": 0.0357082625,
+        "raw_delta_by_seed": {
+          "2026": -0.0165785765,
+          "2027": -0.0165558269,
+          "2028": -0.0162983106,
+          "2029": -0.0164933391,
+          "2030": -0.0164684418
+        },
+        "raw_delta": {
+          "values": [
+            -0.0165785765,
+            -0.0165558269,
+            -0.0162983106,
+            -0.0164933391,
+            -0.0164684418
+          ],
+          "n": 5,
+          "mean": -0.016478899,
+          "std": 0.000110435,
+          "std_ddof": 1,
+          "min": -0.0165785765,
+          "max": -0.0162983106
+        },
+        "oriented_improvement_by_seed": {
+          "2026": 0.0165785765,
+          "2027": 0.0165558269,
+          "2028": 0.0162983106,
+          "2029": 0.0164933391,
+          "2030": 0.0164684418
+        },
+        "oriented_improvement": {
+          "values": [
+            0.0165785765,
+            0.0165558269,
+            0.0162983106,
+            0.0164933391,
+            0.0164684418
+          ],
+          "n": 5,
+          "mean": 0.016478899,
+          "std": 0.000110435,
+          "std_ddof": 1,
+          "min": 0.0162983106,
+          "max": 0.0165785765
+        },
+        "seeds_improved": 5,
+        "seeds_worsened": 0,
+        "seeds_tied": 0,
+        "mean_improvement_positive": true,
+        "all_seeds_improved": true
+      },
+      "body_mse": {
+        "metric": "body_mse",
+        "direction": "lower_is_better",
+        "reference_value": 0.0022685737,
+        "raw_delta_by_seed": {
+          "2026": -0.0015507044,
+          "2027": -0.0015518672,
+          "2028": -0.0015361047,
+          "2029": -0.0015474809,
+          "2030": -0.0015473703
+        },
+        "raw_delta": {
+          "values": [
+            -0.0015507044,
+            -0.0015518672,
+            -0.0015361047,
+            -0.0015474809,
+            -0.0015473703
+          ],
+          "n": 5,
+          "mean": -0.0015467055,
+          "std": 6.2461e-06,
+          "std_ddof": 1,
+          "min": -0.0015518672,
+          "max": -0.0015361047
+        },
+        "oriented_improvement_by_seed": {
+          "2026": 0.0015507044,
+          "2027": 0.0015518672,
+          "2028": 0.0015361047,
+          "2029": 0.0015474809,
+          "2030": 0.0015473703
+        },
+        "oriented_improvement": {
+          "values": [
+            0.0015507044,
+            0.0015518672,
+            0.0015361047,
+            0.0015474809,
+            0.0015473703
+          ],
+          "n": 5,
+          "mean": 0.0015467055,
+          "std": 6.2461e-06,
+          "std_ddof": 1,
+          "min": 0.0015361047,
+          "max": 0.0015518672
+        },
+        "seeds_improved": 5,
+        "seeds_worsened": 0,
+        "seeds_tied": 0,
+        "mean_improvement_positive": true,
+        "all_seeds_improved": true
+      },
+      "body_psnr": {
+        "metric": "body_psnr",
+        "direction": "higher_is_better",
+        "reference_value": 26.6043321711,
+        "raw_delta_by_seed": {
+          "2026": 4.9711947786,
+          "2027": 4.9816895628,
+          "2028": 4.8845707262,
+          "2029": 4.9569795957,
+          "2030": 4.9551319374
+        },
+        "raw_delta": {
+          "values": [
+            4.9711947786,
+            4.9816895628,
+            4.8845707262,
+            4.9569795957,
+            4.9551319374
+          ],
+          "n": 5,
+          "mean": 4.9499133201,
+          "std": 0.0381098769,
+          "std_ddof": 1,
+          "min": 4.8845707262,
+          "max": 4.9816895628
+        },
+        "oriented_improvement_by_seed": {
+          "2026": 4.9711947786,
+          "2027": 4.9816895628,
+          "2028": 4.8845707262,
+          "2029": 4.9569795957,
+          "2030": 4.9551319374
+        },
+        "oriented_improvement": {
+          "values": [
+            4.9711947786,
+            4.9816895628,
+            4.8845707262,
+            4.9569795957,
+            4.9551319374
+          ],
+          "n": 5,
+          "mean": 4.9499133201,
+          "std": 0.0381098769,
+          "std_ddof": 1,
+          "min": 4.8845707262,
+          "max": 4.9816895628
+        },
+        "seeds_improved": 5,
+        "seeds_worsened": 0,
+        "seeds_tied": 0,
+        "mean_improvement_positive": true,
+        "all_seeds_improved": true
+      },
+      "body_ssim": {
+        "metric": "body_ssim",
+        "direction": "higher_is_better",
+        "reference_value": 0.7611385549,
+        "raw_delta_by_seed": {
+          "2026": 0.1412853907,
+          "2027": 0.1413251501,
+          "2028": 0.1400837092,
+          "2029": 0.140467364,
+          "2030": 0.140415801
+        },
+        "raw_delta": {
+          "values": [
+            0.1412853907,
+            0.1413251501,
+            0.1400837092,
+            0.140467364,
+            0.140415801
+          ],
+          "n": 5,
+          "mean": 0.140715483,
+          "std": 0.0005583456,
+          "std_ddof": 1,
+          "min": 0.1400837092,
+          "max": 0.1413251501
+        },
+        "oriented_improvement_by_seed": {
+          "2026": 0.1412853907,
+          "2027": 0.1413251501,
+          "2028": 0.1400837092,
+          "2029": 0.140467364,
+          "2030": 0.140415801
+        },
+        "oriented_improvement": {
+          "values": [
+            0.1412853907,
+            0.1413251501,
+            0.1400837092,
+            0.140467364,
+            0.140415801
+          ],
+          "n": 5,
+          "mean": 0.140715483,
+          "std": 0.0005583456,
+          "std_ddof": 1,
+          "min": 0.1400837092,
+          "max": 0.1413251501
+        },
+        "seeds_improved": 5,
+        "seeds_worsened": 0,
+        "seeds_tied": 0,
+        "mean_improvement_positive": true,
+        "all_seeds_improved": true
+      }
+    },
+    "unet": {
+      "full_mae": {
+        "metric": "full_mae",
+        "direction": "lower_is_better",
+        "reference_value": 0.0240936655,
+        "raw_delta_by_seed": {
+          "2026": -0.014906584,
+          "2027": -0.0148927532,
+          "2028": -0.0149335204,
+          "2029": -0.014895429,
+          "2030": -0.0148860907
+        },
+        "raw_delta": {
+          "values": [
+            -0.014906584,
+            -0.0148927532,
+            -0.0149335204,
+            -0.014895429,
+            -0.0148860907
+          ],
+          "n": 5,
+          "mean": -0.0149028755,
+          "std": 1.86581e-05,
+          "std_ddof": 1,
+          "min": -0.0149335204,
+          "max": -0.0148860907
+        },
+        "oriented_improvement_by_seed": {
+          "2026": 0.014906584,
+          "2027": 0.0148927532,
+          "2028": 0.0149335204,
+          "2029": 0.014895429,
+          "2030": 0.0148860907
+        },
+        "oriented_improvement": {
+          "values": [
+            0.014906584,
+            0.0148927532,
+            0.0149335204,
+            0.014895429,
+            0.0148860907
+          ],
+          "n": 5,
+          "mean": 0.0149028755,
+          "std": 1.86581e-05,
+          "std_ddof": 1,
+          "min": 0.0148860907,
+          "max": 0.0149335204
+        },
+        "seeds_improved": 5,
+        "seeds_worsened": 0,
+        "seeds_tied": 0,
+        "mean_improvement_positive": true,
+        "all_seeds_improved": true
+      },
+      "full_mse": {
+        "metric": "full_mse",
+        "direction": "lower_is_better",
+        "reference_value": 0.0012968923,
+        "raw_delta_by_seed": {
+          "2026": -0.0009629247,
+          "2027": -0.0009639351,
+          "2028": -0.0009638041,
+          "2029": -0.0009636428,
+          "2030": -0.0009618583
+        },
+        "raw_delta": {
+          "values": [
+            -0.0009629247,
+            -0.0009639351,
+            -0.0009638041,
+            -0.0009636428,
+            -0.0009618583
+          ],
+          "n": 5,
+          "mean": -0.000963233,
+          "std": 8.62e-07,
+          "std_ddof": 1,
+          "min": -0.0009639351,
+          "max": -0.0009618583
+        },
+        "oriented_improvement_by_seed": {
+          "2026": 0.0009629247,
+          "2027": 0.0009639351,
+          "2028": 0.0009638041,
+          "2029": 0.0009636428,
+          "2030": 0.0009618583
+        },
+        "oriented_improvement": {
+          "values": [
+            0.0009629247,
+            0.0009639351,
+            0.0009638041,
+            0.0009636428,
+            0.0009618583
+          ],
+          "n": 5,
+          "mean": 0.000963233,
+          "std": 8.62e-07,
+          "std_ddof": 1,
+          "min": 0.0009618583,
+          "max": 0.0009639351
+        },
+        "seeds_improved": 5,
+        "seeds_worsened": 0,
+        "seeds_tied": 0,
+        "mean_improvement_positive": true,
+        "all_seeds_improved": true
+      },
+      "full_psnr": {
+        "metric": "full_psnr",
+        "direction": "higher_is_better",
+        "reference_value": 29.0835417489,
+        "raw_delta_by_seed": {
+          "2026": 5.8158191024,
+          "2027": 5.8270784038,
+          "2028": 5.8271923901,
+          "2029": 5.8237410694,
+          "2030": 5.8017312763
+        },
+        "raw_delta": {
+          "values": [
+            5.8158191024,
+            5.8270784038,
+            5.8271923901,
+            5.8237410694,
+            5.8017312763
+          ],
+          "n": 5,
+          "mean": 5.8191124484,
+          "std": 0.0107600802,
+          "std_ddof": 1,
+          "min": 5.8017312763,
+          "max": 5.8271923901
+        },
+        "oriented_improvement_by_seed": {
+          "2026": 5.8158191024,
+          "2027": 5.8270784038,
+          "2028": 5.8271923901,
+          "2029": 5.8237410694,
+          "2030": 5.8017312763
+        },
+        "oriented_improvement": {
+          "values": [
+            5.8158191024,
+            5.8270784038,
+            5.8271923901,
+            5.8237410694,
+            5.8017312763
+          ],
+          "n": 5,
+          "mean": 5.8191124484,
+          "std": 0.0107600802,
+          "std_ddof": 1,
+          "min": 5.8017312763,
+          "max": 5.8271923901
+        },
+        "seeds_improved": 5,
+        "seeds_worsened": 0,
+        "seeds_tied": 0,
+        "mean_improvement_positive": true,
+        "all_seeds_improved": true
+      },
+      "full_ssim": {
+        "metric": "full_ssim",
+        "direction": "higher_is_better",
+        "reference_value": 0.6268929917,
+        "raw_delta_by_seed": {
+          "2026": 0.3285689219,
+          "2027": 0.3286272277,
+          "2028": 0.3287503514,
+          "2029": 0.3288372549,
+          "2030": 0.3277764491
+        },
+        "raw_delta": {
+          "values": [
+            0.3285689219,
+            0.3286272277,
+            0.3287503514,
+            0.3288372549,
+            0.3277764491
+          ],
+          "n": 5,
+          "mean": 0.328512041,
+          "std": 0.0004243097,
+          "std_ddof": 1,
+          "min": 0.3277764491,
+          "max": 0.3288372549
+        },
+        "oriented_improvement_by_seed": {
+          "2026": 0.3285689219,
+          "2027": 0.3286272277,
+          "2028": 0.3287503514,
+          "2029": 0.3288372549,
+          "2030": 0.3277764491
+        },
+        "oriented_improvement": {
+          "values": [
+            0.3285689219,
+            0.3286272277,
+            0.3287503514,
+            0.3288372549,
+            0.3277764491
+          ],
+          "n": 5,
+          "mean": 0.328512041,
+          "std": 0.0004243097,
+          "std_ddof": 1,
+          "min": 0.3277764491,
+          "max": 0.3288372549
+        },
+        "seeds_improved": 5,
+        "seeds_worsened": 0,
+        "seeds_tied": 0,
+        "mean_improvement_positive": true,
+        "all_seeds_improved": true
+      },
+      "body_mae": {
+        "metric": "body_mae",
+        "direction": "lower_is_better",
+        "reference_value": 0.0357082625,
+        "raw_delta_by_seed": {
+          "2026": -0.0171173831,
+          "2027": -0.017117149,
+          "2028": -0.0171348119,
+          "2029": -0.0171102184,
+          "2030": -0.0170730727
+        },
+        "raw_delta": {
+          "values": [
+            -0.0171173831,
+            -0.017117149,
+            -0.0171348119,
+            -0.0171102184,
+            -0.0170730727
+          ],
+          "n": 5,
+          "mean": -0.017110527,
+          "std": 2.28228e-05,
+          "std_ddof": 1,
+          "min": -0.0171348119,
+          "max": -0.0170730727
+        },
+        "oriented_improvement_by_seed": {
+          "2026": 0.0171173831,
+          "2027": 0.017117149,
+          "2028": 0.0171348119,
+          "2029": 0.0171102184,
+          "2030": 0.0170730727
+        },
+        "oriented_improvement": {
+          "values": [
+            0.0171173831,
+            0.017117149,
+            0.0171348119,
+            0.0171102184,
+            0.0170730727
+          ],
+          "n": 5,
+          "mean": 0.017110527,
+          "std": 2.28228e-05,
+          "std_ddof": 1,
+          "min": 0.0170730727,
+          "max": 0.0171348119
+        },
+        "seeds_improved": 5,
+        "seeds_worsened": 0,
+        "seeds_tied": 0,
+        "mean_improvement_positive": true,
+        "all_seeds_improved": true
+      },
+      "body_mse": {
+        "metric": "body_mse",
+        "direction": "lower_is_better",
+        "reference_value": 0.0022685737,
+        "raw_delta_by_seed": {
+          "2026": -0.0015855787,
+          "2027": -0.001587451,
+          "2028": -0.0015869177,
+          "2029": -0.0015871077,
+          "2030": -0.0015838619
+        },
+        "raw_delta": {
+          "values": [
+            -0.0015855787,
+            -0.001587451,
+            -0.0015869177,
+            -0.0015871077,
+            -0.0015838619
+          ],
+          "n": 5,
+          "mean": -0.0015861834,
+          "std": 1.4795e-06,
+          "std_ddof": 1,
+          "min": -0.001587451,
+          "max": -0.0015838619
+        },
+        "oriented_improvement_by_seed": {
+          "2026": 0.0015855787,
+          "2027": 0.001587451,
+          "2028": 0.0015869177,
+          "2029": 0.0015871077,
+          "2030": 0.0015838619
+        },
+        "oriented_improvement": {
+          "values": [
+            0.0015855787,
+            0.001587451,
+            0.0015869177,
+            0.0015871077,
+            0.0015838619
+          ],
+          "n": 5,
+          "mean": 0.0015861834,
+          "std": 1.4795e-06,
+          "std_ddof": 1,
+          "min": 0.0015838619,
+          "max": 0.001587451
+        },
+        "seeds_improved": 5,
+        "seeds_worsened": 0,
+        "seeds_tied": 0,
+        "mean_improvement_positive": true,
+        "all_seeds_improved": true
+      },
+      "body_psnr": {
+        "metric": "body_psnr",
+        "direction": "higher_is_better",
+        "reference_value": 26.6043321711,
+        "raw_delta_by_seed": {
+          "2026": 5.1965947553,
+          "2027": 5.2056394096,
+          "2028": 5.2047095494,
+          "2029": 5.2029108213,
+          "2030": 5.1829036041
+        },
+        "raw_delta": {
+          "values": [
+            5.1965947553,
+            5.2056394096,
+            5.2047095494,
+            5.2029108213,
+            5.1829036041
+          ],
+          "n": 5,
+          "mean": 5.198551628,
+          "std": 0.009431983,
+          "std_ddof": 1,
+          "min": 5.1829036041,
+          "max": 5.2056394096
+        },
+        "oriented_improvement_by_seed": {
+          "2026": 5.1965947553,
+          "2027": 5.2056394096,
+          "2028": 5.2047095494,
+          "2029": 5.2029108213,
+          "2030": 5.1829036041
+        },
+        "oriented_improvement": {
+          "values": [
+            5.1965947553,
+            5.2056394096,
+            5.2047095494,
+            5.2029108213,
+            5.1829036041
+          ],
+          "n": 5,
+          "mean": 5.198551628,
+          "std": 0.009431983,
+          "std_ddof": 1,
+          "min": 5.1829036041,
+          "max": 5.2056394096
+        },
+        "seeds_improved": 5,
+        "seeds_worsened": 0,
+        "seeds_tied": 0,
+        "mean_improvement_positive": true,
+        "all_seeds_improved": true
+      },
+      "body_ssim": {
+        "metric": "body_ssim",
+        "direction": "higher_is_better",
+        "reference_value": 0.7611385549,
+        "raw_delta_by_seed": {
+          "2026": 0.1447885205,
+          "2027": 0.14491291,
+          "2028": 0.1451844671,
+          "2029": 0.1454174685,
+          "2030": 0.143229009
+        },
+        "raw_delta": {
+          "values": [
+            0.1447885205,
+            0.14491291,
+            0.1451844671,
+            0.1454174685,
+            0.143229009
+          ],
+          "n": 5,
+          "mean": 0.144706475,
+          "std": 0.0008611389,
+          "std_ddof": 1,
+          "min": 0.143229009,
+          "max": 0.1454174685
+        },
+        "oriented_improvement_by_seed": {
+          "2026": 0.1447885205,
+          "2027": 0.14491291,
+          "2028": 0.1451844671,
+          "2029": 0.1454174685,
+          "2030": 0.143229009
+        },
+        "oriented_improvement": {
+          "values": [
+            0.1447885205,
+            0.14491291,
+            0.1451844671,
+            0.1454174685,
+            0.143229009
+          ],
+          "n": 5,
+          "mean": 0.144706475,
+          "std": 0.0008611389,
+          "std_ddof": 1,
+          "min": 0.143229009,
+          "max": 0.1454174685
+        },
+        "seeds_improved": 5,
+        "seeds_worsened": 0,
+        "seeds_tied": 0,
+        "mean_improvement_positive": true,
+        "all_seeds_improved": true
+      }
+    }
+  },
+  "validation_to_test": {
+    "secondary_descriptive_only": true,
+    "note": "Describes whether held-out figures were numerically higher or lower than the development figures. It is not a generalization-error estimate, and no difference here is called significant or attributed to a shift.",
+    "per_method": {
+      "degraded": {
+        "full_mae": {
+          "validation": 0.0163589219,
+          "test": 0.0162117109,
+          "raw_change_test_minus_validation": -0.000147211,
+          "oriented_change_positive_is_test_numerically_better": 0.000147211
+        },
+        "full_mse": {
+          "validation": 0.0007213042,
+          "test": 0.0007036894,
+          "raw_change_test_minus_validation": -1.76148e-05,
+          "oriented_change_positive_is_test_numerically_better": 1.76148e-05
+        },
+        "full_psnr": {
+          "validation": 31.4812591881,
+          "test": 31.5872145648,
+          "raw_change_test_minus_validation": 0.1059553767,
+          "oriented_change_positive_is_test_numerically_better": 0.1059553767
+        },
+        "full_ssim": {
+          "validation": 0.7813455436,
+          "test": 0.786331925,
+          "raw_change_test_minus_validation": 0.0049863814,
+          "oriented_change_positive_is_test_numerically_better": 0.0049863814
+        },
+        "body_mae": {
+          "validation": 0.028186536,
+          "test": 0.0269740626,
+          "raw_change_test_minus_validation": -0.0012124734,
+          "oriented_change_positive_is_test_numerically_better": 0.0012124734
+        },
+        "body_mse": {
+          "validation": 0.001415267,
+          "test": 0.0013338584,
+          "raw_change_test_minus_validation": -8.14086e-05,
+          "oriented_change_positive_is_test_numerically_better": 8.14086e-05
+        },
+        "body_psnr": {
+          "validation": 28.5620301222,
+          "test": 28.8536551471,
+          "raw_change_test_minus_validation": 0.2916250249,
+          "oriented_change_positive_is_test_numerically_better": 0.2916250249
+        },
+        "body_ssim": {
+          "validation": 0.810430043,
+          "test": 0.8141498947,
+          "raw_change_test_minus_validation": 0.0037198517,
+          "oriented_change_positive_is_test_numerically_better": 0.0037198517
+        }
+      },
+      "clahe": {
+        "full_mae": {
+          "validation": 0.0235697227,
+          "test": 0.0240936655,
+          "raw_change_test_minus_validation": 0.0005239428,
+          "oriented_change_positive_is_test_numerically_better": -0.0005239428
+        },
+        "full_mse": {
+          "validation": 0.0012325209,
+          "test": 0.0012968923,
+          "raw_change_test_minus_validation": 6.43714e-05,
+          "oriented_change_positive_is_test_numerically_better": -6.43714e-05
+        },
+        "full_psnr": {
+          "validation": 29.1561203908,
+          "test": 29.0835417489,
+          "raw_change_test_minus_validation": -0.0725786419,
+          "oriented_change_positive_is_test_numerically_better": -0.0725786419
+        },
+        "full_ssim": {
+          "validation": 0.620768736,
+          "test": 0.6268929917,
+          "raw_change_test_minus_validation": 0.0061242557,
+          "oriented_change_positive_is_test_numerically_better": 0.0061242557
+        },
+        "body_mae": {
+          "validation": 0.0362809152,
+          "test": 0.0357082625,
+          "raw_change_test_minus_validation": -0.0005726527,
+          "oriented_change_positive_is_test_numerically_better": 0.0005726527
+        },
+        "body_mse": {
+          "validation": 0.0022988021,
+          "test": 0.0022685737,
+          "raw_change_test_minus_validation": -3.02284e-05,
+          "oriented_change_positive_is_test_numerically_better": 3.02284e-05
+        },
+        "body_psnr": {
+          "validation": 26.483128773,
+          "test": 26.6043321711,
+          "raw_change_test_minus_validation": 0.1212033981,
+          "oriented_change_positive_is_test_numerically_better": 0.1212033981
+        },
+        "body_ssim": {
+          "validation": 0.7680845838,
+          "test": 0.7611385549,
+          "raw_change_test_minus_validation": -0.0069460289,
+          "oriented_change_positive_is_test_numerically_better": -0.0069460289
+        }
+      },
+      "cnn": {
+        "full_mae": {
+          "validation": 0.0094034489,
+          "test": 0.0094704762,
+          "raw_change_test_minus_validation": 6.70274e-05,
+          "oriented_change_positive_is_test_numerically_better": -6.70274e-05
+        },
+        "full_mse": {
+          "validation": 0.000350912,
+          "test": 0.0003523761,
+          "raw_change_test_minus_validation": 1.4641e-06,
+          "oriented_change_positive_is_test_numerically_better": -1.4641e-06
+        },
+        "full_psnr": {
+          "validation": 34.6373526044,
+          "test": 34.6591444005,
+          "raw_change_test_minus_validation": 0.0217917961,
+          "oriented_change_positive_is_test_numerically_better": 0.0217917961
+        },
+        "full_ssim": {
+          "validation": 0.9536149973,
+          "test": 0.9535331295,
+          "raw_change_test_minus_validation": -8.18678e-05,
+          "oriented_change_positive_is_test_numerically_better": -8.18678e-05
+        },
+        "body_mae": {
+          "validation": 0.0200498434,
+          "test": 0.0192293635,
+          "raw_change_test_minus_validation": -0.0008204799,
+          "oriented_change_positive_is_test_numerically_better": 0.0008204799
+        },
+        "body_mse": {
+          "validation": 0.0007525238,
+          "test": 0.0007218682,
+          "raw_change_test_minus_validation": -3.06556e-05,
+          "oriented_change_positive_is_test_numerically_better": 3.06556e-05
+        },
+        "body_psnr": {
+          "validation": 31.3418738774,
+          "test": 31.5542454912,
+          "raw_change_test_minus_validation": 0.2123716138,
+          "oriented_change_positive_is_test_numerically_better": 0.2123716138
+        },
+        "body_ssim": {
+          "validation": 0.896522251,
+          "test": 0.901854038,
+          "raw_change_test_minus_validation": 0.005331787,
+          "oriented_change_positive_is_test_numerically_better": 0.005331787
+        }
+      },
+      "unet": {
+        "full_mae": {
+          "validation": 0.0091332674,
+          "test": 0.00919079,
+          "raw_change_test_minus_validation": 5.75226e-05,
+          "oriented_change_positive_is_test_numerically_better": -5.75226e-05
+        },
+        "full_mse": {
+          "validation": 0.0003330085,
+          "test": 0.0003336593,
+          "raw_change_test_minus_validation": 6.508e-07,
+          "oriented_change_positive_is_test_numerically_better": -6.508e-07
+        },
+        "full_psnr": {
+          "validation": 34.8652330255,
+          "test": 34.9026541974,
+          "raw_change_test_minus_validation": 0.0374211719,
+          "oriented_change_positive_is_test_numerically_better": 0.0374211719
+        },
+        "full_ssim": {
+          "validation": 0.955134238,
+          "test": 0.9554050327,
+          "raw_change_test_minus_validation": 0.0002707947,
+          "oriented_change_positive_is_test_numerically_better": 0.0002707947
+        },
+        "body_mae": {
+          "validation": 0.0194246103,
+          "test": 0.0185977355,
+          "raw_change_test_minus_validation": -0.0008268748,
+          "oriented_change_positive_is_test_numerically_better": 0.0008268748
+        },
+        "body_mse": {
+          "validation": 0.0007139999,
+          "test": 0.0006823903,
+          "raw_change_test_minus_validation": -3.16096e-05,
+          "oriented_change_positive_is_test_numerically_better": 3.16096e-05
+        },
+        "body_psnr": {
+          "validation": 31.5758810887,
+          "test": 31.802883799,
+          "raw_change_test_minus_validation": 0.2270027103,
+          "oriented_change_positive_is_test_numerically_better": 0.2270027103
+        },
+        "body_ssim": {
+          "validation": 0.899851315,
+          "test": 0.90584503,
+          "raw_change_test_minus_validation": 0.0059937149,
+          "oriented_change_positive_is_test_numerically_better": 0.0059937149
+        }
+      }
+    }
+  },
+  "claim_rules": {
+    "requires_computed_from_frozen_test_outputs": true,
+    "requires_positive_architecture_mean_improvement": true,
+    "required_context": [
+      "held-out",
+      "six patients",
+      "synthetic low-dose-like degradation",
+      "five predeclared training seeds"
+    ],
+    "template": "On six held-out CHAOS patients with synthetic low-dose-like degradation, the <architecture> improved <metric> by X over the degraded input, averaged across five predeclared training seeds.",
+    "all_five_seeds_phrase": "all five seeds improved",
+    "all_five_seeds_phrase_requires": "every one of the five seeds improved that metric over degraded",
+    "forbidden": [
+      "clinically meaningful",
+      "real low-dose performance",
+      "dose reduction",
+      "caused by the U-Net architecture",
+      "statistically significant",
+      "generalizes to other scanners or institutions",
+      "production-ready"
+    ]
+  },
+  "interpretation_rules": {
+    "directionally_consistent": {
+      "requires_mean_oriented_improvement_same_direction": true,
+      "requires_minimum_seeds_favouring": 4,
+      "of_seeds": 5,
+      "phrase": "directionally consistent across training seeds"
+    },
+    "all_five_phrase": "all five seeds favoured",
+    "three_of_five_may_be_called_consistent": false,
+    "overall_architecture_statement": {
+      "requires_all_metrics": 8,
+      "requires_same_architecture_on_every_metric": true,
+      "otherwise": "report the pattern metric by metric"
+    },
+    "causal_claims": false,
+    "note": "Descriptive, not causal. The U-Net and the CNN differ in parameter count, receptive field, pooling, decoder and skip connections all at once, so no difference is attributed to any one of them."
+  },
+  "inspection_policy": {
+    "test_files_opened": 941,
+    "stress_files_opened": 0,
+    "visual_outputs_created": false
+  }
+}

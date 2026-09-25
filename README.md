@@ -4,20 +4,48 @@ An engineering benchmark comparing classical and lightweight deep-learning
 restoration methods on **synthetically degraded, low-dose-like CT images**
 built from public abdominal CT data.
 
-> **Status: in progress (Milestone 10 of 15 complete; the Milestone 11
-> held-out test protocol is frozen, and test execution is pending). All four
-> methods are measured on validation, and both learned methods across five
-> training seeds. No held-out test result exists yet.**
+> **Status: in progress (Milestone 11 of 15 complete). The held-out test
+> split has been evaluated exactly once, under a protocol committed before
+> it was opened, and the result has been independently audited. The stress
+> set remains sealed, and inference latency (Milestone 12) has not been
+> measured.**
 >
-> **CLAHE scored worse than doing nothing on every metric and every
-> patient.** Both learned methods beat no restoration on all eight reported
+> **Held-out test result (Milestone 11)** - six held-out CHAOS patients (941
+> slices) under the synthetic low-dose-like degradation, every one of the ten
+> frozen learned checkpoints scored once:
+>
+> * Across five predeclared training seeds, the 116,753-parameter
+>   lightweight U-Net improved full-frame PSNR by **+3.315 dB** over the
+>   deterministic degraded baseline (sample SD 0.011 dB; range +3.298 to
+>   +3.324 dB), and all five U-Net seeds improved it. The 28,353-parameter
+>   residual CNN improved it by **+3.072 dB** (sample SD 0.041 dB; range
+>   +3.000 to +3.103 dB), also at all five seeds.
+> * The paired U-Net-minus-CNN full-frame PSNR difference averaged
+>   **+0.244 dB** across the five seeds (sample SD 0.046 dB; range +0.217 to
+>   +0.324 dB), with all five seeds favouring the U-Net; all eight metrics
+>   favoured the U-Net at each of the five seeds.
+> * CLAHE was worse than no restoration on all eight held-out metrics
+>   (full-frame PSNR -2.50 dB).
+>
+> These are **descriptive** results. No significance test or confidence
+> interval was computed, the degradation is synthetic and image-domain, and
+> none of this is a claim about real low-dose CT, dose reduction, clinical
+> use, other scanners or institutions, or a causal effect of the
+> architecture. [Full held-out results](#milestone-11b-the-held-out-test-result).
+>
+> **Validation development results (Milestones 5-10)**, kept separate from
+> the held-out result above:
+>
+> **On validation, CLAHE scored worse than doing nothing on every metric and
+> every patient.** Both learned methods beat no restoration on all eight reported
 > metrics and on all six validation patients, at every one of the five
 > training seeds. The full-frame PSNR gain over no restoration was +3.08 to
 > +3.19 dB across the five seeds of the 28,353-parameter residual CNN, and
 > +3.37 to +3.40 dB across those of the 116,753-parameter lightweight U-Net
 > (seed 2026: +3.18 and +3.38 dB).
 >
-> **U-Net versus CNN, across five predeclared training seeds each:** the
+> **On validation, U-Net versus CNN, across five predeclared training seeds
+> each:** the
 > U-Net used 4.12x the trainable parameters, and all eight metrics favoured
 > it at each of the five seeds. Across the five seeds, the paired
 > U-Net-minus-CNN full-frame PSNR difference averaged **+0.228 dB** (sample
@@ -40,22 +68,29 @@ built from public abdominal CT data.
 > retrained. No seed was added, dropped, rerun or selected, and every run
 > kept the checkpoint its own frozen rule chose.
 >
-> **Milestone 11A froze the one-shot held-out test protocol before a single
-> test image was read.** [configs/holdout/test_plan.yaml](configs/holdout/test_plan.yaml)
-> fixes the six test patients (941 slices), the four methods, the ten learned
-> checkpoints that enter test - all five seeds of each architecture, no best
-> seed - the eight metrics, the patient-weighted aggregation, every
-> comparison and the words a result may use, and
-> [scripts/run_holdout_test.py](scripts/run_holdout_test.py) executes it
-> once. It has not been run. The stress set stays sealed.
+> **Milestone 11 was pre-registered and run once.**
+> [configs/holdout/test_plan.yaml](configs/holdout/test_plan.yaml) fixed the
+> six test patients, the four methods, the ten learned checkpoints - all
+> five seeds of each architecture, no best seed - the eight metrics, the
+> patient-weighted aggregation, every comparison and the words a result may
+> use, all before a single test image was read.
+> [scripts/run_holdout_test.py](scripts/run_holdout_test.py) executed it
+> exactly once, on 2026-09-25 under commit `1d48d1a`, and an independent
+> audit found the result valid. **The test split is now spent:** it cannot be
+> used to tune, select or compare any future model change.
 >
-> Every measured number here is a **validation** development result. No test
-> or stress number exists, and no test or stress image content has been read
-> since the split was frozen.
+> Apart from the held-out result, every measured number here is a
+> **validation** development result. Test image content has been read
+> exactly once, by the Milestone 11 run. No stress number exists, and no
+> stress image content has been read since the split was frozen.
 >
 > Every number reported here is read from a tracked file under `outputs/`.
-> The degraded-baseline and CLAHE numbers are re-derivable from the committed
-> configs and the imaging data alone. Every learned-method number - the CNN
+> The validation degraded-baseline and CLAHE numbers are re-derivable from
+> the committed configs and the imaging data alone. The held-out numbers are
+> not re-derived at all: regenerating them would reopen the test split, which
+> the protocol forbids, so they stand as the one recorded measurement,
+> checked against their own per-slice tables and execution receipt. Every
+> validation learned-method number - the CNN
 > and U-Net at seed 2026 and all eight Milestone 10 runs - additionally
 > requires re-running a training command, because every checkpoint is
 > git-ignored; each checkpoint's SHA-256 and selection evidence are recorded
@@ -75,23 +110,21 @@ quality, and what does each method cost in inference latency?
 
 | Method | Type | Status |
 | --- | --- | --- |
-| Degraded input (no restoration) | mandatory reference baseline | implemented; [measured on validation](#validation-degraded-baseline) |
-| CLAHE | classical local contrast enhancement | implemented, validation-tuned and frozen; [worse than no restoration](#validation-result-clahe-versus-no-restoration) |
-| Small residual CNN | deep learning | implemented and trained, **five seeds**; [beat no restoration on all 8 metrics](#validation-result-cnn-versus-no-restoration) |
-| Lightweight U-Net | deep learning | implemented and trained, **five seeds**; [favoured over the CNN on all 8 metrics at each of 5 seeds, on validation](#milestone-10-the-multi-seed-result) |
+| Degraded input (no restoration) | mandatory reference baseline | implemented; [measured on validation](#validation-degraded-baseline) and [once on held-out test](#milestone-11b-the-held-out-test-result) |
+| CLAHE | classical local contrast enhancement | implemented, validation-tuned and frozen; [worse than no restoration](#validation-result-clahe-versus-no-restoration), on validation and on held-out test |
+| Small residual CNN | deep learning | implemented and trained, **five seeds**; [beat no restoration on all 8 metrics](#validation-result-cnn-versus-no-restoration), on validation and at every seed on held-out test |
+| Lightweight U-Net | deep learning | implemented and trained, **five seeds**; favoured over the CNN on all 8 metrics at each of 5 seeds, [on validation](#milestone-10-the-multi-seed-result) and [on held-out test](#milestone-11b-the-held-out-test-result) |
 
 All four have now been evaluated on identical patients, identical clean
 targets and identical degraded inputs, through the same frozen metric code,
 using MAE, MSE, PSNR and SSIM. **Inference latency has not been measured for
 any of them**, so the cost half of the research question is still open.
 
-The final comparison will be made once, on the held-out **test** split,
-under the protocol frozen in
-[Milestone 11A](#milestone-11a-the-held-out-test-protocol-frozen-before-the-test-split-is-opened).
-Nothing has been evaluated on test or stress yet:
-every figure in this document is a validation number, used to develop and
-sanity-check the measurement and to select among candidates, not a final
-result.
+The final comparison was made once, on the held-out **test** split, under
+the protocol frozen in [Milestone 11A](#milestone-11a-the-held-out-test-protocol-frozen-before-the-test-split-was-opened);
+its result is [Milestone 11B](#milestone-11b-the-held-out-test-result). Every other figure in this document
+is a validation number, used to develop and sanity-check the measurement and
+to select among candidates. Nothing has been evaluated on stress.
 
 ## Planned pipeline
 
@@ -1180,9 +1213,9 @@ afterwards. No validation image was inspected visually.
 **No test or stress image content was read during this milestone.** Every M6
 command refuses those splits, and tests assert the refusal.
 
-These are validation development results. They are not a final benchmark
-result, and the final comparison on the held-out test split happens only once
-every method decision is frozen.
+These are validation development results, not a final benchmark result.
+The final comparison on the held-out test split was made only after every
+method decision was frozen, in [Milestone 11B](#milestone-11b-the-held-out-test-result).
 
 ## The learned-method data pipeline
 
@@ -1831,7 +1864,8 @@ Milestone 8 run produced.
 **It is validation, not test.** These numbers were computed on the split the
 checkpoint was selected on. Selecting one of 30 epochs on validation makes a
 validation figure optimistic, even with a single predeclared criterion. The
-test split is still sealed.
+test split was still sealed at the time, and was opened only once, in
+[Milestone 11B](#milestone-11b-the-held-out-test-result).
 
 **It is not a denoising result in general.** The model was trained on one
 frozen synthetic corruption and measured on the same one. Nothing here
@@ -1872,8 +1906,8 @@ after the fact, and no scientific hyperparameter moved.
 
 These are validation development results for one seed; the spread across five
 seeds is reported in [Milestone 10](#milestone-10-the-multi-seed-result). The
-final comparison on the held-out test split happens only once every method
-decision is frozen.
+final comparison on the held-out test split was made only after every method
+decision was frozen, in [Milestone 11B](#milestone-11b-the-held-out-test-result).
 
 ## The lightweight U-Net
 
@@ -2557,20 +2591,21 @@ eight configs was changed after the first Milestone 10 run began.
 
 These are **five-seed** validation development results for both learned
 methods, and validation development results are all they are. The final
-comparison on the held-out test split happens once, under the protocol
-[Milestone 11A](#milestone-11a-the-held-out-test-protocol-frozen-before-the-test-split-is-opened)
-froze.
+comparison on the held-out test split was made once, under the protocol
+[Milestone 11A](#milestone-11a-the-held-out-test-protocol-frozen-before-the-test-split-was-opened)
+froze; its result is [Milestone 11B](#milestone-11b-the-held-out-test-result).
 
-## Milestone 11A: the held-out test protocol, frozen before the test split is opened
+## Milestone 11A: the held-out test protocol, frozen before the test split was opened
 
-**No held-out result exists yet.** This milestone wrote down and tested the
-one-shot final measurement *before* any test image is read, so that opening
-the test split in Milestone 11B decides nothing, and the runner refuses to
-open it from anything but a clean, committed tree. The protocol is
+This milestone wrote down and tested the one-shot final measurement *before*
+any test image was read, so that opening the test split in Milestone 11B
+decided nothing, and the runner refused to open it from anything but a
+clean, committed tree. The protocol is
 [configs/holdout/test_plan.yaml](configs/holdout/test_plan.yaml), the one
-command that executes it is
+command that executed it is
 [scripts/run_holdout_test.py](scripts/run_holdout_test.py), and the machinery
-is [src/ct_restoration/holdout.py](src/ct_restoration/holdout.py).
+is [src/ct_restoration/holdout.py](src/ct_restoration/holdout.py). The result
+is [Milestone 11B](#milestone-11b-the-held-out-test-result).
 
 ### What the protocol fixes
 
@@ -2675,13 +2710,197 @@ failure record untouched, and blocks any rerun until an integrity review.
   the tenth-decimal rounding of the tracked summaries.
 
 **No test or stress image content was read, rendered or scored in Milestone
-11A, and no test or stress metric exists.** The stress set remains sealed
-and is not part of Milestone 11.
+11A.** The first and only read of the test split was the Milestone 11B run.
+The stress set remains sealed and is not part of Milestone 11.
+
+## Milestone 11B: the held-out test result
+
+The frozen protocol was executed exactly once, with
+`uv run python scripts/run_holdout_test.py`, from 06:14:23 to 06:15:37 UTC on
+2026-09-25, under commit `1d48d1a` with a clean working tree. It read each of
+the 941 test slices once, degraded each once, and scored the degraded
+baseline, CLAHE and all ten frozen learned checkpoints on that one shared
+input. The result was then audited independently and found valid. Every
+number below is read from
+[outputs/metrics/holdout/test/](outputs/metrics/holdout/test/).
+
+The held-out split is six CHAOS patients - subjects 11, 13, 19, 25, 29 and
+32 - and 941 slices, under the same synthetic low-dose-like degradation as
+every earlier milestone. Every figure is patient-weighted: slice, then
+patient mean, then the equal-weight mean of the six patients. For the
+learned methods it is the five-seed mean, and the sample SD (ddof = 1) is
+across the five training seeds: it describes training randomness on fixed
+data, not variation across patients.
+
+### Four methods on the held-out test split
+
+| region | metric | no restoration | CLAHE | residual CNN, 5-seed mean (SD) | lightweight U-Net, 5-seed mean (SD) |
+| --- | --- | --- | --- | --- | --- |
+| full | MAE | 0.016212 | 0.024094 | 0.009470 (0.000050) | 0.009191 (0.000019) |
+| full | MSE | 0.00070369 | 0.00129689 | 0.00035238 (0.0000033) | 0.00033366 (0.0000009) |
+| full | PSNR (dB) | 31.5872 | 29.0835 | 34.6591 (0.0415) | 34.9027 (0.0108) |
+| full | SSIM | 0.78633 | 0.62689 | 0.95353 (0.00025) | 0.95541 (0.00042) |
+| body | MAE | 0.026974 | 0.035708 | 0.019229 (0.000110) | 0.018598 (0.000023) |
+| body | MSE | 0.00133386 | 0.00226857 | 0.00072187 (0.0000062) | 0.00068239 (0.0000015) |
+| body | PSNR (dB) | 28.8537 | 26.6043 | 31.5542 (0.0381) | 31.8029 (0.0094) |
+| body | SSIM | 0.81415 | 0.76114 | 0.90185 (0.00056) | 0.90585 (0.00086) |
+
+No restoration and CLAHE are deterministic and were measured once; no seed
+spread exists for them and none is reported.
+
+### Improvement over no restoration
+
+Candidate minus the one deterministic degraded baseline, in dB; positive is
+better.
+
+| | residual CNN | lightweight U-Net |
+| --- | --- | --- |
+| full-frame PSNR, seeds 2026-2030 | +3.0940, +3.1035, +2.9996, +3.0811, +3.0814 | +3.3121, +3.3234, +3.3235, +3.3201, +3.2981 |
+| full-frame PSNR, mean (sample SD) | **+3.0719 dB** (0.0415) | **+3.3154 dB** (0.0108) |
+| full-frame PSNR, range | +2.9996 to +3.1035 | +3.2981 to +3.3235 |
+| body-region PSNR, mean (sample SD) | **+2.7006 dB** (0.0381) | **+2.9492 dB** (0.0094) |
+| body-region PSNR, range | +2.6352 to +2.7324 | +2.9336 to +2.9563 |
+| seeds that improved over no restoration | 5 of 5, on every metric | 5 of 5, on every metric |
+
+### U-Net versus CNN, paired by seed
+
+| | full-frame PSNR | body-region PSNR |
+| --- | --- | --- |
+| U-Net minus CNN, seeds 2026-2030 | +0.2182, +0.2199, +0.3239, +0.2390, +0.2166 | +0.2254, +0.2239, +0.3201, +0.2459, +0.2278 |
+| mean (sample SD) | **+0.2435 dB** (0.0458) | **+0.2486 dB** (0.0409) |
+| range | +0.2166 to +0.3239 | +0.2239 to +0.3201 |
+| seeds favouring the U-Net | 5 of 5 | 5 of 5 |
+
+All eight metrics favoured the U-Net at each of the five seeds. Under the
+frozen Milestone 10 rule - the mean pointing one way and at least four of
+five seeds agreeing - that makes the U-Net directionally consistent across
+training seeds on all eight metrics, which is the only overall statement the
+protocol permits. It is paired by seed and descriptive. The two
+architectures differ at once in parameter count (4.12x), receptive field,
+pooling, decoder and skip connections, so the difference is not attributed
+to any one of them, and it is not called significant.
+
+### CLAHE versus no restoration
+
+CLAHE was worse than no restoration on all eight held-out metrics:
+full-frame PSNR -2.5037 dB, body-region PSNR -2.2493 dB, full-frame SSIM
+-0.1594, body-region SSIM -0.0530, and higher error on every MAE and MSE
+figure. Descriptively, the same direction held for each of the six
+patients. As on validation, this measures a contrast-enhancement method
+against a fidelity reference; it is not a finding about CLAHE in general.
+
+### What the result may and may not be used to say
+
+Permitted, with every qualifier kept:
+
+* "Across five predeclared training seeds, the U-Net improved full-frame
+  PSNR by 3.315 dB on the six-patient held-out split relative to the
+  deterministic synthetic low-dose-like degraded baseline."
+* "All five U-Net seeds improved full-frame PSNR over degraded input."
+* "The paired U-Net-minus-CNN full-frame PSNR difference averaged +0.244 dB
+  across five predeclared seeds, with all five seeds favouring the U-Net."
+
+Not supported, and not claimed: statistical significance, since none was
+tested; performance on real low-dose CT, since the degradation is synthetic
+and image-domain; dose reduction; clinical utility; generalization to other
+scanners or institutions, from one public dataset and six test patients; or
+a causal effect of the architecture.
+
+Statements about individual patients are descriptive only. Within one seed,
+every comparison shares the same six patients and the same slices, so
+agreement across patients or metrics is not a count of independent
+confirmations.
+
+### Validation and held-out results, side by side
+
+Kept apart everywhere else in this document, and compared here once,
+descriptively. Full-frame PSNR in dB, patient-weighted; five-seed means for
+the learned methods:
+
+| | validation | held-out test | test minus validation |
+| --- | --- | --- | --- |
+| no restoration | 31.4813 | 31.5872 | +0.1060 |
+| CLAHE | 29.1561 | 29.0835 | -0.0726 |
+| residual CNN | 34.6374 | 34.6591 | +0.0218 |
+| lightweight U-Net | 34.8652 | 34.9027 | +0.0374 |
+| CNN gain over no restoration | +3.1561 | +3.0719 | -0.0842 |
+| U-Net gain over no restoration | +3.3840 | +3.3154 | -0.0685 |
+| U-Net minus CNN | +0.2279 | +0.2435 | +0.0156 |
+
+On these figures the held-out degraded input scored numerically higher than
+the validation one, both learned methods' gains over it were numerically a
+little smaller on test than on validation, and the U-Net-minus-CNN
+difference was a little larger. The two splits are two different sets of
+six patients. The comparison describes where the held-out figures fell
+relative to the development figures; it is not a generalization-error
+estimate. All eight metrics for all four methods are in
+[validation_to_test.csv](outputs/metrics/holdout/test/validation_to_test.csv).
+
+### The test split is now spent
+
+It has been read once, for this measurement. It cannot be used to tune,
+select, compare or re-evaluate any future model change: a number a later
+change produced on it would no longer be a held-out estimate, and a future
+model question needs new held-out data. Nothing the result showed changed
+anything: no retraining, no new seed, no changed checkpoint, parameter,
+metric or aggregation.
+
+### The one-shot record
+
+* [configs/holdout/test_plan.yaml](configs/holdout/test_plan.yaml) is
+  unchanged byte for byte (SHA-256 `bbad8d1f...`), and still reads
+  `stage: protocol_frozen_execution_pending`. That is deliberate: it records
+  the protocol as it stood before any result existed, and editing it now
+  would break the hash the execution receipt recorded. Completion is
+  recorded in
+  [execution_receipt.json](outputs/metrics/holdout/test/execution_receipt.json)
+  instead.
+* The
+  [opening record](outputs/metrics/holdout/test/opening_record.json) was
+  written before the first test file was opened: commit `1d48d1a`, a clean
+  working tree, 48 of 48 preflight checks passed, and both output
+  destinations absent.
+* The execution receipt records the plan, split and manifest SHA-256
+  values, every config and checkpoint SHA-256 and selected epoch, the
+  environment, 6 of 6 patients and 941 of 941 slices, and the file reads the
+  audit hook measured. 941 test files were opened, each exactly once - one
+  read per slice, shared by all twelve scored methods - and no stress,
+  training or validation file was opened. No file under the imaging root was
+  opened during preflight. There was no visual output, no retry and no
+  overwrite. The receipt holds no metric value.
+* 72 files were written, all tables and JSON. No image, figure, array,
+  DICOM or checkpoint was written.
+
+### The post-execution audit
+
+A read-only audit rebuilt every reported number from the twelve per-slice
+tables with its own arithmetic, not the runner's. It compared 3,152 written
+values and found no disagreement; the largest difference, 5e-11, is the
+tenth-decimal rounding of the JSON summaries. It also found:
+
+* identical sample identity and order across all twelve tables, with every
+  sample key a test key in the frozen manifest;
+* one degraded-input digest per slice, identical across all twelve tables;
+* the seed, config SHA-256, checkpoint SHA-256 and selected epoch agreeing
+  across the plan, the config, the checkpoint, the run summary and the
+  held-out summary for all ten learned checkpoints;
+* every metric finite, and every Milestone 10 artifact unchanged.
+
+### Limitations that remain
+
+* Six test patients from one public dataset, under a synthetic image-domain
+  degradation with no physical dose model.
+* Five seeds describe training randomness on fixed data only.
+* The metrics measure fidelity to a windowed 256x256 reference, the body
+  region is a crude silhouette, and there is no reader study or
+  diagnostic-task evaluation.
+* No latency has been measured, so the cost half of the research question
+  stays open until Milestone 12.
 
 ## Before Milestone 12: requirements recorded in advance
 
-Nothing in this section has been implemented or run. It records, before the
-held-out test split is opened, what Milestone 12 must satisfy, so the
+Nothing in this section has been implemented or run. It records what
+Milestone 12 must satisfy before any latency is measured, so the
 requirements cannot be shaped by the results they govern.
 
 ### Milestone 12: latency, after one known fix
@@ -2700,8 +2919,8 @@ pays. Before any latency is measured:
 3. the latency protocol is frozen;
 4. only then is latency measured.
 
-Milestone 11 is unaffected: it evaluates image quality with the frozen model
-implementation and checkpoints exactly as they are.
+Milestone 11 was unaffected: it evaluated image quality with the frozen
+model implementation and checkpoints exactly as they were.
 
 ## Setup
 
@@ -2755,8 +2974,8 @@ outputs/audit/        measured dataset facts (figures there are git-ignored)
 outputs/metrics/      tracked per-slice, per-patient and split-level scores
 outputs/metrics/multiseed/  one directory per additional training seed, plus
                       the aggregate five-seed summary (tracked)
-outputs/metrics/holdout/    reserved for the held-out test tables; created
-                      only by the one held-out run, and absent until then
+outputs/metrics/holdout/    the one-shot held-out test tables and execution
+                      record, written once by the Milestone 11 run (tracked)
 outputs/runs/         per-epoch training histories and run summaries for all
                       ten runs (tracked)
 outputs/checkpoints/  model weights (git-ignored; only their SHA-256 is tracked)
