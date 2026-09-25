@@ -35,3 +35,7 @@ data/splits/*.csv  text eol=lf
 # checkout would make the committed protocol and the executed one look like
 # two different files.
 configs/holdout/*.yaml  text eol=lf
+
+# The Milestone 12 latency protocol. Its SHA-256 is recorded in the benchmark
+# receipt, for the same reason.
+configs/latency/*.yaml  text eol=lf

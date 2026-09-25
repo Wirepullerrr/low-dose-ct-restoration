@@ -257,6 +257,46 @@ def test_the_standalone_validator_agrees_with_the_model():
         validate_model_input(_image(batch=1, height=66, width=64))
 
 
+def test_forward_checks_structure_and_leaves_values_to_the_validator():
+    # Finiteness and range need a device-to-host synchronization on CUDA, so
+    # forward does not check them - exactly like the CNN - and the full
+    # validator, run before inference, still refuses them.
+    model = build_model()
+    image = _image(batch=1, height=32, width=32)
+    image[0, 0, 3, 3] = float("nan")
+    with torch.no_grad():
+        assert torch.isnan(model.restore(image)).any()
+    with pytest.raises(ModelError, match="finite"):
+        validate_model_input(image)
+
+
+def test_forward_never_runs_the_content_check(monkeypatch):
+    from ct_restoration.models import base
+
+    def refuse(tensor):
+        raise AssertionError("content check reached")
+
+    monkeypatch.setattr(base, "validate_restoration_content", refuse)
+    with torch.no_grad():
+        build_model().restore(_image(batch=1, height=32, width=32))
+    with pytest.raises(AssertionError, match="content check reached"):
+        validate_model_input(_image(batch=1, height=32, width=32))
+
+
+@pytest.mark.parametrize(
+    ("tensor", "match"),
+    [
+        (torch.zeros(1, 32, 32), "B, C, H, W"),
+        (torch.zeros(1, 3, 32, 32), "channel"),
+        (torch.zeros(1, 1, 32, 32, dtype=torch.float64), "float32"),
+        (torch.zeros(1, 1, 30, 32), "divisible by 4"),
+    ],
+)
+def test_forward_still_refuses_a_structurally_wrong_input(tensor, match):
+    with pytest.raises(ModelError, match=match):
+        build_model().restore(tensor)
+
+
 def test_the_ordinary_input_contract_still_applies():
     with pytest.raises(ModelError, match="float32"):
         validate_model_input(torch.zeros(1, 1, 8, 8, dtype=torch.float64))

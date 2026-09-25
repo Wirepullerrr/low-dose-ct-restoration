@@ -4,11 +4,13 @@ An engineering benchmark comparing classical and lightweight deep-learning
 restoration methods on **synthetically degraded, low-dose-like CT images**
 built from public abdominal CT data.
 
-> **Status: in progress (Milestone 11 of 15 complete). The held-out test
-> split has been evaluated exactly once, under a protocol committed before
-> it was opened, and the result has been independently audited. The stress
-> set remains sealed, and inference latency (Milestone 12) has not been
-> measured.**
+> **Status: in progress (Milestone 11 of 15 complete; the Milestone 12
+> latency protocol is frozen and its measurement is pending). The held-out
+> test split has been evaluated exactly once, under a protocol committed
+> before it was opened, and the result has been independently audited. The
+> stress set remains sealed. No inference latency has been measured yet;
+> the protocol that will measure it is
+> [Milestone 12A](#milestone-12a-the-latency-protocol-frozen-before-any-latency-is-measured).**
 >
 > **Held-out test result (Milestone 11)** - six held-out CHAOS patients (941
 > slices) under the synthetic low-dose-like degradation, every one of the ten
@@ -118,7 +120,9 @@ quality, and what does each method cost in inference latency?
 All four have now been evaluated on identical patients, identical clean
 targets and identical degraded inputs, through the same frozen metric code,
 using MAE, MSE, PSNR and SSIM. **Inference latency has not been measured for
-any of them**, so the cost half of the research question is still open.
+any of them**, so the cost half of the research question is still open. The
+protocol that will measure it was frozen first, in
+[Milestone 12A](#milestone-12a-the-latency-protocol-frozen-before-any-latency-is-measured).
 
 The final comparison was made once, on the held-out **test** split, under
 the protocol frozen in [Milestone 11A](#milestone-11a-the-held-out-test-protocol-frozen-before-the-test-split-was-opened);
@@ -2895,32 +2899,266 @@ tenth-decimal rounding of the JSON summaries. It also found:
   region is a crude silhouette, and there is no reader study or
   diagnostic-task evaluation.
 * No latency has been measured, so the cost half of the research question
-  stays open until Milestone 12.
+  stays open until Milestone 12B measures it under the protocol frozen in
+  [Milestone 12A](#milestone-12a-the-latency-protocol-frozen-before-any-latency-is-measured).
 
-## Before Milestone 12: requirements recorded in advance
+## Milestone 12A: the latency protocol, frozen before any latency is measured
 
-Nothing in this section has been implemented or run. It records what
-Milestone 12 must satisfy before any latency is measured, so the
-requirements cannot be shaped by the results they govern.
+Milestone 12 measures the cost half of the research question: how long each
+method takes to restore one image. **No latency has been measured yet.** This
+step removed one known source of bias from the timed path, proved that
+removing it changed no model output, and froze the measurement protocol in
+[configs/latency/benchmark_plan.yaml](configs/latency/benchmark_plan.yaml)
+before a single timed iteration ran. Milestone 12B runs it, once.
 
-### Milestone 12: latency, after one known fix
+The image-quality results are not part of this. They are the Milestone 11
+numbers, fixed permanently: nothing here recomputes a metric, retrains a
+model or changes a checkpoint, and the held-out test split, which is spent,
+is never reopened. Milestone 12 reads no CT image of any split; the benchmark
+input is a synthetic tensor.
 
-The U-Net's `forward()` validates its input on every call
-([src/ct_restoration/models/unet.py](src/ct_restoration/models/unet.py)),
-and that validation reads back a finiteness flag, a minimum and a maximum -
-three device-to-host synchronizations per forward pass. The CNN's `forward()`
-performs no such check. Neither affects any image-quality number, but timed
-as it stands the U-Net would be charged for synchronization the CNN never
-pays. Before any latency is measured:
+### The synchronization the U-Net was paying
 
-1. the benchmark-distorting synchronization is removed from the timed path,
-   for both models on equal terms;
-2. the change is shown to leave every model output numerically unchanged;
-3. the latency protocol is frozen;
-4. only then is latency measured.
+Audited from the source before any edit. The U-Net's `correction()` ran the
+shared input validator on every forward pass, and the validator decided
+whether to raise from three values brought back from the GPU:
 
-Milestone 11 was unaffected: it evaluated image quality with the frozen
-model implementation and checkpoints exactly as they were.
+| Check | Operation | On a CUDA tensor |
+| --- | --- | --- |
+| finiteness | `bool(torch.isfinite(t).all())` | a reduction, then a device-to-host read |
+| lower bound | `float(t.min())` | a reduction, then a device-to-host read |
+| upper bound | `float(t.max())` | a reduction, then a device-to-host read |
+
+Each read is a synchronization: the CPU stops and waits for the GPU to
+finish. The CNN's `correction()` checks only the rank and the channel count,
+which are metadata held on the host, so it never paid them. PyTorch's
+sync-debug mode confirmed this on all ten frozen checkpoints: three
+synchronizing calls in every U-Net `restore()`, none in any CNN `restore()`.
+Timed as it stood, the U-Net would have been charged for three stalls per
+inference that the CNN never incurs.
+
+### The fix: one input contract, checked in two places
+
+The shared validator in
+[src/ct_restoration/models/base.py](src/ct_restoration/models/base.py) is
+split into its two halves:
+
+* `validate_restoration_structure` checks the type, rank, channel count,
+  float32 and a spatial size the architecture can process. It reads metadata
+  only, never synchronizes, and is what the U-Net's `forward()` now runs.
+* `validate_restoration_content` checks that the values are finite and in
+  [0, 1]. It synchronizes on CUDA, so it runs where data enters: in the
+  Dataset (which already checked both, on the CPU), in the benchmark adapter
+  before inference, through `validate_model_input`, and once on the
+  benchmark input before any timing.
+
+`validate_restoration_input` still runs both halves. Nothing was dropped:
+every place that refused a non-finite or out-of-range input still does,
+except the U-Net's own `forward()`, which now behaves exactly like the CNN's.
+No layer, weight, residual, activation, pooling, decoder, skip connection,
+clamp or checkpoint format changed, and the CNN's code is untouched. There
+is no fast mode: training, evaluation and timing run the same code.
+
+### Proof that no output changed
+
+Before the edit, the unmodified Milestone 11 code (commit `639a798`) restored
+a fixed set of synthetic tensors with every frozen checkpoint, and the
+outputs were saved outside the repository. After the edit, the same
+checkpoints restored the same tensors:
+
+| | |
+| --- | --- |
+| Checkpoints | all ten: CNN and U-Net, seeds 2026-2030 |
+| Devices | CUDA (the RTX 5070 Ti) and CPU |
+| Inputs | zeros, ones, uniform random, and boundary-heavy (exact 0 and 1 and values within 0.001 of each); batch 1 to 4; 256x256, 128x128 and 64x96 |
+| Outputs compared | raw `forward()`, clamped `restore()`, and the benchmark adapter |
+| Comparisons | 340 |
+| Bit-for-bit equal (`torch.equal`) | **340** |
+| Maximum absolute difference | **0** |
+
+The clamp was active in every case, so its semantics were exercised rather
+than bypassed. Every structural refusal - wrong rank, wrong channel count, a
+size the two pools cannot halve, float64, a NumPy array - is unchanged in
+exception type and message. The one intended change is that the U-Net's
+`forward()` no longer refuses a NaN, infinite or out-of-range input itself,
+as the CNN's never did; `validate_model_input` still refuses all of them,
+with the same messages.
+
+No test or stress image was read: the proof used synthetic tensors only,
+with the imaging root sealed by the Milestone 11 file-open monitor (zero
+opens). The Milestone 11 quality numbers were produced by the pre-fix code
+and stand unchanged, because the restoration mapping is bit-for-bit the
+same.
+
+### What the frozen protocol fixes
+
+| | CLAHE | Residual CNN | Lightweight U-Net |
+| --- | --- | --- | --- |
+| Backend | OpenCV, CPU | PyTorch, CUDA | PyTorch, CUDA |
+| Timer | `time.perf_counter_ns` | CUDA events | CUDA events |
+| Timed call | `apply_clahe` (clip limit 0.5, 4x4 tiles) | `model.restore` | `model.restore` |
+| Checkpoint | none | seed 2026 | seed 2026 |
+| Trainable parameters | 0 | 28,353 | 116,753 |
+
+* **Input.** One deterministic synthetic tensor: `torch.rand` from a CPU
+  generator seeded with 12, shape [1, 1, 256, 256], float32 in [0, 1], its
+  SHA-256 frozen in the plan. The seed controls only these pixel values; it
+  is not a training, degradation or probe seed. The tensor is generated, kept
+  resident on the GPU, and given the full finite and [0, 1] check against each
+  learned model's input contract before the first warm-up call - once per
+  run, never inside a timed iteration. CLAHE takes the same pixels as a 2-D
+  float32 image.
+* **Iterations.** 100 warm-up and 1000 measured, per method, in the fixed
+  order CLAHE, CNN, U-Net. Every sample is kept: no outlier removal and no
+  best-of-N.
+* **Statistics.** Mean, sample SD, p50, p95, minimum and maximum per method.
+* **CUDA settings.** PyTorch's defaults (cuDNN autotuning off, cuDNN TF32
+  convolutions on), which is exactly what the Milestone 11 quality run used.
+  They are verified before timing and never changed, so the kernels timed
+  are the kernels that were scored.
+* **One checkpoint per architecture.** The five checkpoints of one
+  architecture share one graph - the same layers, tensor shapes, kernels and
+  launch sequence - and differ only in weight values, which change the
+  output pixels but not the work done to compute them. So latency is not
+  averaged across training seeds. The timing checkpoint is seed 2026, the
+  canonical seed of Milestones 8 and 9, fixed before any latency was
+  observed, and its bytes must equal the checkpoint the held-out test
+  scored.
+
+### The timing boundary
+
+The learned-model number is **GPU model inference latency**:
+
+* **Included:** a float32 tensor already on the GPU, the structural input
+  check, the forward pass, the residual addition, and the clamp to [0, 1].
+* **Excluded:** DICOM reading, HU conversion, windowing, resizing, the
+  synthetic degradation, the DataLoader, host-to-device and device-to-host
+  transfers, checkpoint loading, model construction, the input value check,
+  and metrics.
+
+It is a CUDA-event interval, measured on the device: the time between the
+GPU reaching the start event and reaching the end event. It is not CPU
+wall-clock time. Host-side work between the two events - Python dispatch,
+the structural input check, kernel launches - is not timed directly; it
+appears in the interval only where the GPU waits for the host to issue its
+next kernel.
+
+It is **not** end-to-end CT processing latency. The CLAHE number covers the
+exact canonical method - its own CPU input check, the 8-bit quantization,
+the OpenCV operator and the conversion back - and excludes the same image
+preparation.
+
+### How one learned sample is timed
+
+The model is put in `eval()` mode under `torch.inference_mode()`, called 100
+times untimed, and the host synchronizes once. Then, for each of the 1000
+samples, a CUDA event is recorded, `model.restore(x)` is queued, a second
+event is recorded, and the host waits for the GPU to finish, that end event
+included. The device-side interval between the two events is the sample; the
+elapsed times are read from the recorded event pairs once the loop has
+finished.
+
+Each measured inference is isolated by waiting for its end event before the
+next iteration begins. The wait occurs outside the CUDA-event timing
+interval and is therefore not included in reported latency. The protocol
+targets isolated batch-1 GPU inference latency rather than sustained
+throughput. Nothing inside the interval synchronizes, and the wait is one
+per sample, between samples, not a synchronization after every model
+operation.
+
+The timed path was audited three ways:
+
+* **Statically:** no `.item()`, `.cpu()`, `.numpy()` or `.tolist()`, no host
+  conversion of a tensor value, and no logging or metric in either model's
+  `restore()`, `forward()` or `correction()`. The only `int()` calls convert
+  shape metadata.
+* **With PyTorch's sync-debug mode:** zero synchronizing calls in either
+  model's `restore()`. This is now also a preflight check.
+* **With the PyTorch profiler:** no device-to-host copy and no stream or
+  event synchronization inside one `restore()` of either frozen checkpoint.
+
+### CLAHE is not a GPU method
+
+CLAHE runs on the CPU through OpenCV, and the learned models run on the GPU
+through PyTorch. They are timed with different clocks on different hardware,
+so they are reported side by side and **never** as a speed ratio or
+speed-up. There is no hardware-controlled comparison between them to
+express.
+
+### Parameters are context, not latency
+
+The U-Net has 116,753 trainable parameters to the CNN's 28,353, 4.12 times as
+many. That ratio describes model size. It does not predict the latency
+ratio, which depends on depth, feature-map sizes, the number of kernel
+launches and how the GPU schedules them, and is known only once it has been
+measured.
+
+### The trade-off Milestone 12B will report
+
+The learned-model trade-off combines the frozen held-out quality difference
+with the measured latency ratio. The primary ratio is of p50 latencies, and
+the secondary ratio is of means:
+
+> Relative to the lightweight residual CNN, the U-Net gained +0.244 dB
+> held-out full-frame PSNR across five predeclared seeds, while requiring
+> **X**x the batch-1 GPU inference latency on an RTX 5070 Ti.
+
+X is unknown and is not estimated here. When it is measured, it will
+describe one machine, not a universal architecture trade-off.
+
+### What a latency number will describe
+
+This machine and nothing else:
+
+* an NVIDIA GeForce RTX 5070 Ti with driver 616.92;
+* an AMD Ryzen 7 9800X3D;
+* Windows 11;
+* Python 3.11.16, PyTorch 2.14.0 with CUDA 13.0 and cuDNN 9.24, and
+  OpenCV 5.0.0.
+
+A different GPU, driver, CPU or software stack can give different numbers
+and a different ratio. The GPU also drives the desktop display, its clocks
+are not locked, and background load is not controlled. The fixed
+measurement order and the median as the primary statistic limit that effect
+but do not remove it.
+
+### The runner
+
+```bash
+uv run python scripts/benchmark_latency.py --preflight-only
+uv run python scripts/benchmark_latency.py
+```
+
+[scripts/benchmark_latency.py](scripts/benchmark_latency.py) reads the plan
+and refuses it unless it agrees with the constants in
+[src/ct_restoration/latency.py](src/ct_restoration/latency.py). It takes no
+flag for the iteration counts, batch size, input shape, device, methods or
+checkpoints. Before anything is timed it checks:
+
+* git: a recorded commit, a clean working tree, and the quality commit as an
+  ancestor;
+* that the held-out plan and quality summary are unchanged;
+* that the timing checkpoints are the seed-2026 entries the held-out test
+  scored;
+* the config and checkpoint bytes;
+* the GPU's identity and its CUDA settings;
+* the input digests and parameter counts;
+* one untimed call per model under sync-debug mode.
+
+The imaging root is sealed throughout.
+
+`--preflight-only` stops there, never reaching a timer and writing nothing.
+The real run writes `latency_samples.csv`, `latency_summary.json` and
+`benchmark_receipt.json` through a staging directory into `outputs/latency/`.
+It refuses if either directory exists, and a completed run is never repeated
+to obtain a different number. A run that fails leaves its staging directory
+and a failure record in place.
+
+In Milestone 12A the runner was run only with `--preflight-only`, on the
+uncommitted tree. It refused the dirty working tree, passed every other
+check it reached, opened nothing under the imaging root and wrote nothing.
+The synthetic test suite covers every refusal, the output schema and the
+timer structure without a GPU and without producing a latency number.
 
 ## Setup
 
@@ -2957,16 +3195,21 @@ src/ct_restoration/   library code (importable package)
   holdout.py          the frozen Milestone 11 held-out protocol: plan checks,
                       preflight, the file-open monitor, the shared-input
                       scoring loop and the predeclared analysis
+  latency.py          the frozen Milestone 12 latency protocol: plan checks,
+                      preflight, the CUDA-event and CPU timers and the
+                      one-shot output
 scripts/              runnable commands (cohort audit, split generation,
                       degradation audit, body-mask audit, baseline and CLAHE
                       evaluation, CLAHE tuning, Dataset/DataLoader audit,
                       CNN and U-Net training, evaluation and visual QC,
-                      multi-seed aggregation, the one-shot held-out runner)
+                      multi-seed aggregation, the one-shot held-out runner,
+                      the latency benchmark runner)
 tests/                pytest suite, fully synthetic, no downloads
 configs/              YAML experiment settings
 configs/multiseed/    the pre-registered multi-seed plan and one frozen
                       config per training seed, each SHA-256 pinned
 configs/holdout/      the frozen one-shot held-out test protocol
+configs/latency/      the frozen latency benchmark protocol
 data/README.md        dataset provenance
 data/splits/          the frozen patient split and slice manifest (tracked)
 data/raw/, processed/ image data (git-ignored)
@@ -2976,6 +3219,8 @@ outputs/metrics/multiseed/  one directory per additional training seed, plus
                       the aggregate five-seed summary (tracked)
 outputs/metrics/holdout/    the one-shot held-out test tables and execution
                       record, written once by the Milestone 11 run (tracked)
+outputs/latency/      the latency samples, summary and receipt, written once
+                      by Milestone 12B (not yet present)
 outputs/runs/         per-epoch training histories and run summaries for all
                       ten runs (tracked)
 outputs/checkpoints/  model weights (git-ignored; only their SHA-256 is tracked)

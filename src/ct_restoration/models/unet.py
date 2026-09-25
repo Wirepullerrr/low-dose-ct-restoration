@@ -113,6 +113,7 @@ from ct_restoration.models.base import (
     RANGE_TOLERANCE,
     ModelError,
     validate_restoration_input,
+    validate_restoration_structure,
 )
 from ct_restoration.models.base import (
     require_positive_integer as _require_positive_integer,
@@ -343,6 +344,10 @@ def validate_model_input(
 
     The U-Net adds one requirement the CNN does not have: height and width
     must both be divisible by ``2 ** levels``.
+
+    The whole contract, values included. The model's own ``forward`` runs only
+    the structural half, because the value checks synchronize with the GPU;
+    this is the function to call on an input before inference.
     """
     config = config or LightweightResidualUnetConfig()
     validate_restoration_input(
@@ -419,8 +424,16 @@ class LightweightResidualUnet(nn.Module):
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
 
     def correction(self, degraded: torch.Tensor) -> torch.Tensor:
-        """The predicted additive correction, unbounded and unclamped."""
-        validate_restoration_input(
+        """The predicted additive correction, unbounded and unclamped.
+
+        Checks the input's structure - rank, channels, dtype, a size the two
+        pools can halve exactly - from metadata alone. It does not check the
+        values: finiteness and range need a device-to-host synchronization on
+        CUDA, which would stall every inference, so they are checked before
+        the model is called (:func:`validate_model_input`, the benchmark
+        adapter, the Dataset), exactly as for the CNN.
+        """
+        validate_restoration_structure(
             degraded,
             input_channels=self.config.input_channels,
             spatial_multiple=self.config.spatial_multiple,

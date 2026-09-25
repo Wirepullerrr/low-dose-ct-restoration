@@ -1,0 +1,273 @@
+# Milestone 12 inference-latency protocol.
+#
+# FROZEN BEFORE ANY LATENCY NUMBER IS MEASURED.
+#
+# Everything a latency number could depend on is decided here, and committed,
+# before the first timed iteration runs: which methods, which two checkpoints,
+# which input, which device, which timer, how many warm-up and measured
+# iterations, where the timed interval starts and stops, which statistics are
+# reported and which ratio is primary. scripts/benchmark_latency.py reads this
+# file, refuses it unless it agrees with the constants in
+# src/ct_restoration/latency.py, and takes no flag that could override any of
+# it. The result is a measurement of frozen decisions, never an input to one.
+#
+# WHAT THIS MEASURES, AND WHAT IT DOES NOT
+# ----------------------------------------
+# Inference latency only. The image-quality results are fixed permanently by
+# the Milestone 11 held-out run (commit 639a798) and nothing here recomputes,
+# re-reads or changes them: no held-out metric, no test or stress image, no
+# retraining, no changed checkpoint. The benchmark input is a synthetic tensor;
+# no CT image of any split is read.
+#
+# The learned-model number is GPU MODEL INFERENCE LATENCY: an already-on-GPU
+# float32 tensor in, the clamped restoration out. It is NOT end-to-end CT
+# processing latency - DICOM reading, HU conversion, windowing, resizing,
+# degradation, host-device transfers and metrics are all outside it. It is a
+# CUDA-event interval, measured on the device: the time between the GPU
+# reaching the start event and reaching the end event. It is not CPU
+# wall-clock time. Host-side work between the two events - Python dispatch,
+# the structural input check, kernel launches - is not timed directly; it
+# appears in the interval only where the GPU waits for the host to issue its
+# next kernel.
+#
+# CLAHE runs on the CPU through OpenCV; the learned models run on the GPU
+# through PyTorch. The two are measured with different timers on different
+# hardware and are reported side by side, never as a speed ratio.
+#
+# A latency number describes this machine: this GPU, this driver, this CPU,
+# this software stack, under whatever else the desktop was doing. It is not a
+# property of the architectures on other hardware.
+
+milestone: 12
+stage: protocol_frozen_measurement_pending
+protocol_version: m12_latency_v1
+measures: inference_latency_only
+
+# The image-quality results this latency is set beside. Frozen, never
+# recomputed: the runner checks the tracked summary's bytes and reads one
+# number out of it.
+quality_result_commit: 639a79880cc12eae1e0c99e2309e02165e9ea23e
+holdout_test_plan:
+  path: configs/holdout/test_plan.yaml
+  sha256: bbad8d1f738393b0712cc3e0ed04cbe5ad5e3aa71523d51afdd7ad4853cb4544
+held_out_quality_reference:
+  source: outputs/metrics/holdout/test/holdout_test_summary.json
+  sha256: 2f8ce07f6e06350dc9f8933fda57089a603fb07925cf2e34c168d4d28030896b
+  key: [unet_vs_cnn, per_metric, full_psnr, raw_delta, mean]
+  meaning: five-seed mean of the paired same-seed U-Net minus CNN held-out full-frame PSNR, dB
+  value: 0.2435097969
+
+# Every prohibition is the YAML boolean false itself.
+image_reads_allowed: false
+quality_recomputation_allowed: false
+retraining_allowed: false
+checkpoint_change_allowed: false
+checkpoint_selection_by_latency: false
+latency_averaged_across_seeds: false
+outlier_removal: false
+fastest_run_only: false
+clahe_to_gpu_speed_ratio: false
+significance_testing: false
+overwrite_allowed: false
+automatic_retry_allowed: false
+
+benchmark_device: cuda
+benchmark_gpu: NVIDIA GeForce RTX 5070 Ti
+
+# The CUDA backend settings, exactly as the Milestone 11 quality evaluation ran
+# them: PyTorch's defaults, never changed by the evaluation path. The runner
+# verifies each one and sets none of them, so the kernels timed here are the
+# kernels that produced the quality numbers. cuDNN autotuning stays off.
+cuda_backend:
+  cudnn_benchmark: false
+  cudnn_deterministic: false
+  cudnn_allow_tf32: true
+  matmul_allow_tf32: false
+  float32_matmul_precision: highest
+  deterministic_algorithms: false
+
+# One deterministic synthetic input, generated before timing and kept resident
+# on the GPU. The seed controls only this tensor's pixel values; it is not a
+# training, degradation or probe seed. Convolution runtime should not depend
+# meaningfully on pixel values, and fixing them removes the question. The
+# digests are over dtype, shape and bytes.
+input:
+  generator: torch_cpu_generator_manual_seed_then_torch_rand
+  seed: 12
+  batch_size: 1
+  channels: 1
+  height: 256
+  width: 256
+  dtype: float32
+  value_range: [0.0, 1.0]
+  sha256: 007f7d94ab363d216a282148dd2d37b4e2c07688f5d4e635cb45d437bfa7ed55
+  # CLAHE is handed the same pixels as a 2-D float32 NumPy image on the CPU.
+  clahe_view: batch_0_channel_0_as_numpy_float32
+  clahe_view_sha256: 0e5985c8f3b264979c5d61def441dbacacd6f4d4bfb87ab910f2bb205e6adb8f
+  # Finiteness and range are checked on the GPU-resident tensor, against each
+  # learned model's input contract, before the first warm-up call of any
+  # method - once per run, never per iteration. That check synchronizes, so it
+  # is never inside a timed interval.
+  content_validated_once_before_timing: true
+
+# Measurement order. Fixed here so it is not chosen after the fact.
+methods: [clahe, cnn, unet]
+learned_methods: [cnn, unet]
+
+# ONE checkpoint per learned architecture: the canonical seed 2026.
+#
+# Latency is an architecture and runtime measurement, not a seed-quality
+# exercise. The five checkpoints of one architecture share one graph - the same
+# layers, shapes, kernels and launch sequence - and differ only in weight
+# values, which change the output pixels but not the work done to compute
+# them. So latency is not averaged across statistical training seeds. The
+# checkpoint is fixed here, before any latency is observed, and is the
+# canonical seed of Milestones 8-9 rather than any seed picked for speed. Its
+# bytes must equal the entry the Milestone 11 plan scored on the test split.
+method_definitions:
+  clahe:
+    backend: opencv_cpu
+    device: cpu
+    timer: perf_counter_ns
+    timed_call: ct_restoration.classical.clahe.apply_clahe
+    config: configs/clahe.yaml
+    config_sha256_lf: 491573a15c476b30b7789244cf6c6d4de0d429cdb3d7c08860042d6b5cd3737f
+    settings:
+      algorithm: opencv_clahe_v1
+      input_quantization_bits: 8
+      clip_limit: 0.5
+      tile_grid_size: [4, 4]
+    # CLAHE has no trained parameters.
+    parameter_count: 0
+  cnn:
+    backend: pytorch_cuda
+    device: cuda
+    timer: cuda_event
+    timed_call: model.restore
+    model_name: residual_cnn_v1
+    config: configs/cnn.yaml
+    config_sha256: ac4bf06c3957b79990d3721d81bc7596c308042a12105d50e08226be0473bb08
+    checkpoint: outputs/checkpoints/cnn_seed2026_best.pt
+    checkpoint_sha256: fe3cdc42c72dea163fd9b603023da76e64ebb9433f451744b4430b81291838fb
+    checkpoint_seed: 2026
+    parameter_count: 28353
+  unet:
+    backend: pytorch_cuda
+    device: cuda
+    timer: cuda_event
+    timed_call: model.restore
+    model_name: lightweight_residual_unet_v1
+    config: configs/unet.yaml
+    config_sha256: 8baba29199c516ac4309dc432eeae6c91a36f0d553d567cc8268aae29066ac3a
+    checkpoint: outputs/checkpoints/unet_seed2026_best.pt
+    checkpoint_sha256: 15e430f83ade635ccfc516b6db1bc04359d59dbd61ef19009abf90976df2a3a1
+    checkpoint_seed: 2026
+    parameter_count: 116753
+
+timing:
+  warmup_iterations: 100
+  measured_iterations: 1000
+  sample_unit: milliseconds
+  learned:
+    timer: torch.cuda.Event(enable_timing=True)
+    eval_mode: true
+    inference_mode: true
+    events_created_before_timing: true
+    synchronize_after_warmup: true
+    # The timed interval is start.record(), model.restore(x), end.record() and
+    # nothing else. Each measured inference is isolated by waiting for its end
+    # event before the next iteration begins. The wait occurs outside the
+    # CUDA-event timing interval and is therefore not included in reported
+    # latency. The protocol targets isolated batch-1 GPU inference latency
+    # rather than sustained throughput. It is one wait per sample, between
+    # samples - not a synchronization after every model operation.
+    synchronize_between_samples_outside_timed_interval: true
+    synchronizing_calls_inside_timed_interval: 0
+  clahe:
+    timer: time.perf_counter_ns
+    # CLAHE runs synchronously on the CPU, so the timer brackets exactly the
+    # call and nothing is left in flight.
+    synchronous: true
+
+timing_boundary:
+  result_label: gpu_model_inference_latency
+  not_end_to_end_ct_processing_latency: true
+  learned_included:
+    - model_forward_structural_input_check
+    - model_forward
+    - residual_addition
+    - clamp_to_unit_interval
+  learned_excluded:
+    - dicom_loading
+    - pydicom
+    - hu_conversion
+    - ct_windowing
+    - resize
+    - synthetic_degradation
+    - dataloader
+    - host_to_device_transfer
+    - checkpoint_loading
+    - model_construction
+    - input_content_validation
+    - device_to_host_transfer
+    - metric_calculation
+  # The exact canonical CLAHE method, as scored in Milestones 6-11. Its own
+  # input check runs inside apply_clahe on the CPU and cannot be separated
+  # from it without re-implementing the method, so it is timed with it.
+  clahe_included:
+    - input_validation_inside_apply_clahe
+    - float_to_uint8_quantization
+    - clahe_operator_construction
+    - clahe_apply
+    - uint8_to_float_conversion
+  clahe_excluded:
+    - dicom_loading
+    - hu_conversion
+    - ct_windowing
+    - resize
+    - synthetic_degradation
+    - metric_calculation
+
+statistics:
+  per_method: [mean_ms, sd_ms, p50_ms, p95_ms, min_ms, max_ms]
+  sd_ddof: 1
+  percentile_method: linear
+
+# The learned-model compute trade-off M12B will report. The ratio is not
+# known and is not written anywhere until it is measured.
+learned_comparison:
+  latency_ratio: unet_over_cnn
+  primary_statistic: p50
+  secondary_statistic: mean
+  parameter_counts: {cnn: 28353, unet: 116753}
+  parameter_ratio_is_not_a_latency_ratio: true
+  wording_template: >-
+    Relative to the lightweight residual CNN, the U-Net gained +0.244 dB
+    held-out full-frame PSNR across five predeclared seeds, while requiring
+    {ratio}x the batch-1 GPU inference latency on an RTX 5070 Ti.
+
+claim_rules:
+  forbidden:
+    - a universal or hardware-independent architecture trade-off
+    - end-to-end CT processing latency
+    - a CLAHE versus GPU speed ratio or speed-up
+    - real-time or clinical deployment readiness
+    - latency on any other GPU, CPU, driver or software stack
+    - a latency ratio inferred from the parameter ratio
+    - a latency number from a checkpoint other than the two frozen here
+
+outputs:
+  root: outputs/latency
+  staging: outputs/latency.incomplete
+  files: [latency_samples.csv, latency_summary.json, benchmark_receipt.json]
+  sample_columns: [method, backend, device, iteration, latency_ms]
+
+# One measurement. The first completed run is the result; a run is never
+# repeated to obtain a different number. A run that fails leaves its staging
+# directory and a failure record exactly where they are, and whether it may be
+# re-run is decided by review and disclosed, not by this code.
+failure_policy:
+  destination_exists: refuse
+  staging_exists: refuse
+  failure_after_measurement_started: preserve_staging_and_record_failure
+  rerun_to_improve_a_number: forbidden

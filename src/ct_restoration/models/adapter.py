@@ -31,7 +31,12 @@ from ct_restoration.models.base import RestorationModel, validate_restoration_in
 
 
 def _validate(model: RestorationModel, batch: torch.Tensor) -> None:
-    """Apply the model's own input contract, whatever architecture it is."""
+    """Apply the model's own input contract, whatever architecture it is.
+
+    The whole contract, values included, before inference. Neither model's
+    ``forward`` reads input values, so this is where the evaluation path
+    checks them.
+    """
     validate_restoration_input(
         batch,
         input_channels=model.config.input_channels,
